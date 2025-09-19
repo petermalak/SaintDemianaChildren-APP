@@ -1,4 +1,3 @@
-import 'dart:convert';
 
 enum UserRole {
   khadem,    // خادم (Servant/Admin)
@@ -9,25 +8,35 @@ class UserModel {
   final String id;
   final String name;
   final String email;
-  final String phone;
+  final String phoneNumber;
   final String? password;
   final UserRole role;
   final String? profileImage;
   final DateTime createdAt;
   final DateTime? lastLogin;
-  final Map<String, dynamic> additionalData;
+  final String? fathersPhoneNumber;
+  final String? mothersPhoneNumber;
+  final DateTime? birthdate;
+  final String? address;
+  final String? addressLocationLink;
+  final String? fatherOfConfession;
 
   UserModel({
     required this.id,
     required this.name,
     required this.email,
-    required this.phone,
+    required this.phoneNumber,
     this.password,
     required this.role,
     this.profileImage,
     required this.createdAt,
     this.lastLogin,
-    this.additionalData = const {},
+    this.fathersPhoneNumber,
+    this.mothersPhoneNumber,
+    this.birthdate,
+    this.address,
+    this.addressLocationLink,
+    this.fatherOfConfession,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -35,7 +44,7 @@ class UserModel {
       id: json['id'] ?? '',
       name: json['name'] ?? '',
       email: json['email'] ?? '',
-      phone: json['phone'] ?? '',
+      phoneNumber: json['phoneNumber'] ?? '',
       password: json['password'],
       role: UserRole.values.firstWhere(
         (e) => e.toString() == 'UserRole.${json['role']}',
@@ -44,39 +53,33 @@ class UserModel {
       profileImage: json['profileImage'],
       createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
       lastLogin: json['lastLogin'] != null ? DateTime.parse(json['lastLogin']) : null,
-      additionalData: json['additionalData'] is String 
-          ? json['additionalData'].isNotEmpty 
-              ? _parseAdditionalData(json['additionalData']) 
-              : {} 
-          : json['additionalData'] ?? {},
+      fathersPhoneNumber: json['fathersPhoneNumber'],
+      mothersPhoneNumber: json['mothersPhoneNumber'],
+      birthdate: json['birthdate'] != null ? DateTime.parse(json['birthdate']) : null,
+      address: json['address'],
+      addressLocationLink: json['addressLocationLink'],
+      fatherOfConfession: json['fatherOfConfession'],
     );
   }
 
-  // Helper method to safely parse additionalData JSON string
-  static Map<String, dynamic> _parseAdditionalData(String jsonString) {
-    try {
-      final Map<dynamic, dynamic> decoded = jsonDecode(jsonString);
-      // Convert to Map<String, dynamic> to ensure type safety
-      return decoded.map((key, value) => MapEntry(key.toString(), value));
-    } catch (e) {
-      // Use logging service if available, otherwise silently handle the error
-      // We don't import the logging service here to avoid circular dependencies
-      return {};
-    }
-  }
 
   Map<String, dynamic> toJson() {
     return {
       'id': id,
       'name': name,
       'email': email,
-      'phone': phone,
+      'phoneNumber': phoneNumber,
       'password': password,
       'role': role.toString().split('.').last,
       'profileImage': profileImage,
       'createdAt': createdAt.toIso8601String(),
       'lastLogin': lastLogin?.toIso8601String(),
-      'additionalData': additionalData,
+      'fathersPhoneNumber': fathersPhoneNumber,
+      'mothersPhoneNumber': mothersPhoneNumber,
+      'birthdate': birthdate?.toIso8601String().split('T')[0], // Format as YYYY-MM-DD
+      'address': address,
+      'addressLocationLink': addressLocationLink,
+      'fatherOfConfession': fatherOfConfession,
     };
   }
 
@@ -84,25 +87,35 @@ class UserModel {
     String? id,
     String? name,
     String? email,
-    String? phone,
+    String? phoneNumber,
     String? password,
     UserRole? role,
     String? profileImage,
     DateTime? createdAt,
     DateTime? lastLogin,
-    Map<String, dynamic>? additionalData,
+    String? fathersPhoneNumber,
+    String? mothersPhoneNumber,
+    DateTime? birthdate,
+    String? address,
+    String? addressLocationLink,
+    String? fatherOfConfession,
   }) {
     return UserModel(
       id: id ?? this.id,
       name: name ?? this.name,
       email: email ?? this.email,
-      phone: phone ?? this.phone,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
       password: password ?? this.password,
       role: role ?? this.role,
       profileImage: profileImage ?? this.profileImage,
       createdAt: createdAt ?? this.createdAt,
       lastLogin: lastLogin ?? this.lastLogin,
-      additionalData: additionalData ?? this.additionalData,
+      fathersPhoneNumber: fathersPhoneNumber ?? this.fathersPhoneNumber,
+      mothersPhoneNumber: mothersPhoneNumber ?? this.mothersPhoneNumber,
+      birthdate: birthdate ?? this.birthdate,
+      address: address ?? this.address,
+      addressLocationLink: addressLocationLink ?? this.addressLocationLink,
+      fatherOfConfession: fatherOfConfession ?? this.fatherOfConfession,
     );
   }
 }

@@ -6,7 +6,6 @@ import '../core/constants/app_colors.dart';
 import '../core/constants/spacing.dart';
 import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
-import '../widgets/role_selection_card.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/loading_button.dart';
 
@@ -22,7 +21,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   
-  UserRole _selectedRole = UserRole.khadem;
   bool _obscurePassword = true;
   
   late AnimationController _formAnimationController;
@@ -272,75 +270,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     ),
                     SizedBox(height: isMobile ? AppSpacing.lg : AppSpacing.xl),
                       
-                    // Role Selection
-                    Text(
-                      'اختر نوع الحساب',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: AppSpacing.md,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    isMobile ? Column(
-                      children: [
-                        RoleSelectionCard(
-                          title: 'خادم',
-                          subtitle: 'Servant/Admin',
-                          icon: Icons.admin_panel_settings,
-                          isSelected: _selectedRole == UserRole.khadem,
-                          onTap: () {
-                            setState(() {
-                              _selectedRole = UserRole.khadem;
-                            });
-                          },
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        RoleSelectionCard(
-                          title: 'مخدوم',
-                          subtitle: 'Congregant',
-                          icon: Icons.person,
-                          isSelected: _selectedRole == UserRole.makhdoum,
-                          onTap: () {
-                            setState(() {
-                              _selectedRole = UserRole.makhdoum;
-                            });
-                          },
-                        ),
-                      ],
-                    ) : Row(
-                      children: [
-                        Expanded(
-                          child: RoleSelectionCard(
-                            title: 'خادم',
-                            subtitle: 'Servant/Admin',
-                            icon: Icons.admin_panel_settings,
-                            isSelected: _selectedRole == UserRole.khadem,
-                            onTap: () {
-                              setState(() {
-                                _selectedRole = UserRole.khadem;
-                              });
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: RoleSelectionCard(
-                            title: 'مخدوم',
-                            subtitle: 'Congregant',
-                            icon: Icons.person,
-                            isSelected: _selectedRole == UserRole.makhdoum,
-                            onTap: () {
-                              setState(() {
-                                _selectedRole = UserRole.makhdoum;
-                              });
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: isMobile ? AppSpacing.lg : AppSpacing.xl),
-                      
                     // Email Field
                     CustomTextField(
                       controller: _emailController,
@@ -401,40 +330,6 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                         );
                       },
                     ),
-                    const SizedBox(height: 16),
-                      
-                    // Demo Credentials Info
-                    Container(
-                      padding: EdgeInsets.all(isMobile ? AppSpacing.md : AppSpacing.lg),
-                      decoration: BoxDecoration(
-                        color: AppColors.accentGold.withValues(alpha: 0.1.clamp(0.0, 1.0)),
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                        border: Border.all(
-                          color: AppColors.accentGold.withValues(alpha: 0.3.clamp(0.0, 1.0)),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                            Text(
-                              'Demo Credentials:',
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                color: AppColors.primaryMaroon,
-                                fontWeight: FontWeight.bold,
-                                fontSize: AppSpacing.sm + 2,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            Text(
-                              'Email: khadem@saintdemiana.com (خادم)\nEmail: mariam@saintdemiana.com (مخدوم)\nPassword: password123',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary,
-                                fontSize: AppSpacing.sm,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -456,15 +351,20 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     final success = await authProvider.login(
       _emailController.text.trim(),
       _passwordController.text,
-      _selectedRole,
     );
 
     if (success && mounted) {
-      // Navigate based on role
-      if (_selectedRole == UserRole.khadem) {
-        context.go('/khadem');
-      } else {
-        context.go('/makhdoum');
+      // Get the current user's role and navigate accordingly
+      final currentUser = authProvider.currentUser;
+      if (currentUser != null) {
+        switch (currentUser.role) {
+          case UserRole.khadem:
+            context.go('/khadem');
+            break;
+          case UserRole.makhdoum:
+            context.go('/makhdoum');
+            break;
+        }
       }
     } else if (mounted) {
       // Show error message

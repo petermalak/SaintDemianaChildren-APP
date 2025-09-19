@@ -6,7 +6,8 @@ import 'core/theme/app_theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/attendance_provider.dart';
-import 'screens/login_screen.dart';
+import 'screens/splash_screen.dart';
+import 'screens/login_screen_improved.dart';
 import 'screens/khadem_enhanced_screen.dart';
 import 'screens/makhdoum_enhanced_screen.dart';
 
@@ -36,11 +37,15 @@ class SaintDemianaApp extends StatelessWidget {
 }
 
 final GoRouter _router = GoRouter(
-  initialLocation: '/login',
+  initialLocation: '/splash',
   routes: [
     GoRoute(
+      path: '/splash',
+      builder: (context, state) => const SplashScreen(),
+    ),
+    GoRoute(
       path: '/login',
-      builder: (context, state) => const LoginScreen(),
+      builder: (context, state) => const LoginScreenImproved(),
     ),
     GoRoute(
       path: '/khadem',

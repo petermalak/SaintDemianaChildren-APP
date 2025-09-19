@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/spacing.dart';
 import '../models/user_model.dart';
@@ -27,6 +28,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _fathersPhoneController = TextEditingController();
+  final _mothersPhoneController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _addressLocationLinkController = TextEditingController();
+  final _fatherOfConfessionController = TextEditingController();
+  DateTime? _selectedBirthdate;
   
   String? _selectedImagePath;
   bool _isEditing = false;
@@ -35,6 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
+    print('ProfileScreen initialized - isCurrentUser: ${widget.isCurrentUser}');
     _initializeFields();
   }
 
@@ -43,6 +51,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _fathersPhoneController.dispose();
+    _mothersPhoneController.dispose();
+    _addressController.dispose();
+    _addressLocationLinkController.dispose();
+    _fatherOfConfessionController.dispose();
     super.dispose();
   }
 
@@ -51,7 +64,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (user != null) {
       _nameController.text = user.name;
       _emailController.text = user.email;
-      _phoneController.text = user.phone;
+      _phoneController.text = user.phoneNumber;
+      _fathersPhoneController.text = user.fathersPhoneNumber ?? '';
+      _mothersPhoneController.text = user.mothersPhoneNumber ?? '';
+      _addressController.text = user.address ?? '';
+      _addressLocationLinkController.text = user.addressLocationLink ?? '';
+      _fatherOfConfessionController.text = user.fatherOfConfession ?? '';
+      _selectedBirthdate = user.birthdate;
       _selectedImagePath = user.profileImage;
     }
   }
@@ -144,12 +163,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             )
-          else
-            IconButton(
-              onPressed: _startEdit,
-              icon: const Icon(
-                Icons.edit,
-                color: AppColors.accentWhite,
+          else if (widget.isCurrentUser)
+            Container(
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: IconButton(
+                onPressed: _startEdit,
+                icon: const Icon(
+                  Icons.edit,
+                  color: AppColors.accentWhite,
+                  size: 24,
+                ),
+                tooltip: 'تعديل الملف الشخصي',
               ),
             ),
         ],
@@ -261,17 +289,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
             label: 'رقم الهاتف',
             value: _phoneController.text,
             isEditable: _isEditing,
-            isRequired: false,
+            isRequired: true,
             controller: _phoneController,
+            keyboardType: TextInputType.phone,
+            validator: _isEditing ? (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'رقم الهاتف مطلوب';
+              }
+              if (!RegExp(r'^[0-9+\-\s]+$').hasMatch(value)) {
+                return 'رقم الهاتف غير صحيح';
+              }
+              return null;
+            } : null,
+          ),
+          
+          // Father's phone field - optional
+          ProfileField(
+            label: 'رقم هاتف الأب',
+            value: _fathersPhoneController.text,
+            isEditable: _isEditing,
+            isRequired: false,
+            controller: _fathersPhoneController,
             keyboardType: TextInputType.phone,
             validator: _isEditing ? (value) {
               if (value != null && value.trim().isNotEmpty) {
                 if (!RegExp(r'^[0-9+\-\s]+$').hasMatch(value)) {
-                  return 'رقم الهاتف غير صحيح';
+                  return 'رقم هاتف الأب غير صحيح';
                 }
               }
               return null;
             } : null,
+          ),
+          
+          // Mother's phone field - optional
+          ProfileField(
+            label: 'رقم هاتف الأم',
+            value: _mothersPhoneController.text,
+            isEditable: _isEditing,
+            isRequired: false,
+            controller: _mothersPhoneController,
+            keyboardType: TextInputType.phone,
+            validator: _isEditing ? (value) {
+              if (value != null && value.trim().isNotEmpty) {
+                if (!RegExp(r'^[0-9+\-\s]+$').hasMatch(value)) {
+                  return 'رقم هاتف الأم غير صحيح';
+                }
+              }
+              return null;
+            } : null,
+          ),
+          
+          // Birthdate field - optional
+          _buildBirthdateField(),
+          
+          // Address field - optional
+          ProfileField(
+            label: 'العنوان',
+            value: _addressController.text,
+            isEditable: _isEditing,
+            isRequired: false,
+            controller: _addressController,
+            maxLines: 3,
+          ),
+          
+          // Address location link field - optional with auto-location
+          _buildLocationField(),
+          
+          // Father of confession field - optional
+          ProfileField(
+            label: 'أب الاعتراف',
+            value: _fatherOfConfessionController.text,
+            isEditable: _isEditing,
+            isRequired: false,
+            controller: _fatherOfConfessionController,
           ),
           
           // Role field - always read-only
@@ -361,6 +451,246 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildBirthdateField() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'تاريخ الميلاد',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          InkWell(
+            onTap: _isEditing ? _selectBirthdate : null,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              decoration: BoxDecoration(
+                color: _isEditing ? AppColors.backgroundCard : AppColors.backgroundSecondary,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.borderLight),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    color: _isEditing ? AppColors.primaryMaroon : AppColors.textSecondary,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _selectedBirthdate != null 
+                        ? '${_selectedBirthdate!.day}/${_selectedBirthdate!.month}/${_selectedBirthdate!.year}'
+                        : 'لم يتم تحديد تاريخ الميلاد',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _selectedBirthdate != null ? AppColors.textPrimary : AppColors.textSecondary,
+                    ),
+                  ),
+                  if (_isEditing) ...[
+                    const Spacer(),
+                    Icon(
+                      Icons.arrow_drop_down,
+                      color: AppColors.textSecondary,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _selectBirthdate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _selectedBirthdate ?? DateTime.now().subtract(const Duration(days: 365 * 20)),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    if (date != null) {
+      setState(() {
+        _selectedBirthdate = date;
+      });
+    }
+  }
+
+  Widget _buildLocationField() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'رابط موقع العنوان',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _isEditing ? AppColors.backgroundCard : AppColors.backgroundSecondary,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.borderLight),
+                  ),
+                  child: Text(
+                    _addressLocationLinkController.text.isNotEmpty 
+                        ? _addressLocationLinkController.text
+                        : 'لم يتم تحديد رابط الموقع',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _addressLocationLinkController.text.isNotEmpty 
+                          ? AppColors.textPrimary 
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ),
+              if (_isEditing) ...[
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: _getCurrentLocation,
+                  icon: const Icon(Icons.location_on, size: 18),
+                  label: const Text('موقعي'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryMaroon,
+                    foregroundColor: AppColors.accentWhite,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          if (_isEditing)
+            Container(
+              margin: const EdgeInsets.only(top: 8),
+              child: TextFormField(
+                controller: _addressLocationLinkController,
+                decoration: InputDecoration(
+                  hintText: 'أو أدخل رابط الموقع يدوياً',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: AppColors.borderLight),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: AppColors.borderLight),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: AppColors.primaryMaroon),
+                  ),
+                ),
+                keyboardType: TextInputType.url,
+                validator: (value) {
+                  if (value != null && value.trim().isNotEmpty) {
+                    if (!RegExp(r'^https?:\/\/').hasMatch(value)) {
+                      return 'يجب أن يبدأ الرابط بـ http:// أو https://';
+                    }
+                  }
+                  return null;
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      // Check location permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _showLocationError('تم رفض إذن الموقع');
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        _showLocationError('تم رفض إذن الموقع نهائياً. يرجى تفعيله من الإعدادات');
+        return;
+      }
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // Create Google Maps link
+      final locationLink = 'https://www.google.com/maps?q=${position.latitude},${position.longitude}';
+      
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Update the text field
+      setState(() {
+        _addressLocationLinkController.text = locationLink;
+      });
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم الحصول على موقعك بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+    } catch (e) {
+      // Close loading dialog if it's open
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      _showLocationError('فشل في الحصول على الموقع: ${e.toString()}');
+    }
+  }
+
+  void _showLocationError(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('خطأ في الموقع'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('موافق'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _getRoleDisplayName(UserRole role) {
     switch (role) {
       case UserRole.khadem:
@@ -371,6 +701,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _startEdit() {
+    print('Edit button pressed! Starting edit mode...');
     setState(() {
       _isEditing = true;
     });
@@ -400,7 +731,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Prepare update data
       final updateData = {
         'name': _nameController.text.trim(),
-        'phone': _phoneController.text.trim(),
+        'phoneNumber': _phoneController.text.trim(),
+        'fathersPhoneNumber': _fathersPhoneController.text.trim().isEmpty ? null : _fathersPhoneController.text.trim(),
+        'mothersPhoneNumber': _mothersPhoneController.text.trim().isEmpty ? null : _mothersPhoneController.text.trim(),
+        'birthdate': _selectedBirthdate?.toIso8601String().split('T')[0], // Format as YYYY-MM-DD
+        'address': _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+        'addressLocationLink': _addressLocationLinkController.text.trim().isEmpty ? null : _addressLocationLinkController.text.trim(),
+        'fatherOfConfession': _fatherOfConfessionController.text.trim().isEmpty ? null : _fatherOfConfessionController.text.trim(),
         if (_selectedImagePath != null) 'profileImage': _selectedImagePath,
       };
 

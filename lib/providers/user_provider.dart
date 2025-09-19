@@ -35,10 +35,29 @@ class UserProvider extends ChangeNotifier {
     }).toList();
   }
 
-  // Filter users by additional data
-  List<UserModel> filterUsersByData(String key, dynamic value) {
+  // Filter users by specific field
+  List<UserModel> filterUsersByField(String field, dynamic value) {
     return _users.where((user) {
-      return user.additionalData[key] == value;
+      switch (field) {
+        case 'name':
+          return user.name.toLowerCase().contains(value.toString().toLowerCase());
+        case 'email':
+          return user.email.toLowerCase().contains(value.toString().toLowerCase());
+        case 'phoneNumber':
+          return user.phoneNumber.contains(value.toString());
+        case 'role':
+          return user.role.toString().contains(value.toString());
+        case 'fathersPhoneNumber':
+          return user.fathersPhoneNumber?.contains(value.toString()) ?? false;
+        case 'mothersPhoneNumber':
+          return user.mothersPhoneNumber?.contains(value.toString()) ?? false;
+        case 'address':
+          return user.address?.toLowerCase().contains(value.toString().toLowerCase()) ?? false;
+        case 'fatherOfConfession':
+          return user.fatherOfConfession?.toLowerCase().contains(value.toString().toLowerCase()) ?? false;
+        default:
+          return false;
+      }
     }).toList();
   }
 
@@ -53,12 +72,7 @@ class UserProvider extends ChangeNotifier {
       // Update local user data with response from server
       final userIndex = _users.indexWhere((user) => user.id == userId);
       if (userIndex != -1) {
-        final currentData = _users[userIndex].additionalData;
-        final mergedData = {...currentData, ...newData};
-        
-        final updatedUser = _users[userIndex].copyWith(
-          additionalData: response['additionalData'] ?? mergedData,
-        );
+        final updatedUser = UserModel.fromJson(response);
         _users[userIndex] = updatedUser;
       }
       
@@ -89,25 +103,43 @@ class UserProvider extends ChangeNotifier {
     try {
       final userIndex = _users.indexWhere((user) => user.id == userId);
       if (userIndex != -1) {
-        final currentData = _users[userIndex].additionalData;
+        final currentUser = _users[userIndex];
         final filteredData = <String, dynamic>{};
         
-        // Only add data that doesn't already exist
+        // Only add data that doesn't already exist or is null/empty
         newData.forEach((key, value) {
-          if (!currentData.containsKey(key) || currentData[key] == null) {
+          bool shouldAdd = false;
+          switch (key) {
+            case 'fathersPhoneNumber':
+              shouldAdd = currentUser.fathersPhoneNumber == null || currentUser.fathersPhoneNumber!.isEmpty;
+              break;
+            case 'mothersPhoneNumber':
+              shouldAdd = currentUser.mothersPhoneNumber == null || currentUser.mothersPhoneNumber!.isEmpty;
+              break;
+            case 'birthdate':
+              shouldAdd = currentUser.birthdate == null;
+              break;
+            case 'address':
+              shouldAdd = currentUser.address == null || currentUser.address!.isEmpty;
+              break;
+            case 'addressLocationLink':
+              shouldAdd = currentUser.addressLocationLink == null || currentUser.addressLocationLink!.isEmpty;
+              break;
+            case 'fatherOfConfession':
+              shouldAdd = currentUser.fatherOfConfession == null || currentUser.fatherOfConfession!.isEmpty;
+              break;
+          }
+          
+          if (shouldAdd) {
             filteredData[key] = value;
           }
         });
 
         if (filteredData.isNotEmpty) {
-          // Merge with existing data and send to API
-          final mergedData = {...currentData, ...filteredData};
-          final response = await _apiService.updateMyProfile({'additionalData': mergedData});
+          final response = await _apiService.updateMyProfile(filteredData);
           
           // Update local user data with response from server
-          final updatedUser = _users[userIndex].copyWith(
-            additionalData: response['additionalData'] ?? mergedData,
-          );
+          final updatedUser = UserModel.fromJson(response);
           _users[userIndex] = updatedUser;
         }
         

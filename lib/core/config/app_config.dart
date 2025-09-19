@@ -2,7 +2,7 @@ import '../services/logging_service.dart';
 
 class AppConfig {
   // API Configuration
-  static const String developmentUrl = 'http://localhost:3000';  // Use localhost for web
+  static const String developmentUrl = 'http://localhost:3000';  
   static const String productionUrl = 'https://api.saintdemiana.com';
   
   // Current environment

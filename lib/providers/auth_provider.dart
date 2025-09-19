@@ -14,7 +14,7 @@ class AuthProvider extends ChangeNotifier {
 
   final ApiService _apiService = ApiService.instance;
 
-  Future<bool> login(String email, String password, UserRole role) async {
+  Future<bool> login(String email, String password) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -23,7 +23,6 @@ class AuthProvider extends ChangeNotifier {
       final response = await _apiService.login(
         email: email,
         password: password,
-        role: role.toString().split('.').last,
       );
 
       _currentUser = UserModel.fromJson(response['user']);

@@ -101,13 +101,11 @@ class ApiService {
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
-    required String role,
   }) async {
     try {
       final response = await _dio.post('/auth/login', data: {
         'email': email,
         'password': password,
-        'role': role,
       });
       
       if (response.data['token'] != null) {
@@ -267,7 +265,13 @@ class ApiService {
         final formData = FormData.fromMap({
           'name': userData['name'] ?? '',
           'email': userData['email'] ?? '',
-          'phone': userData['phone'] ?? '',
+          'phoneNumber': userData['phoneNumber'] ?? '',
+          'fathersPhoneNumber': userData['fathersPhoneNumber'],
+          'mothersPhoneNumber': userData['mothersPhoneNumber'],
+          'birthdate': userData['birthdate'],
+          'address': userData['address'],
+          'addressLocationLink': userData['addressLocationLink'],
+          'fatherOfConfession': userData['fatherOfConfession'],
           'profileImage': await MultipartFile.fromFile(
             file.path,
             filename: fileName,

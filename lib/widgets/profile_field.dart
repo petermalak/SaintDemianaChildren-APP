@@ -57,7 +57,7 @@ class ProfileField extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
-          if (isEditable && controller != null)
+          if (isEditable)
             TextFormField(
               controller: controller,
               validator: validator,

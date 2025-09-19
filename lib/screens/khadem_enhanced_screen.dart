@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../core/constants/app_colors.dart';
 import '../models/user_model.dart';
@@ -1247,6 +1248,12 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   late TextEditingController _phoneController;
+  late TextEditingController _fathersPhoneController;
+  late TextEditingController _mothersPhoneController;
+  late TextEditingController _addressController;
+  late TextEditingController _addressLocationLinkController;
+  late TextEditingController _fatherOfConfessionController;
+  DateTime? _selectedBirthdate;
   bool _isLoading = false;
 
   @override
@@ -1254,7 +1261,13 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
     super.initState();
     _nameController = TextEditingController(text: widget.user.name);
     _emailController = TextEditingController(text: widget.user.email);
-    _phoneController = TextEditingController(text: widget.user.phone);
+    _phoneController = TextEditingController(text: widget.user.phoneNumber);
+    _fathersPhoneController = TextEditingController(text: widget.user.fathersPhoneNumber ?? '');
+    _mothersPhoneController = TextEditingController(text: widget.user.mothersPhoneNumber ?? '');
+    _addressController = TextEditingController(text: widget.user.address ?? '');
+    _addressLocationLinkController = TextEditingController(text: widget.user.addressLocationLink ?? '');
+    _fatherOfConfessionController = TextEditingController(text: widget.user.fatherOfConfession ?? '');
+    _selectedBirthdate = widget.user.birthdate;
   }
 
   @override
@@ -1262,6 +1275,11 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _fathersPhoneController.dispose();
+    _mothersPhoneController.dispose();
+    _addressController.dispose();
+    _addressLocationLinkController.dispose();
+    _fatherOfConfessionController.dispose();
     super.dispose();
   }
 
@@ -1288,6 +1306,18 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
           _buildProfileInfoField('البريد الإلكتروني', _emailController.text, true, _emailController),
           const SizedBox(height: 16),
           _buildProfileInfoField('رقم الهاتف', _phoneController.text, true, _phoneController),
+          const SizedBox(height: 16),
+          _buildProfileInfoField('رقم هاتف الأب', _fathersPhoneController.text, true, _fathersPhoneController),
+          const SizedBox(height: 16),
+          _buildProfileInfoField('رقم هاتف الأم', _mothersPhoneController.text, true, _mothersPhoneController),
+          const SizedBox(height: 16),
+          _buildBirthdateField(),
+          const SizedBox(height: 16),
+          _buildProfileInfoField('العنوان', _addressController.text, true, _addressController, maxLines: 3),
+          const SizedBox(height: 16),
+          _buildLocationField(),
+          const SizedBox(height: 16),
+          _buildProfileInfoField('أب الاعتراف', _fatherOfConfessionController.text, true, _fatherOfConfessionController),
           const SizedBox(height: 16),
           _buildProfileInfoField('الدور', widget.user.role.name, false, null),
           const SizedBox(height: 24),
@@ -1326,7 +1356,7 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
     );
   }
 
-  Widget _buildProfileInfoField(String label, String value, bool isEditable, TextEditingController? controller) {
+  Widget _buildProfileInfoField(String label, String value, bool isEditable, TextEditingController? controller, {int maxLines = 1}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1346,6 +1376,7 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
           child: isEditable && controller != null
               ? TextFormField(
                   controller: controller,
+                  maxLines: maxLines,
                   decoration: InputDecoration(
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -1387,7 +1418,13 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
       final updateData = {
         'name': _nameController.text.trim(),
         'email': _emailController.text.trim(),
-        'phone': _phoneController.text.trim(),
+        'phoneNumber': _phoneController.text.trim(),
+        'fathersPhoneNumber': _fathersPhoneController.text.trim().isEmpty ? null : _fathersPhoneController.text.trim(),
+        'mothersPhoneNumber': _mothersPhoneController.text.trim().isEmpty ? null : _mothersPhoneController.text.trim(),
+        'birthdate': _selectedBirthdate?.toIso8601String().split('T')[0],
+        'address': _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+        'addressLocationLink': _addressLocationLinkController.text.trim().isEmpty ? null : _addressLocationLinkController.text.trim(),
+        'fatherOfConfession': _fatherOfConfessionController.text.trim().isEmpty ? null : _fatherOfConfessionController.text.trim(),
       };
 
       final updatedUser = await authProvider.updateUserProfile(updateData);
@@ -1422,6 +1459,205 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
       }
     }
   }
+
+  Widget _buildBirthdateField() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(
+          width: 120,
+          child: Text(
+            'تاريخ الميلاد',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primaryMaroon,
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: InkWell(
+            onTap: _selectBirthdate,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              decoration: BoxDecoration(
+                border: Border.all(color: AppColors.borderLight),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    color: AppColors.primaryMaroon,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _selectedBirthdate != null 
+                        ? '${_selectedBirthdate!.day}/${_selectedBirthdate!.month}/${_selectedBirthdate!.year}'
+                        : 'لم يتم تحديد تاريخ الميلاد',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: _selectedBirthdate != null ? AppColors.textPrimary : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLocationField() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(
+          width: 120,
+          child: Text(
+            'رابط موقع العنوان',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: AppColors.primaryMaroon,
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: _addressLocationLinkController,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide(color: AppColors.borderLight),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: AppColors.primaryMaroon, width: 2),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  keyboardType: TextInputType.url,
+                ),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: _getCurrentLocation,
+                icon: const Icon(Icons.location_on, size: 18),
+                label: const Text('موقعي'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryMaroon,
+                  foregroundColor: AppColors.accentWhite,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _selectBirthdate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _selectedBirthdate ?? DateTime.now().subtract(const Duration(days: 365 * 20)),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    if (date != null) {
+      setState(() {
+        _selectedBirthdate = date;
+      });
+    }
+  }
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      // Check location permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _showLocationError('تم رفض إذن الموقع');
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        _showLocationError('تم رفض إذن الموقع نهائياً. يرجى تفعيله من الإعدادات');
+        return;
+      }
+
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // Create Google Maps link
+      final locationLink = 'https://www.google.com/maps?q=${position.latitude},${position.longitude}';
+      
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Update the text field
+      setState(() {
+        _addressLocationLinkController.text = locationLink;
+      });
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم الحصول على موقعك بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+    } catch (e) {
+      // Close loading dialog if it's open
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+      
+      _showLocationError('فشل في الحصول على الموقع: ${e.toString()}');
+    }
+  }
+
+  void _showLocationError(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('خطأ في الموقع'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('موافق'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // Add User Dialog
@@ -1439,6 +1675,12 @@ class _AddUserDialogState extends State<_AddUserDialog> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
+  final _fathersPhoneController = TextEditingController();
+  final _mothersPhoneController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _addressLocationLinkController = TextEditingController();
+  final _fatherOfConfessionController = TextEditingController();
+  DateTime? _selectedBirthdate;
   final _passwordController = TextEditingController();
   UserRole _selectedRole = UserRole.makhdoum;
   String? _selectedImagePath;
@@ -1449,6 +1691,11 @@ class _AddUserDialogState extends State<_AddUserDialog> {
     _nameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _fathersPhoneController.dispose();
+    _mothersPhoneController.dispose();
+    _addressController.dispose();
+    _addressLocationLinkController.dispose();
+    _fatherOfConfessionController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -1571,6 +1818,66 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                         },
                       ),
                       const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _fathersPhoneController,
+                        label: 'رقم هاتف الأب (اختياري)',
+                        icon: Icons.phone,
+                        keyboardType: TextInputType.phone,
+                        validator: (value) {
+                          if (value != null && value.trim().isNotEmpty) {
+                            if (!RegExp(r'^[+]?[\d\s-()]+$').hasMatch(value)) {
+                              return 'يرجى إدخال رقم هاتف صحيح';
+                            }
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _mothersPhoneController,
+                        label: 'رقم هاتف الأم (اختياري)',
+                        icon: Icons.phone,
+                        keyboardType: TextInputType.phone,
+                        validator: (value) {
+                          if (value != null && value.trim().isNotEmpty) {
+                            if (!RegExp(r'^[+]?[\d\s-()]+$').hasMatch(value)) {
+                              return 'يرجى إدخال رقم هاتف صحيح';
+                            }
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildBirthdateSelector(),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _addressController,
+                        label: 'العنوان (اختياري)',
+                        icon: Icons.location_on,
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _addressLocationLinkController,
+                        label: 'رابط موقع العنوان (اختياري)',
+                        icon: Icons.link,
+                        keyboardType: TextInputType.url,
+                        validator: (value) {
+                          if (value != null && value.trim().isNotEmpty) {
+                            if (!RegExp(r'^https?:\/\/').hasMatch(value)) {
+                              return 'يجب أن يبدأ الرابط بـ http:// أو https://';
+                            }
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _fatherOfConfessionController,
+                        label: 'أب الاعتراف (اختياري)',
+                        icon: Icons.person,
+                      ),
+                      const SizedBox(height: 16),
                       _buildRoleSelector(),
                       const SizedBox(height: 16),
                       _buildImageSelector(),
@@ -1631,12 +1938,14 @@ class _AddUserDialogState extends State<_AddUserDialog> {
     required IconData icon,
     TextInputType? keyboardType,
     bool obscureText = false,
+    int maxLines = 1,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscureText,
+      maxLines: maxLines,
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
@@ -1650,6 +1959,64 @@ class _AddUserDialogState extends State<_AddUserDialog> {
         ),
       ),
     );
+  }
+
+  Widget _buildBirthdateSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'تاريخ الميلاد (اختياري)',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: _selectBirthdate,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.borderLight),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_today, color: AppColors.primaryMaroon),
+                const SizedBox(width: 12),
+                Text(
+                  _selectedBirthdate != null 
+                      ? '${_selectedBirthdate!.day}/${_selectedBirthdate!.month}/${_selectedBirthdate!.year}'
+                      : 'اختيار تاريخ الميلاد',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: _selectedBirthdate != null ? AppColors.textPrimary : AppColors.textSecondary,
+                  ),
+                ),
+                const Spacer(),
+                const Icon(Icons.arrow_drop_down),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _selectBirthdate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _selectedBirthdate ?? DateTime.now().subtract(const Duration(days: 365 * 20)),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    if (date != null) {
+      setState(() {
+        _selectedBirthdate = date;
+      });
+    }
   }
 
   Widget _buildRoleSelector() {
@@ -1777,9 +2144,15 @@ class _AddUserDialogState extends State<_AddUserDialog> {
       final userData = {
         'name': _nameController.text.trim(),
         'email': _emailController.text.trim(),
-        'phone': _phoneController.text.trim(),
+        'phoneNumber': _phoneController.text.trim(),
         'password': _passwordController.text,
         'role': _selectedRole.name,
+        'fathersPhoneNumber': _fathersPhoneController.text.trim().isEmpty ? null : _fathersPhoneController.text.trim(),
+        'mothersPhoneNumber': _mothersPhoneController.text.trim().isEmpty ? null : _mothersPhoneController.text.trim(),
+        'birthdate': _selectedBirthdate?.toIso8601String().split('T')[0], // Format as YYYY-MM-DD
+        'address': _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+        'addressLocationLink': _addressLocationLinkController.text.trim().isEmpty ? null : _addressLocationLinkController.text.trim(),
+        'fatherOfConfession': _fatherOfConfessionController.text.trim().isEmpty ? null : _fatherOfConfessionController.text.trim(),
         if (_selectedImagePath != null) 'profileImage': _selectedImagePath,
       };
 
