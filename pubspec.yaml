@@ -42,6 +42,9 @@ dependencies:
   # Location Services
   geolocator: ^10.1.0
   permission_handler: ^11.0.1
+  
+  # Phone and WhatsApp integration
+  url_launcher: ^6.2.1
 
 dev_dependencies:
   flutter_test:

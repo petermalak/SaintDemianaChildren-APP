@@ -95,6 +95,40 @@ class UserProvider extends ChangeNotifier {
     }
   }
 
+  // Update user profile (for khadem to update makhdoum profiles - excludes email and password)
+  Future<bool> updateUserProfile(String userId, Map<String, dynamic> profileData, BuildContext? context) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      final response = await _apiService.updateUserProfile(userId, profileData);
+      
+      // Update local user data with response from server
+      final userIndex = _users.indexWhere((user) => user.id == userId);
+      if (userIndex != -1) {
+        final updatedUser = UserModel.fromJson(response);
+        _users[userIndex] = updatedUser;
+      }
+      
+      // Also update the current user in auth provider if available
+      if (context != null) {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        if (authProvider.currentUser?.id == userId) {
+          await authProvider.refreshCurrentUser();
+        }
+      }
+      
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
   // Add user data (for makhdoum role - can only add missing data)
   Future<bool> addUserData(String userId, Map<String, dynamic> newData, BuildContext? context) async {
     _isLoading = true;

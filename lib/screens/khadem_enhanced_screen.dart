@@ -11,6 +11,7 @@ import '../models/attendance_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/attendance_provider.dart';
+import '../widgets/communication_buttons.dart';
 
 class KhademEnhancedScreen extends StatefulWidget {
   const KhademEnhancedScreen({super.key});
@@ -809,14 +810,28 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
                       ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () {
-                      // Implement edit functionality
-                    },
-                    icon: Icon(
-                      Icons.more_vert,
-                      color: AppColors.textSecondary,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Communication buttons for makhdoum users
+                      if (user.role == UserRole.makhdoum)
+                        CompactCommunicationButtons(
+                          phoneNumber: user.phoneNumber,
+                          userName: user.name,
+                        ),
+                      
+                      const SizedBox(width: 8),
+                      
+                      // Edit button
+                      IconButton(
+                        onPressed: () => _showEditUserDialog(user),
+                        icon: Icon(
+                          Icons.edit,
+                          color: AppColors.primaryMaroon,
+                        ),
+                        tooltip: 'تعديل الملف الشخصي',
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -1125,6 +1140,18 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
         attendanceType: type,
         onAttendanceAdded: () {
           _loadData(); // Refresh data after adding attendance
+        },
+      ),
+    );
+  }
+
+  void _showEditUserDialog(UserModel user) {
+    showDialog(
+      context: context,
+      builder: (context) => _EditUserDialog(
+        user: user,
+        onUserUpdated: () {
+          _loadData(); // Refresh data after updating user
         },
       ),
     );
@@ -2551,5 +2578,478 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+}
+
+// Edit User Dialog
+class _EditUserDialog extends StatefulWidget {
+  final UserModel user;
+  final VoidCallback onUserUpdated;
+
+  const _EditUserDialog({
+    required this.user,
+    required this.onUserUpdated,
+  });
+
+  @override
+  State<_EditUserDialog> createState() => _EditUserDialogState();
+}
+
+class _EditUserDialogState extends State<_EditUserDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameController;
+  late TextEditingController _phoneController;
+  late TextEditingController _fathersPhoneController;
+  late TextEditingController _mothersPhoneController;
+  late TextEditingController _addressController;
+  late TextEditingController _addressLocationLinkController;
+  late TextEditingController _fatherOfConfessionController;
+  DateTime? _selectedBirthdate;
+  String? _selectedImagePath;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.user.name);
+    _phoneController = TextEditingController(text: widget.user.phoneNumber);
+    _fathersPhoneController = TextEditingController(text: widget.user.fathersPhoneNumber ?? '');
+    _mothersPhoneController = TextEditingController(text: widget.user.mothersPhoneNumber ?? '');
+    _addressController = TextEditingController(text: widget.user.address ?? '');
+    _addressLocationLinkController = TextEditingController(text: widget.user.addressLocationLink ?? '');
+    _fatherOfConfessionController = TextEditingController(text: widget.user.fatherOfConfession ?? '');
+    _selectedBirthdate = widget.user.birthdate;
+    _selectedImagePath = widget.user.profileImage;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _fathersPhoneController.dispose();
+    _mothersPhoneController.dispose();
+    _addressController.dispose();
+    _addressLocationLinkController.dispose();
+    _fatherOfConfessionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Container(
+        constraints: BoxConstraints(
+          maxWidth: 500, 
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.edit,
+                    color: AppColors.accentWhite,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'تعديل ملف ${widget.user.name}',
+                    style: const TextStyle(
+                      color: AppColors.accentWhite,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(
+                      Icons.close,
+                      color: AppColors.accentWhite,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Form
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildTextField(
+                        controller: _nameController,
+                        label: 'الاسم',
+                        icon: Icons.person,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'يرجى إدخال الاسم';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _phoneController,
+                        label: 'رقم الهاتف',
+                        icon: Icons.phone,
+                        keyboardType: TextInputType.phone,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'يرجى إدخال رقم الهاتف';
+                          }
+                          if (!RegExp(r'^[+]?[\d\s-()]+$').hasMatch(value)) {
+                            return 'يرجى إدخال رقم هاتف صحيح';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _fathersPhoneController,
+                        label: 'رقم هاتف الأب (اختياري)',
+                        icon: Icons.phone,
+                        keyboardType: TextInputType.phone,
+                        validator: (value) {
+                          if (value != null && value.trim().isNotEmpty) {
+                            if (!RegExp(r'^[+]?[\d\s-()]+$').hasMatch(value)) {
+                              return 'يرجى إدخال رقم هاتف صحيح';
+                            }
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _mothersPhoneController,
+                        label: 'رقم هاتف الأم (اختياري)',
+                        icon: Icons.phone,
+                        keyboardType: TextInputType.phone,
+                        validator: (value) {
+                          if (value != null && value.trim().isNotEmpty) {
+                            if (!RegExp(r'^[+]?[\d\s-()]+$').hasMatch(value)) {
+                              return 'يرجى إدخال رقم هاتف صحيح';
+                            }
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildBirthdateSelector(),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _addressController,
+                        label: 'العنوان (اختياري)',
+                        icon: Icons.location_on,
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _addressLocationLinkController,
+                        label: 'رابط موقع العنوان (اختياري)',
+                        icon: Icons.link,
+                        keyboardType: TextInputType.url,
+                        validator: (value) {
+                          if (value != null && value.trim().isNotEmpty) {
+                            if (!RegExp(r'^https?:\/\/').hasMatch(value)) {
+                              return 'يجب أن يبدأ الرابط بـ http:// أو https://';
+                            }
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _fatherOfConfessionController,
+                        label: 'أب الاعتراف (اختياري)',
+                        icon: Icons.person,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildImageSelector(),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            // Actions
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: AppColors.borderLight),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('إلغاء'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _handleUpdateUser,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryMaroon,
+                        foregroundColor: AppColors.accentWhite,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentWhite),
+                              ),
+                            )
+                          : const Text('حفظ التغييرات'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    TextInputType? keyboardType,
+    bool obscureText = false,
+    int maxLines = 1,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      obscureText: obscureText,
+      maxLines: maxLines,
+      validator: validator,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: AppColors.primaryMaroon),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primaryMaroon, width: 2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBirthdateSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'تاريخ الميلاد (اختياري)',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: _selectBirthdate,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              border: Border.all(color: AppColors.borderLight),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_today, color: AppColors.primaryMaroon),
+                const SizedBox(width: 12),
+                Text(
+                  _selectedBirthdate != null 
+                      ? '${_selectedBirthdate!.day}/${_selectedBirthdate!.month}/${_selectedBirthdate!.year}'
+                      : 'اختيار تاريخ الميلاد',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: _selectedBirthdate != null ? AppColors.textPrimary : AppColors.textSecondary,
+                  ),
+                ),
+                const Spacer(),
+                const Icon(Icons.arrow_drop_down),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImageSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'صورة الملف الشخصي (اختيارية)',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _pickImage,
+                icon: const Icon(Icons.image),
+                label: Text(_selectedImagePath != null ? 'تغيير الصورة' : 'اختيار صورة'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+            if (_selectedImagePath != null) ...[
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: () => setState(() => _selectedImagePath = null),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.error,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    color: AppColors.accentWhite,
+                    size: 16,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+        if (_selectedImagePath != null) ...[
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.file(
+              File(_selectedImagePath!),
+              height: 80,
+              width: 80,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _selectBirthdate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _selectedBirthdate ?? DateTime.now().subtract(const Duration(days: 365 * 20)),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    if (date != null) {
+      setState(() {
+        _selectedBirthdate = date;
+      });
+    }
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImagePath = pickedFile.path;
+      });
+    }
+  }
+
+  Future<void> _handleUpdateUser() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      
+      // Prepare profile data (excluding email and password)
+      final profileData = {
+        'name': _nameController.text.trim(),
+        'phoneNumber': _phoneController.text.trim(),
+        'fathersPhoneNumber': _fathersPhoneController.text.trim().isEmpty ? null : _fathersPhoneController.text.trim(),
+        'mothersPhoneNumber': _mothersPhoneController.text.trim().isEmpty ? null : _mothersPhoneController.text.trim(),
+        'birthdate': _selectedBirthdate?.toIso8601String().split('T')[0],
+        'address': _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
+        'addressLocationLink': _addressLocationLinkController.text.trim().isEmpty ? null : _addressLocationLinkController.text.trim(),
+        'fatherOfConfession': _fatherOfConfessionController.text.trim().isEmpty ? null : _fatherOfConfessionController.text.trim(),
+        if (_selectedImagePath != null) 'profileImage': _selectedImagePath,
+      };
+
+      final success = await userProvider.updateUserProfile(
+        widget.user.id,
+        profileData,
+        context,
+      );
+      
+      if (success && mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('تم تحديث الملف الشخصي بنجاح'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        widget.onUserUpdated();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('فشل تحديث الملف الشخصي: ${userProvider.errorMessage}'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('خطأ في تحديث الملف الشخصي: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 }

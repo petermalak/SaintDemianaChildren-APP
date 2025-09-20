@@ -289,6 +289,16 @@ class ApiService {
       throw _handleError(e);
     }
   }
+
+  /// Update user profile (for khadem to update makhdoum profiles - excludes email and password)
+  Future<Map<String, dynamic>> updateUserProfile(String id, Map<String, dynamic> profileData) async {
+    try {
+      final response = await _dio.patch('/users/$id/profile', data: profileData);
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
   
   Future<void> deleteUser(String id) async {
     try {
