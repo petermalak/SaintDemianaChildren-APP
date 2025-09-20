@@ -2,7 +2,8 @@ import '../services/logging_service.dart';
 
 class AppConfig {
   // API Configuration
-  static const String developmentUrl = 'http://192.168.1.7:3000';  
+  static const String developmentUrl = 'http://localhost:3000';  
+  static const String webDevelopmentUrl = 'http://localhost:3000'; // For web development
   static const String productionUrl = 'https://api.saintdemiana.com';
   
   // Current environment
@@ -25,6 +26,10 @@ class AppConfig {
   
   // Demo credentials for testing
   static const Map<String, Map<String, String>> demoCredentials = {
+    'super_admin': {
+      'email': 'superadmin@test.com',
+      'password': 'superadmin123',
+    },
     'admin': {
       'email': 'admin@test.com',
       'password': 'admin123',

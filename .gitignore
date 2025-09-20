@@ -130,3 +130,11 @@ build/
 .packages
 .pub-cache/
 .pub/
+
+# Flutter build files
+/build/
+/android/app/build/
+/ios/Pods/
+/ios/build/
+/.dart_tool/
+/.gradle/

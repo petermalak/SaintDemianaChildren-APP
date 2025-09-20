@@ -361,6 +361,95 @@ class ApiService {
       throw _handleError(e);
     }
   }
+
+  // Class Management APIs
+  Future<List<dynamic>> getClasses() async {
+    try {
+      final response = await _dio.get('/classes');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> getClassById(String classId) async {
+    try {
+      final response = await _dio.get('/classes/$classId');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> createClass(Map<String, dynamic> classData) async {
+    try {
+      final response = await _dio.post('/classes', data: classData);
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> updateClass(String classId, Map<String, dynamic> classData) async {
+    try {
+      final response = await _dio.put('/classes/$classId', data: classData);
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<void> deleteClass(String classId) async {
+    try {
+      await _dio.delete('/classes/$classId');
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> getClassMembers(String classId) async {
+    try {
+      final response = await _dio.get('/classes/$classId/members');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<Map<String, dynamic>> addClassMember(String classId, Map<String, dynamic> memberData) async {
+    try {
+      final response = await _dio.post('/classes/$classId/members', data: memberData);
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<void> removeClassMember(String classId, String userId) async {
+    try {
+      await _dio.delete('/classes/$classId/members/$userId');
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<List<dynamic>> getMyClasses() async {
+    try {
+      final response = await _dio.get('/classes/my-classes');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<List<dynamic>> getMyMembers() async {
+    try {
+      final response = await _dio.get('/classes/my-members');
+      return response.data;
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
   
   // Error handling
   String _handleError(DioException error) {

@@ -436,6 +436,12 @@ class _LoginScreenImprovedState extends State<LoginScreenImproved>
           case UserRole.makhdoum:
             context.go('/makhdoum');
             break;
+          case UserRole.admin:
+            context.go('/khadem'); // Admin uses khadem screen
+            break;
+          case UserRole.superAdmin:
+            context.go('/khadem'); // Super admin uses khadem screen
+            break;
         }
       }
     } else if (mounted) {

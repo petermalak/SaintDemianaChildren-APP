@@ -11,6 +11,7 @@ import '../models/attendance_model.dart';
 import '../providers/auth_provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/attendance_provider.dart';
+import '../providers/class_provider.dart';
 import '../widgets/communication_buttons.dart';
 
 class KhademEnhancedScreen extends StatefulWidget {
@@ -76,10 +77,14 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final attendanceProvider = Provider.of<AttendanceProvider>(context, listen: false);
+      final classProvider = Provider.of<ClassProvider>(context, listen: false);
       
-      // Load users
+      // Load users - now using class system to get only khadem's members
       final users = await authProvider.getAllUsers();
       userProvider.setUsers(users);
+      
+      // Load class members for khadem
+      await classProvider.loadMyMembers();
       
       // Load attendance
       await attendanceProvider.loadAttendanceData();
@@ -204,6 +209,8 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
       onSelected: (value) {
         if (value == 'logout') {
           _handleLogout(context);
+        } else if (value == 'class-management') {
+          context.go('/class-management');
         }
       },
       itemBuilder: (context) => [
@@ -227,6 +234,18 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
             ],
           ),
         ),
+        // Class management option for super admin
+        if (Provider.of<AuthProvider>(context, listen: false).currentUser?.role == UserRole.superAdmin)
+          const PopupMenuItem(
+            value: 'class-management',
+            child: Row(
+              children: [
+                Icon(Icons.class_, color: AppColors.primaryMaroon),
+                SizedBox(width: 12),
+                Text('إدارة الفصول'),
+              ],
+            ),
+          ),
         const PopupMenuDivider(),
         const PopupMenuItem(
           value: 'logout',
@@ -646,11 +665,13 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
   }
 
   Widget _buildUsersTab() {
-    return Consumer<UserProvider>(
-      builder: (context, userProvider, child) {
+    return Consumer2<UserProvider, ClassProvider>(
+      builder: (context, userProvider, classProvider, child) {
+        // Use class members instead of all users for khadem
+        final allUsers = classProvider.myMembers;
         final filteredUsers = _searchController.text.isEmpty
-            ? userProvider.users
-            : userProvider.users.where((user) =>
+            ? allUsers
+            : allUsers.where((user) =>
                 user.name.toLowerCase().contains(_searchController.text.toLowerCase()) ||
                 user.email.toLowerCase().contains(_searchController.text.toLowerCase())).toList();
         
@@ -1075,6 +1096,10 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
         return AppColors.accentGold;
       case UserRole.makhdoum:
         return AppColors.primaryBrown;
+      case UserRole.admin:
+        return AppColors.primaryMaroon;
+      case UserRole.superAdmin:
+        return AppColors.primaryBlue;
     }
   }
 
@@ -2360,8 +2385,8 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
   }
 
   Widget _buildUserSelector() {
-    return Consumer<UserProvider>(
-      builder: (context, userProvider, child) {
+    return Consumer2<UserProvider, ClassProvider>(
+      builder: (context, userProvider, classProvider, child) {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2385,7 +2410,7 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
                   borderSide: const BorderSide(color: AppColors.primaryMaroon, width: 2),
                 ),
               ),
-              items: userProvider.users.map((user) {
+              items: classProvider.myMembers.map((user) {
                 return DropdownMenuItem(
                   value: user.id,
                   child: Text(user.name),

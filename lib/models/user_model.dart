@@ -1,7 +1,9 @@
 
 enum UserRole {
-  khadem,    // خادم (Servant/Admin)
-  makhdoum,  // مخدوم (Congregant/Member)
+  khadem,      // خادم (Servant/Admin)
+  makhdoum,    // مخدوم (Congregant/Member)
+  admin,       // مدير (Administrator)
+  superAdmin,  // مدير عام (Super Administrator)
 }
 
 class UserModel {
@@ -46,10 +48,7 @@ class UserModel {
       email: json['email'] ?? '',
       phoneNumber: json['phoneNumber'] ?? '',
       password: json['password'],
-      role: UserRole.values.firstWhere(
-        (e) => e.toString() == 'UserRole.${json['role']}',
-        orElse: () => UserRole.makhdoum,
-      ),
+      role: parseRole(json['role']),
       profileImage: json['profileImage'],
       createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
       lastLogin: json['lastLogin'] != null ? DateTime.parse(json['lastLogin']) : null,
@@ -117,5 +116,35 @@ class UserModel {
       addressLocationLink: addressLocationLink ?? this.addressLocationLink,
       fatherOfConfession: fatherOfConfession ?? this.fatherOfConfession,
     );
+  }
+
+  String get roleDisplayName {
+    switch (role) {
+      case UserRole.khadem:
+        return 'خادم';
+      case UserRole.makhdoum:
+        return 'مخدوم';
+      case UserRole.admin:
+        return 'مدير';
+      case UserRole.superAdmin:
+        return 'مدير عام';
+    }
+  }
+
+  static UserRole parseRole(String? roleString) {
+    if (roleString == null) return UserRole.makhdoum;
+    
+    switch (roleString) {
+      case 'khadem':
+        return UserRole.khadem;
+      case 'makhdoum':
+        return UserRole.makhdoum;
+      case 'admin':
+        return UserRole.admin;
+      case 'super_admin':
+        return UserRole.superAdmin;
+      default:
+        return UserRole.makhdoum;
+    }
   }
 }

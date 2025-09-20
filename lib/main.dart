@@ -6,10 +6,12 @@ import 'core/theme/app_theme.dart';
 import 'providers/auth_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/attendance_provider.dart';
+import 'providers/class_provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen_improved.dart';
 import 'screens/khadem_enhanced_screen.dart';
 import 'screens/makhdoum_enhanced_screen.dart';
+import 'screens/class_management_screen.dart';
 
 void main() {
   runApp(const SaintDemianaApp());
@@ -25,6 +27,7 @@ class SaintDemianaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => AttendanceProvider()),
+        ChangeNotifierProvider(create: (_) => ClassProvider()),
       ],
       child: MaterialApp.router(
         title: 'Saint Demiana Children',
@@ -54,6 +57,10 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/makhdoum',
       builder: (context, state) => const MakhdoumEnhancedScreen(),
+    ),
+    GoRoute(
+      path: '/class-management',
+      builder: (context, state) => const ClassManagementScreen(),
     ),
   ],
 );

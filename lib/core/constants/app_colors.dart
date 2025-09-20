@@ -8,6 +8,7 @@ class AppColors {
   static const Color primaryBrown = Color(0xFF8B4513); // Brown for Saint Demiana's robe (replacing purple)
   
   // Accent colors
+  static const Color accent = accentGold;
   static const Color accentGold = Color(0xFFD4AF37); // Rich gold for halos and crosses
   static const Color accentGreen = Color(0xFF2D5A27); // Darker green for palm fronds
   static const Color accentWhite = Color(0xFFFFFFFF); // White text
@@ -20,9 +21,11 @@ class AppColors {
   static const Color info = primaryBlue; // Use blue from logo
   
   // Background colors using logo colors
+  static const Color background = primaryCream;
   static const Color backgroundPrimary = primaryCream;
   static final Color backgroundSecondary = primaryCream.withValues(alpha: 0.8);
   static const Color backgroundCard = accentWhite;
+  static const Color surface = accentWhite;
   
   // Text colors using logo colors
   static const Color textPrimary = accentDark;
@@ -30,6 +33,7 @@ class AppColors {
   static const Color textLight = accentWhite;
   
   // Button colors
+  static const Color primary = primaryMaroon;
   static const Color buttonPrimary = primaryMaroon;
   static const Color buttonSecondary = primaryBrown;
   static const Color buttonAccent = accentGold;
