@@ -69,13 +69,27 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
   }
 
   Future<void> _loadData() async {
-    final classProvider = Provider.of<ClassProvider>(context, listen: false);
-    final userProvider = Provider.of<UserProvider>(context, listen: false);
-    
-    await Future.wait([
-      classProvider.loadClasses(),
-      userProvider.loadUsers(),
-    ]);
+    try {
+      final classProvider = Provider.of<ClassProvider>(context, listen: false);
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      
+      // Load classes and users in parallel
+      final results = await Future.wait([
+        classProvider.loadClasses(),
+        authProvider.getAllUsers(),
+      ]);
+      
+      // Update userProvider with the loaded users
+      final users = results[1] as List<UserModel>;
+      userProvider.setUsers(users);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('خطأ في تحميل البيانات: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -285,6 +299,43 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
   Widget _buildClassesTab() {
     return Consumer<ClassProvider>(
       builder: (context, classProvider, child) {
+        if (classProvider.isLoading) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+        
+        if (classProvider.error != null) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error, size: 64, color: AppColors.error),
+                const SizedBox(height: 16),
+                Text(
+                  'خطأ في تحميل البيانات',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.error,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  classProvider.error!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _loadData,
+                  child: const Text('إعادة المحاولة'),
+                ),
+              ],
+            ),
+          );
+        }
+        
         final classes = classProvider.classes;
         final filteredClasses = _searchQuery.isEmpty
             ? classes
@@ -330,21 +381,59 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
         return Column(
           children: [
             _buildSearchSection(),
+            _buildBulkActionsBar(),
+            // Debug info
+            if (allUsers.isEmpty)
+              Container(
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.accentGold.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info, color: AppColors.accentGold, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'عدد الأعضاء المحملين: ${allUsers.length}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.accentGold,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _loadData,
+                      child: const Text('إعادة تحميل'),
+                    ),
+                  ],
+                ),
+              ),
             Expanded(
-              child: filteredUsers.isEmpty
+              child: allUsers.isEmpty
                   ? _buildEmptyState(
                       icon: Icons.people,
                       title: 'لا يوجد أعضاء',
                       subtitle: 'لا توجد أعضاء مسجلين في النظام',
                     )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(20),
-                      itemCount: filteredUsers.length,
-                      itemBuilder: (context, index) {
-                        final user = filteredUsers[index];
-                        return _buildUserCard(user);
-                      },
-                    ),
+                  : filteredUsers.isEmpty
+                      ? _buildEmptyState(
+                          icon: Icons.search_off,
+                          title: 'لا توجد نتائج',
+                          subtitle: 'لم يتم العثور على أعضاء يطابقون البحث',
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(20),
+                          itemCount: filteredUsers.length,
+                          itemBuilder: (context, index) {
+                            final user = filteredUsers[index];
+                            return _buildUserCard(user);
+                          },
+                        ),
             ),
           ],
         );
@@ -353,10 +442,119 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
   }
 
   Widget _buildAssignmentsTab() {
-    return _buildEmptyState(
-      icon: Icons.assignment,
-      title: 'قريباً: إدارة التعيينات',
-      subtitle: 'ستتمكن من إدارة تعيينات الأعضاء للفصول',
+    return Consumer2<ClassProvider, UserProvider>(
+      builder: (context, classProvider, userProvider, child) {
+        return Column(
+          children: [
+            _buildSearchSection(),
+            // Debug info for assignments
+            if (classProvider.classes.isEmpty)
+              Container(
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.accentGold.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info, color: AppColors.accentGold, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'عدد الفصول المحملة: ${classProvider.classes.length}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.accentGold,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: _loadData,
+                      child: const Text('إعادة تحميل'),
+                    ),
+                  ],
+                ),
+              ),
+            Expanded(
+              child: FutureBuilder<List<ClassMembershipModel>>(
+                future: _getAllMemberships(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('جاري تحميل التعيينات...'),
+                        ],
+                      ),
+                    );
+                  }
+                  
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.error, color: Colors.red, size: 48),
+                          const SizedBox(height: 16),
+                          Text(
+                            'خطأ في تحميل التعيينات',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.red,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            '${snapshot.error}',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _loadData,
+                            child: const Text('إعادة المحاولة'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return _buildEmptyState(
+                      icon: Icons.assignment,
+                      title: 'لا توجد تعيينات',
+                      subtitle: 'لم يتم تعيين أي أعضاء للفصول بعد',
+                    );
+                  }
+                  
+                  final memberships = snapshot.data!;
+                  final filteredMemberships = _searchQuery.isEmpty
+                      ? memberships
+                      : memberships.where((membership) =>
+                          membership.user?.name.toLowerCase().contains(_searchQuery.toLowerCase()) == true ||
+                          membership.classModel?.name.toLowerCase().contains(_searchQuery.toLowerCase()) == true).toList();
+                  
+                  return ListView.builder(
+                    padding: const EdgeInsets.all(20),
+                    itemCount: filteredMemberships.length,
+                    itemBuilder: (context, index) {
+                      final membership = filteredMemberships[index];
+                      return _buildMembershipCard(membership);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -929,6 +1127,18 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
     }
   }
 
+  void _handleAssignmentMembershipAction(String action, ClassMembershipModel membership) {
+    switch (action) {
+      case 'remove':
+        _showRemoveMemberDialogById(membership.classModel!.id, membership.userId);
+        break;
+      case 'transfer':
+        _showTransferSingleMemberDialog(membership);
+        break;
+    }
+  }
+
+
   void _showRemoveMemberDialog(ClassMembershipModel membership, ClassModel classItem) {
     showDialog(
       context: context,
@@ -957,6 +1167,144 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
             child: const Text('إزالة'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showRemoveMemberDialogById(String classId, String userId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('إزالة عضو من الفصل'),
+        content: const Text('هل أنت متأكد من إزالة هذا العضو من الفصل؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                final classProvider = Provider.of<ClassProvider>(context, listen: false);
+                await classProvider.removeClassMember(classId, userId);
+                Navigator.pop(context);
+                _loadData();
+                
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('تم إزالة العضو من الفصل بنجاح'),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('خطأ في إزالة العضو: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.accentWhite,
+            ),
+            child: const Text('إزالة'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTransferSingleMemberDialog(ClassMembershipModel membership) {
+    String? toClassId;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('نقل العضو'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('نقل ${membership.user?.name} من ${membership.classModel?.name} إلى:'),
+              const SizedBox(height: 16),
+              Consumer<ClassProvider>(
+                builder: (context, classProvider, child) {
+                  final classes = classProvider.classes
+                      .where((cls) => cls.id != membership.classModel?.id)
+                      .toList();
+                  
+                  return DropdownButtonFormField<String>(
+                    value: toClassId,
+                    decoration: const InputDecoration(
+                      labelText: 'اختر الفصل الوجهة',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: classes.map((cls) {
+                      return DropdownMenuItem(
+                        value: cls.id,
+                        child: Text(cls.name),
+                      );
+                    }).toList(),
+                    onChanged: (value) => setState(() => toClassId = value),
+                  );
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: toClassId != null
+                  ? () async {
+                      try {
+                        final classProvider = Provider.of<ClassProvider>(context, listen: false);
+                        
+                        // Remove from current class
+                        await classProvider.removeClassMember(membership.classModel!.id, membership.userId);
+                        
+                        // Add to new class with same role
+                        await classProvider.addClassMember(
+                          toClassId!,
+                          membership.userId,
+                          membership.role,
+                        );
+                        
+                        Navigator.pop(context);
+                        _loadData();
+                        
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('تم نقل العضو بنجاح'),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('خطأ في نقل العضو: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  : null,
+              child: const Text('نقل'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1387,5 +1735,826 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  // Get all memberships across all classes with rate limiting
+  Future<List<ClassMembershipModel>> _getAllMemberships() async {
+    try {
+      final classProvider = Provider.of<ClassProvider>(context, listen: false);
+      final classes = classProvider.classes;
+      final allMemberships = <ClassMembershipModel>[];
+      
+      // Load memberships sequentially to avoid rate limiting
+      for (final classItem in classes) {
+        try {
+          // Add a small delay between requests to avoid rate limiting
+          await Future.delayed(const Duration(milliseconds: 100));
+          
+          final response = await classProvider.getClassMembersRaw(classItem.id);
+          print('Class ${classItem.name} memberships response: ${response.keys}');
+          if (response['memberships'] != null) {
+            final membershipsList = response['memberships'] as List;
+            print('Class ${classItem.name} has ${membershipsList.length} memberships');
+            final memberships = membershipsList
+                .map((m) => ClassMembershipModel.fromJson(m))
+                .toList();
+            allMemberships.addAll(memberships);
+          } else {
+            print('Class ${classItem.name} has no memberships array');
+          }
+        } catch (e) {
+          // Skip classes that fail to load memberships
+          print('Error loading memberships for class ${classItem.name}: $e');
+          continue;
+        }
+      }
+      
+      print('Total memberships found: ${allMemberships.length}');
+      return allMemberships;
+    } catch (e) {
+      print('Error in _getAllMemberships: $e');
+      return [];
+    }
+  }
+
+  // Build membership card
+  Widget _buildMembershipCard(ClassMembershipModel membership) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderLight),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryMaroon.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            // User avatar
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: _getRoleColor(membership.role).withValues(alpha: 0.1),
+              child: Icon(
+                _getRoleIcon(membership.role),
+                color: _getRoleColor(membership.role),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 16),
+            
+            // User and class info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    membership.user?.name ?? 'Unknown User',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.class_,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        membership.classModel?.name ?? 'Unknown Class',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        _getRoleIcon(membership.role),
+                        size: 14,
+                        color: _getRoleColor(membership.role),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        membership.roleDisplayName,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: _getRoleColor(membership.role),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            
+            // Actions
+            PopupMenuButton<String>(
+              onSelected: (value) => _handleAssignmentMembershipAction(value, membership),
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'remove',
+                  child: Row(
+                    children: [
+                      Icon(Icons.remove_circle_outline, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('إزالة من الفصل'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'transfer',
+                  child: Row(
+                    children: [
+                      Icon(Icons.swap_horiz, color: AppColors.accentGold),
+                      SizedBox(width: 8),
+                      Text('نقل لفصل آخر'),
+                    ],
+                  ),
+                ),
+              ],
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryMaroon.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.more_vert,
+                  color: AppColors.primaryMaroon,
+                  size: 20,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Bulk Actions Bar
+  Widget _buildBulkActionsBar() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primaryMaroon.withValues(alpha: 0.05),
+            AppColors.accentGold.withValues(alpha: 0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primaryMaroon.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primaryMaroon.withValues(alpha: 0.1),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryMaroon.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(Icons.group_add, color: AppColors.primaryMaroon, size: 16),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'إجراءات جماعية',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 600) {
+                // Stack vertically on small screens
+                return Column(
+                  children: [
+                    _buildCompactActionCard(
+                      icon: Icons.assignment_ind,
+                      title: 'تعيين جماعي',
+                      color: AppColors.primaryMaroon,
+                      onTap: _showBulkAssignDialog,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildCompactActionCard(
+                      icon: Icons.swap_horiz,
+                      title: 'نقل بين الفصول',
+                      color: AppColors.accentGold,
+                      onTap: _showTransferDialog,
+                    ),
+                  ],
+                );
+              } else {
+                // Side by side on larger screens
+                return Row(
+                  children: [
+                    Expanded(
+                      child: _buildCompactActionCard(
+                        icon: Icons.assignment_ind,
+                        title: 'تعيين جماعي',
+                        color: AppColors.primaryMaroon,
+                        onTap: _showBulkAssignDialog,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildCompactActionCard(
+                        icon: Icons.swap_horiz,
+                        title: 'نقل بين الفصول',
+                        color: AppColors.accentGold,
+                        onTap: _showTransferDialog,
+                      ),
+                    ),
+                  ],
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _buildCompactActionCard({
+    required IconData icon,
+    required String title,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 16),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Bulk Assignment Dialog
+  void _showBulkAssignDialog() {
+    final selectedUsers = <String>[];
+    String? selectedClassId;
+    String? selectedRole = 'makhdoum';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.9,
+            height: MediaQuery.of(context).size.height * 0.8,
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryMaroon.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.assignment_ind, color: AppColors.primaryMaroon, size: 24),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'التعيين الجماعي للأعضاء',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'اختر الفصل والدور، ثم حدد الأعضاء المراد تعيينهم',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.close, color: AppColors.textSecondary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                
+                // Form
+                Expanded(
+                  child: Consumer2<ClassProvider, UserProvider>(
+                    builder: (context, classProvider, userProvider, child) {
+                      final classes = classProvider.classes;
+                      final users = userProvider.users;
+
+                      return Column(
+                        children: [
+                          // Class and Role Selection
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'اختيار الفصل',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    DropdownButtonFormField<String>(
+                                      value: selectedClassId,
+                                      decoration: InputDecoration(
+                                        hintText: 'اختر الفصل',
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        prefixIcon: Icon(Icons.class_, color: AppColors.primaryMaroon),
+                                      ),
+                                      items: classes.map((cls) {
+                                        return DropdownMenuItem(
+                                          value: cls.id,
+                                          child: Text(cls.name),
+                                        );
+                                      }).toList(),
+                                      onChanged: (value) => setState(() => selectedClassId = value),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'الدور في الفصل',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.textPrimary,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    DropdownButtonFormField<String>(
+                                      value: selectedRole,
+                                      decoration: InputDecoration(
+                                        hintText: 'اختر الدور',
+                                        border: OutlineInputBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        prefixIcon: Icon(Icons.person, color: AppColors.primaryMaroon),
+                                      ),
+                                      items: [
+                                        DropdownMenuItem(
+                                          value: 'khadem',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.supervisor_account, color: AppColors.accentGold, size: 16),
+                                              const SizedBox(width: 8),
+                                              const Text('خادم'),
+                                            ],
+                                          ),
+                                        ),
+                                        DropdownMenuItem(
+                                          value: 'makhdoum',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.person, color: AppColors.primaryBrown, size: 16),
+                                              const SizedBox(width: 8),
+                                              const Text('مخدوم'),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                      onChanged: (value) => setState(() => selectedRole = value),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+                          
+                          // User Selection Header
+                          Row(
+                            children: [
+                              const Text(
+                                'اختيار الأعضاء',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const Spacer(),
+                              if (selectedUsers.isNotEmpty)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryMaroon.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Text(
+                                    'تم اختيار ${selectedUsers.length} عضو',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primaryMaroon,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          
+                          // User Selection List
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(color: AppColors.borderLight),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: ListView.builder(
+                                itemCount: users.length,
+                                itemBuilder: (context, index) {
+                                  final user = users[index];
+                                  final isSelected = selectedUsers.contains(user.id);
+                                  
+                                  return Container(
+                                    margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: isSelected 
+                                          ? AppColors.primaryMaroon.withValues(alpha: 0.1)
+                                          : Colors.transparent,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: CheckboxListTile(
+                                      title: Text(
+                                        user.name,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: isSelected ? AppColors.primaryMaroon : AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      subtitle: Row(
+                                        children: [
+                                          Icon(
+                                            _getRoleIcon(user.role),
+                                            size: 14,
+                                            color: _getRoleColor(user.role),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            user.roleDisplayName,
+                                            style: TextStyle(
+                                              color: _getRoleColor(user.role),
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      value: isSelected,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          if (value == true) {
+                                            selectedUsers.add(user.id);
+                                          } else {
+                                            selectedUsers.remove(user.id);
+                                          }
+                                        });
+                                      },
+                                      activeColor: AppColors.primaryMaroon,
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                
+                // Actions
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          side: BorderSide(color: AppColors.borderLight),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'إلغاء',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton(
+                        onPressed: selectedClassId != null && selectedUsers.isNotEmpty
+                            ? () async {
+                                final classProvider = Provider.of<ClassProvider>(context, listen: false);
+                                
+                                for (final userId in selectedUsers) {
+                                  await classProvider.addClassMember(
+                                    selectedClassId!,
+                                    userId,
+                                    UserModel.parseRole(selectedRole!),
+                                  );
+                                }
+                                
+                                Navigator.pop(context);
+                                _loadData();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('تم تعيين ${selectedUsers.length} عضو للفصل بنجاح'),
+                                    backgroundColor: AppColors.success,
+                                  ),
+                                );
+                              }
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryMaroon,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'تعيين ${selectedUsers.length} عضو',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.accentWhite,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Transfer Dialog
+  void _showTransferDialog() {
+    final selectedUsers = <String>[];
+    String? fromClassId;
+    String? toClassId;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('نقل الأعضاء بين الفصول'),
+          content: Consumer<ClassProvider>(
+            builder: (context, classProvider, child) {
+              final classes = classProvider.classes;
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // From Class Selection
+                  DropdownButtonFormField<String>(
+                    value: fromClassId,
+                    decoration: const InputDecoration(
+                      labelText: 'من الفصل',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: classes.map((cls) {
+                      return DropdownMenuItem(
+                        value: cls.id,
+                        child: Text(cls.name),
+                      );
+                    }).toList(),
+                    onChanged: (value) => setState(() => fromClassId = value),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // To Class Selection
+                  DropdownButtonFormField<String>(
+                    value: toClassId,
+                    decoration: const InputDecoration(
+                      labelText: 'إلى الفصل',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: classes.where((cls) => cls.id != fromClassId).map((cls) {
+                      return DropdownMenuItem(
+                        value: cls.id,
+                        child: Text(cls.name),
+                      );
+                    }).toList(),
+                    onChanged: (value) => setState(() => toClassId = value),
+                  ),
+                  const SizedBox(height: 16),
+                  
+                  // User Selection (from selected class)
+                  if (fromClassId != null)
+                    Container(
+                      height: 200,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.borderLight),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: FutureBuilder<List<ClassMembershipModel>>(
+                        future: _getClassMembers(fromClassId!),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState == ConnectionState.waiting) {
+                            return const Center(child: CircularProgressIndicator());
+                          }
+                          
+                          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                            return const Center(
+                              child: Text('لا يوجد أعضاء في هذا الفصل'),
+                            );
+                          }
+                          
+                          final members = snapshot.data!;
+                          
+                          return ListView.builder(
+                            itemCount: members.length,
+                            itemBuilder: (context, index) {
+                              final membership = members[index];
+                              final isSelected = selectedUsers.contains(membership.userId);
+                              
+                              return CheckboxListTile(
+                                title: Text(membership.user?.name ?? 'Unknown'),
+                                subtitle: Text(membership.roleDisplayName),
+                                value: isSelected,
+                                onChanged: (value) {
+                                  setState(() {
+                                    if (value == true) {
+                                      selectedUsers.add(membership.userId);
+                                    } else {
+                                      selectedUsers.remove(membership.userId);
+                                    }
+                                  });
+                                },
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: fromClassId != null && toClassId != null && selectedUsers.isNotEmpty
+                  ? () async {
+                      final classProvider = Provider.of<ClassProvider>(context, listen: false);
+                      
+                      for (final userId in selectedUsers) {
+                        // Remove from old class
+                        await classProvider.removeClassMember(fromClassId!, userId);
+                        // Add to new class (keeping same role)
+                        final membership = await _getUserMembership(fromClassId!, userId);
+                        if (membership != null) {
+                          await classProvider.addClassMember(
+                            toClassId!,
+                            userId,
+                            membership.role,
+                          );
+                        }
+                      }
+                      
+                      Navigator.pop(context);
+                      _loadData();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('تم نقل ${selectedUsers.length} عضو بنجاح'),
+                        ),
+                      );
+                    }
+                  : null,
+              child: const Text('نقل'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helper method to get class members
+  Future<List<ClassMembershipModel>> _getClassMembers(String classId) async {
+    try {
+      final classProvider = Provider.of<ClassProvider>(context, listen: false);
+      final response = await classProvider.getClassMembersRaw(classId);
+      
+      if (response['memberships'] != null) {
+        return (response['memberships'] as List)
+            .map((m) => ClassMembershipModel.fromJson(m))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  // Helper method to get user membership
+  Future<ClassMembershipModel?> _getUserMembership(String classId, String userId) async {
+    try {
+      final memberships = await _getClassMembers(classId);
+      return memberships.firstWhere(
+        (m) => m.userId == userId,
+        orElse: () => throw Exception('Membership not found'),
+      );
+    } catch (e) {
+      return null;
+    }
   }
 }

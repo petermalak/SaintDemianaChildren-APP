@@ -697,6 +697,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return 'خادم';
       case UserRole.makhdoum:
         return 'مخدوم';
+      case UserRole.admin:
+        return 'مدير';
+      case UserRole.superAdmin:
+        return 'مدير عام';
     }
   }
 

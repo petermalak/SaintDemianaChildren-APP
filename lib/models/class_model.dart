@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'class_membership_model.dart';
 
 class ClassModel {
@@ -36,6 +37,21 @@ class ClassModel {
   });
 
   factory ClassModel.fromJson(Map<String, dynamic> json) {
+    // Parse schedule field - it might be a string or a Map
+    Map<String, dynamic>? schedule;
+    if (json['schedule'] != null) {
+      if (json['schedule'] is String) {
+        try {
+          schedule = Map<String, dynamic>.from(jsonDecode(json['schedule']));
+        } catch (e) {
+          print('Error parsing schedule JSON: $e');
+          schedule = null;
+        }
+      } else if (json['schedule'] is Map) {
+        schedule = Map<String, dynamic>.from(json['schedule']);
+      }
+    }
+
     return ClassModel(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
@@ -43,7 +59,7 @@ class ClassModel {
       isActive: json['isActive'] ?? true,
       maxMembers: json['maxMembers'],
       location: json['location'],
-      schedule: json['schedule'] != null ? Map<String, dynamic>.from(json['schedule']) : null,
+      schedule: schedule,
       createdBy: json['createdBy'] ?? '',
       creatorName: json['creator']?['name'],
       createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),

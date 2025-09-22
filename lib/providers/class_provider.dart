@@ -34,7 +34,11 @@ class ClassProvider with ChangeNotifier {
 
     try {
       final response = await _apiService.getClasses();
-      _classes = response.map((json) => ClassModel.fromJson(json)).toList();
+      
+      _classes = response.map((json) {
+        return ClassModel.fromJson(json);
+      }).toList();
+      
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -232,6 +236,64 @@ class ClassProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       return false;
+    }
+  }
+
+  // Get class members with detailed information (raw API response)
+  Future<Map<String, dynamic>> getClassMembersRaw(String classId) async {
+    try {
+      return await _apiService.getClassMembers(classId);
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // Bulk assign users to class
+  Future<void> bulkAssignUsers(String classId, List<String> userIds, UserRole role) async {
+    try {
+      for (final userId in userIds) {
+        await _apiService.addClassMember(classId, {
+          'userId': userId,
+          'role': role.name,
+        });
+      }
+      await loadClasses(); // Refresh classes list
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // Transfer users between classes
+  Future<void> transferUsers(String fromClassId, String toClassId, List<String> userIds) async {
+    try {
+      for (final userId in userIds) {
+        // Remove from old class
+        await _apiService.removeClassMember(fromClassId, userId);
+        
+        // Get user's role in old class to maintain it
+        final memberships = await getClassMembersRaw(fromClassId);
+        final userMembership = memberships['memberships']?.firstWhere(
+          (m) => m['userId'] == userId,
+          orElse: () => null,
+        );
+        
+        if (userMembership != null) {
+          // Add to new class with same role
+          await _apiService.addClassMember(toClassId, {
+            'userId': userId,
+            'role': userMembership['role'],
+          });
+        }
+      }
+      await loadClasses(); // Refresh classes list
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
     }
   }
 
