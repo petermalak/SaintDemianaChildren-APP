@@ -12,6 +12,9 @@ import 'screens/login_screen_improved.dart';
 import 'screens/khadem_enhanced_screen.dart';
 import 'screens/makhdoum_enhanced_screen.dart';
 import 'screens/class_management_screen.dart';
+import 'screens/super_admin_dashboard.dart';
+import 'screens/profile_screen.dart';
+import 'models/user_model.dart';
 
 void main() {
   runApp(const SaintDemianaApp());
@@ -61,6 +64,18 @@ final GoRouter _router = GoRouter(
     GoRoute(
       path: '/class-management',
       builder: (context, state) => const ClassManagementScreen(),
+    ),
+    GoRoute(
+      path: '/super-admin-dashboard',
+      builder: (context, state) => const SuperAdminDashboard(),
+    ),
+    GoRoute(
+      path: '/profile',
+      builder: (context, state) {
+        // Get user from query parameters or use current user
+        final user = state.extra as UserModel?;
+        return ProfileScreen(user: user, isCurrentUser: true);
+      },
     ),
   ],
 );

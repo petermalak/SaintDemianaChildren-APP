@@ -18,7 +18,7 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _logoController;
   late AnimationController _textController;
   late AnimationController _fadeController;
-  
+
   late Animation<double> _logoScale;
   late Animation<double> _logoRotation;
   late Animation<double> _textSlide;
@@ -27,23 +27,23 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize animation controllers
     _logoController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
     );
-    
+
     _textController = AnimationController(
       duration: const Duration(milliseconds: 1500),
       vsync: this,
     );
-    
+
     _fadeController = AnimationController(
       duration: const Duration(milliseconds: 1000),
       vsync: this,
     );
-    
+
     // Initialize animations
     _logoScale = Tween<double>(
       begin: 0.0,
@@ -52,7 +52,7 @@ class _SplashScreenState extends State<SplashScreen>
       parent: _logoController,
       curve: Curves.elasticOut,
     ));
-    
+
     _logoRotation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -60,7 +60,7 @@ class _SplashScreenState extends State<SplashScreen>
       parent: _logoController,
       curve: Curves.easeInOut,
     ));
-    
+
     _textSlide = Tween<double>(
       begin: 50.0,
       end: 0.0,
@@ -68,7 +68,7 @@ class _SplashScreenState extends State<SplashScreen>
       parent: _textController,
       curve: Curves.easeOutBack,
     ));
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -76,23 +76,23 @@ class _SplashScreenState extends State<SplashScreen>
       parent: _fadeController,
       curve: Curves.easeIn,
     ));
-    
+
     _startAnimations();
   }
 
   void _startAnimations() async {
     // Start logo animation
     await _logoController.forward();
-    
+
     // Start text animation
     await _textController.forward();
-    
+
     // Start fade animation
     await _fadeController.forward();
-    
+
     // Wait a bit then check authentication
     await Future.delayed(const Duration(milliseconds: 1000));
-    
+
     if (mounted) {
       _checkAuthentication();
     }
@@ -100,7 +100,7 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _checkAuthentication() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    
+
     // Check if user is already authenticated
     if (authProvider.isAuthenticated) {
       final user = authProvider.currentUser;
@@ -136,7 +136,7 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
     final isMobile = screenSize.width < 768;
-    
+
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -163,12 +163,14 @@ class _SplashScreenState extends State<SplashScreen>
                             shape: BoxShape.circle,
                             boxShadow: [
                               BoxShadow(
-                                color: AppColors.primaryMaroon.withValues(alpha: 0.3.clamp(0.0, 1.0)),
+                                color: AppColors.primaryMaroon
+                                    .withValues(alpha: 0.3.clamp(0.0, 1.0)),
                                 blurRadius: 20,
                                 offset: const Offset(0, 10),
                               ),
                               BoxShadow(
-                                color: AppColors.accentGold.withValues(alpha: 0.2.clamp(0.0, 1.0)),
+                                color: AppColors.accentGold
+                                    .withValues(alpha: 0.2.clamp(0.0, 1.0)),
                                 blurRadius: 30,
                                 offset: const Offset(0, 5),
                               ),
@@ -198,9 +200,9 @@ class _SplashScreenState extends State<SplashScreen>
                     );
                   },
                 ),
-                
+
                 SizedBox(height: isMobile ? AppSpacing.xl : AppSpacing.xxl),
-                
+
                 // App Name Section
                 AnimatedBuilder(
                   animation: _textController,
@@ -211,21 +213,27 @@ class _SplashScreenState extends State<SplashScreen>
                         children: [
                           Text(
                             'Saint Demiana Children',
-                            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                              color: AppColors.primaryMaroon,
-                              fontWeight: FontWeight.bold,
-                              fontSize: isMobile ? 24 : 32,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineLarge
+                                ?.copyWith(
+                                  color: AppColors.primaryMaroon,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: isMobile ? 24 : 32,
+                                ),
                             textAlign: TextAlign.center,
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           Text(
                             'أطفال القديسة دميانة',
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w500,
-                              fontSize: isMobile ? 18 : 24,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: isMobile ? 18 : 24,
+                                ),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -233,9 +241,9 @@ class _SplashScreenState extends State<SplashScreen>
                     );
                   },
                 ),
-                
+
                 SizedBox(height: isMobile ? AppSpacing.xl : AppSpacing.xxl),
-                
+
                 // Loading Indicator
                 AnimatedBuilder(
                   animation: _fadeAnimation,
@@ -257,10 +265,13 @@ class _SplashScreenState extends State<SplashScreen>
                           const SizedBox(height: AppSpacing.md),
                           Text(
                             'Loading...',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                              fontSize: AppSpacing.sm,
-                            ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontSize: AppSpacing.sm,
+                                ),
                           ),
                         ],
                       ),
@@ -271,6 +282,18 @@ class _SplashScreenState extends State<SplashScreen>
             ),
           ),
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // Navigate to profile screen for testing
+          context.go('/profile');
+        },
+        backgroundColor: AppColors.primaryMaroon,
+        child: const Icon(
+          Icons.person,
+          color: AppColors.accentWhite,
+        ),
+        tooltip: 'Test Profile Screen',
       ),
     );
   }

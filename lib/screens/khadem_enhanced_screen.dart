@@ -13,6 +13,7 @@ import '../providers/user_provider.dart';
 import '../providers/attendance_provider.dart';
 import '../providers/class_provider.dart';
 import '../widgets/communication_buttons.dart';
+import '../widgets/country_phone_field.dart';
 
 class KhademEnhancedScreen extends StatefulWidget {
   const KhademEnhancedScreen({super.key});
@@ -76,16 +77,17 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final attendanceProvider = Provider.of<AttendanceProvider>(context, listen: false);
+      final attendanceProvider =
+          Provider.of<AttendanceProvider>(context, listen: false);
       final classProvider = Provider.of<ClassProvider>(context, listen: false);
-      
+
       // Load users - now using class system to get only khadem's members
       final users = await authProvider.getAllUsers();
       userProvider.setUsers(users);
-      
+
       // Load class members for khadem
       await classProvider.loadMyMembers();
-      
+
       // Load attendance
       await attendanceProvider.loadAttendanceData();
     } catch (e) {
@@ -150,7 +152,8 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.accentWhite.withValues(alpha: 0.2.clamp(0.0, 1.0)),
+              color:
+                  AppColors.accentWhite.withValues(alpha: 0.2.clamp(0.0, 1.0)),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
@@ -175,7 +178,8 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
                 Text(
                   'مرحباً بك أيها الخادم',
                   style: TextStyle(
-                    color: AppColors.accentWhite.withValues(alpha: 0.9.clamp(0.0, 1.0)),
+                    color: AppColors.accentWhite
+                        .withValues(alpha: 0.9.clamp(0.0, 1.0)),
                     fontSize: 14,
                   ),
                 ),
@@ -211,6 +215,15 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
           _handleLogout(context);
         } else if (value == 'class-management') {
           context.go('/class-management');
+        } else if (value == 'super-admin-dashboard') {
+          context.go('/super-admin-dashboard');
+        } else if (value == 'profile') {
+          // Navigate to standalone profile screen
+          final authProvider =
+              Provider.of<AuthProvider>(context, listen: false);
+          if (authProvider.currentUser != null) {
+            context.go('/profile', extra: authProvider.currentUser);
+          }
         }
       },
       itemBuilder: (context) => [
@@ -234,8 +247,21 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
             ],
           ),
         ),
-        // Class management option for super admin
-        if (Provider.of<AuthProvider>(context, listen: false).currentUser?.role == UserRole.superAdmin)
+        // Super admin options
+        if (Provider.of<AuthProvider>(context, listen: false)
+                .currentUser
+                ?.role ==
+            UserRole.superAdmin) ...[
+          const PopupMenuItem(
+            value: 'super-admin-dashboard',
+            child: Row(
+              children: [
+                Icon(Icons.dashboard, color: AppColors.primaryBlue),
+                SizedBox(width: 12),
+                Text('لوحة التحكم'),
+              ],
+            ),
+          ),
           const PopupMenuItem(
             value: 'class-management',
             child: Row(
@@ -246,6 +272,7 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
               ],
             ),
           ),
+        ],
         const PopupMenuDivider(),
         const PopupMenuItem(
           value: 'logout',
@@ -308,14 +335,17 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: isSelected 
-                      ? AppColors.accentWhite 
-                      : AppColors.primaryMaroon.withValues(alpha: 0.1.clamp(0.0, 1.0)),
+                  color: isSelected
+                      ? AppColors.accentWhite
+                      : AppColors.primaryMaroon
+                          .withValues(alpha: 0.1.clamp(0.0, 1.0)),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
                   icon,
-                  color: isSelected ? AppColors.primaryMaroon : AppColors.primaryMaroon,
+                  color: isSelected
+                      ? AppColors.primaryMaroon
+                      : AppColors.primaryMaroon,
                   size: 20,
                 ),
               ),
@@ -323,7 +353,9 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
               Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? AppColors.accentWhite : AppColors.textPrimary,
+                  color: isSelected
+                      ? AppColors.accentWhite
+                      : AppColors.textPrimary,
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
@@ -398,7 +430,8 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primaryMaroon.withValues(alpha: 0.3.clamp(0.0, 1.0)),
+            color:
+                AppColors.primaryMaroon.withValues(alpha: 0.3.clamp(0.0, 1.0)),
             blurRadius: 15,
             offset: const Offset(0, 5),
           ),
@@ -409,7 +442,8 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.accentWhite.withValues(alpha: 0.2.clamp(0.0, 1.0)),
+              color:
+                  AppColors.accentWhite.withValues(alpha: 0.2.clamp(0.0, 1.0)),
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
@@ -435,7 +469,8 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
                 Text(
                   'إدارة فعالة للأعضاء والحضور',
                   style: TextStyle(
-                    color: AppColors.accentWhite.withValues(alpha: 0.9.clamp(0.0, 1.0)),
+                    color: AppColors.accentWhite
+                        .withValues(alpha: 0.9.clamp(0.0, 1.0)),
                     fontSize: 14,
                   ),
                 ),
@@ -498,7 +533,8 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String title, String value, IconData icon, Color color) {
     return AnimatedBuilder(
       animation: _cardAnimation,
       builder: (context, child) {
@@ -608,7 +644,8 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
     );
   }
 
-  Widget _buildQuickActionCard(String title, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildQuickActionCard(
+      String title, IconData icon, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -671,10 +708,16 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
         final allUsers = classProvider.myMembers;
         final filteredUsers = _searchController.text.isEmpty
             ? allUsers
-            : allUsers.where((user) =>
-                user.name.toLowerCase().contains(_searchController.text.toLowerCase()) ||
-                user.email.toLowerCase().contains(_searchController.text.toLowerCase())).toList();
-        
+            : allUsers
+                .where((user) =>
+                    user.name
+                        .toLowerCase()
+                        .contains(_searchController.text.toLowerCase()) ||
+                    user.email
+                        .toLowerCase()
+                        .contains(_searchController.text.toLowerCase()))
+                .toList();
+
         return Column(
           children: [
             _buildSearchSection(),
@@ -687,16 +730,18 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
                           Icon(
                             Icons.search_off,
                             size: 64,
-                            color: AppColors.primaryMaroon.withValues(alpha: 0.3.clamp(0.0, 1.0)),
+                            color: AppColors.primaryMaroon
+                                .withValues(alpha: 0.3.clamp(0.0, 1.0)),
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            _searchController.text.isEmpty 
-                                ? 'لا يوجد أعضاء' 
+                            _searchController.text.isEmpty
+                                ? 'لا يوجد أعضاء'
                                 : 'لا توجد نتائج للبحث',
                             style: TextStyle(
                               fontSize: 16,
-                              color: AppColors.primaryMaroon.withValues(alpha: 0.7.clamp(0.0, 1.0)),
+                              color: AppColors.primaryMaroon
+                                  .withValues(alpha: 0.7.clamp(0.0, 1.0)),
                             ),
                           ),
                         ],
@@ -740,7 +785,9 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
           prefixIcon: const Icon(Icons.search, color: AppColors.primaryMaroon),
           suffixIcon: _searchController.text.isNotEmpty
               ? IconButton(
-                  icon: Icon(Icons.clear, color: AppColors.primaryMaroon.withValues(alpha: 0.7.clamp(0.0, 1.0))),
+                  icon: Icon(Icons.clear,
+                      color: AppColors.primaryMaroon
+                          .withValues(alpha: 0.7.clamp(0.0, 1.0))),
                   onPressed: () {
                     _searchController.clear();
                     setState(() {}); // Trigger rebuild to clear search
@@ -814,9 +861,11 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
                         ),
                         const SizedBox(height: 4),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: _getRoleColor(user.role).withValues(alpha: 0.1.clamp(0.0, 1.0)),
+                            color: _getRoleColor(user.role)
+                                .withValues(alpha: 0.1.clamp(0.0, 1.0)),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -840,9 +889,9 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
                           phoneNumber: user.phoneNumber,
                           userName: user.name,
                         ),
-                      
+
                       const SizedBox(width: 8),
-                      
+
                       // Edit button
                       IconButton(
                         onPressed: () => _showEditUserDialog(user),
@@ -895,7 +944,7 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
         itemBuilder: (context, index) {
           final type = _attendanceTypes[index];
           final isSelected = _attendanceTabIndex == index;
-          
+
           return GestureDetector(
             onTap: () => setState(() => _attendanceTabIndex = index),
             child: AnimatedContainer(
@@ -903,28 +952,34 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
               margin: const EdgeInsets.only(right: 12),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: BoxDecoration(
-                color: isSelected ? _getTypeColor(type) : AppColors.backgroundCard,
+                color:
+                    isSelected ? _getTypeColor(type) : AppColors.backgroundCard,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isSelected 
-                      ? _getTypeColor(type) 
-                      : AppColors.borderLight,
+                  color:
+                      isSelected ? _getTypeColor(type) : AppColors.borderLight,
                   width: 1,
                 ),
-                boxShadow: isSelected ? [
-                  BoxShadow(
-                    color: _getTypeColor(type).withValues(alpha: 0.3.clamp(0.0, 1.0)),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ] : null,
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: _getTypeColor(type)
+                              .withValues(alpha: 0.3.clamp(0.0, 1.0)),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
+                    : null,
               ),
               child: Center(
                 child: Text(
                   _getTypeLabel(type),
                   style: TextStyle(
-                    color: isSelected ? AppColors.accentWhite : AppColors.textPrimary,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected
+                        ? AppColors.accentWhite
+                        : AppColors.textPrimary,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
               ),
@@ -950,7 +1005,8 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
                 color: AppColors.backgroundCard,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: _getTypeColor(record.type).withValues(alpha: 0.2.clamp(0.0, 1.0)),
+                  color: _getTypeColor(record.type)
+                      .withValues(alpha: 0.2.clamp(0.0, 1.0)),
                   width: 1,
                 ),
                 boxShadow: [
@@ -966,7 +1022,8 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: _getTypeColor(record.type).withValues(alpha: 0.1.clamp(0.0, 1.0)),
+                      color: _getTypeColor(record.type)
+                          .withValues(alpha: 0.1.clamp(0.0, 1.0)),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -1047,7 +1104,8 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
       case 1:
         return () => _showAddUserDialog();
       case 2:
-        return () => _showAddAttendanceDialog(_attendanceTypes[_attendanceTabIndex]);
+        return () =>
+            _showAddAttendanceDialog(_attendanceTypes[_attendanceTabIndex]);
       default:
         return () => _showAddUserDialog();
     }
@@ -1197,7 +1255,8 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
             onPressed: () async {
               Navigator.pop(context);
               try {
-                await Provider.of<AuthProvider>(context, listen: false).logout();
+                await Provider.of<AuthProvider>(context, listen: false)
+                    .logout();
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   context.go('/login');
                 });
@@ -1239,7 +1298,8 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primaryMaroon.withValues(alpha: 0.3.clamp(0.0, 1.0)),
+                      color: AppColors.primaryMaroon
+                          .withValues(alpha: 0.3.clamp(0.0, 1.0)),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -1250,7 +1310,8 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.accentWhite.withValues(alpha: 0.2.clamp(0.0, 1.0)),
+                        color: AppColors.accentWhite
+                            .withValues(alpha: 0.2.clamp(0.0, 1.0)),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
@@ -1283,7 +1344,6 @@ class _KhademEnhancedScreenState extends State<KhademEnhancedScreen>
   Widget _buildEditableProfileCard(UserModel user) {
     return _EditableProfileCard(user: user);
   }
-
 }
 
 // Editable Profile Card Widget
@@ -1314,11 +1374,15 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
     _nameController = TextEditingController(text: widget.user.name);
     _emailController = TextEditingController(text: widget.user.email);
     _phoneController = TextEditingController(text: widget.user.phoneNumber);
-    _fathersPhoneController = TextEditingController(text: widget.user.fathersPhoneNumber ?? '');
-    _mothersPhoneController = TextEditingController(text: widget.user.mothersPhoneNumber ?? '');
+    _fathersPhoneController =
+        TextEditingController(text: widget.user.fathersPhoneNumber ?? '');
+    _mothersPhoneController =
+        TextEditingController(text: widget.user.mothersPhoneNumber ?? '');
     _addressController = TextEditingController(text: widget.user.address ?? '');
-    _addressLocationLinkController = TextEditingController(text: widget.user.addressLocationLink ?? '');
-    _fatherOfConfessionController = TextEditingController(text: widget.user.fatherOfConfession ?? '');
+    _addressLocationLinkController =
+        TextEditingController(text: widget.user.addressLocationLink ?? '');
+    _fatherOfConfessionController =
+        TextEditingController(text: widget.user.fatherOfConfession ?? '');
     _selectedBirthdate = widget.user.birthdate;
   }
 
@@ -1353,23 +1417,46 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildProfileInfoField('الاسم', _nameController.text, true, _nameController),
+          _buildProfileInfoField(
+              'الاسم', _nameController.text, true, _nameController),
           const SizedBox(height: 16),
-          _buildProfileInfoField('البريد الإلكتروني', _emailController.text, true, _emailController),
+          _buildProfileInfoField('البريد الإلكتروني', _emailController.text,
+              true, _emailController),
           const SizedBox(height: 16),
-          _buildProfileInfoField('رقم الهاتف', _phoneController.text, true, _phoneController),
+          CountryPhoneField(
+            controller: _phoneController,
+            label: 'رقم الهاتف',
+            enabled: true,
+            icon: Icons.phone,
+          ),
           const SizedBox(height: 16),
-          _buildProfileInfoField('رقم هاتف الأب', _fathersPhoneController.text, true, _fathersPhoneController),
+          CountryPhoneField(
+            controller: _fathersPhoneController,
+            label: 'رقم هاتف الأب (اختياري)',
+            enabled: true,
+            icon: Icons.phone,
+          ),
           const SizedBox(height: 16),
-          _buildProfileInfoField('رقم هاتف الأم', _mothersPhoneController.text, true, _mothersPhoneController),
+          CountryPhoneField(
+            controller: _mothersPhoneController,
+            label: 'رقم هاتف الأم (اختياري)',
+            enabled: true,
+            icon: Icons.phone,
+          ),
           const SizedBox(height: 16),
           _buildBirthdateField(),
           const SizedBox(height: 16),
-          _buildProfileInfoField('العنوان', _addressController.text, true, _addressController, maxLines: 3),
+          _buildProfileInfoField(
+              'العنوان', _addressController.text, true, _addressController,
+              maxLines: 3),
           const SizedBox(height: 16),
           _buildLocationField(),
           const SizedBox(height: 16),
-          _buildProfileInfoField('أب الاعتراف', _fatherOfConfessionController.text, true, _fatherOfConfessionController),
+          _buildProfileInfoField(
+              'أب الاعتراف',
+              _fatherOfConfessionController.text,
+              true,
+              _fatherOfConfessionController),
           const SizedBox(height: 16),
           _buildProfileInfoField('الدور', widget.user.role.name, false, null),
           const SizedBox(height: 24),
@@ -1377,13 +1464,14 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: _isLoading ? null : _saveProfile,
-              icon: _isLoading 
+              icon: _isLoading
                   ? const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentWhite),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                            AppColors.accentWhite),
                       ),
                     )
                   : const Icon(Icons.save, color: AppColors.accentWhite),
@@ -1408,7 +1496,9 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
     );
   }
 
-  Widget _buildProfileInfoField(String label, String value, bool isEditable, TextEditingController? controller, {int maxLines = 1}) {
+  Widget _buildProfileInfoField(String label, String value, bool isEditable,
+      TextEditingController? controller,
+      {int maxLines = 1}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1419,7 +1509,8 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: AppColors.primaryMaroon.withValues(alpha: 0.8.clamp(0.0, 1.0)),
+              color: AppColors.primaryMaroon
+                  .withValues(alpha: 0.8.clamp(0.0, 1.0)),
             ),
           ),
         ),
@@ -1436,13 +1527,16 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: AppColors.primaryMaroon, width: 2),
+                      borderSide: const BorderSide(
+                          color: AppColors.primaryMaroon, width: 2),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                 )
               : Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   decoration: BoxDecoration(
                     color: AppColors.backgroundSecondary,
                     borderRadius: BorderRadius.circular(8),
@@ -1466,17 +1560,28 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+
       final updateData = {
         'name': _nameController.text.trim(),
         'email': _emailController.text.trim(),
         'phoneNumber': _phoneController.text.trim(),
-        'fathersPhoneNumber': _fathersPhoneController.text.trim().isEmpty ? null : _fathersPhoneController.text.trim(),
-        'mothersPhoneNumber': _mothersPhoneController.text.trim().isEmpty ? null : _mothersPhoneController.text.trim(),
+        'fathersPhoneNumber': _fathersPhoneController.text.trim().isEmpty
+            ? null
+            : _fathersPhoneController.text.trim(),
+        'mothersPhoneNumber': _mothersPhoneController.text.trim().isEmpty
+            ? null
+            : _mothersPhoneController.text.trim(),
         'birthdate': _selectedBirthdate?.toIso8601String().split('T')[0],
-        'address': _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
-        'addressLocationLink': _addressLocationLinkController.text.trim().isEmpty ? null : _addressLocationLinkController.text.trim(),
-        'fatherOfConfession': _fatherOfConfessionController.text.trim().isEmpty ? null : _fatherOfConfessionController.text.trim(),
+        'address': _addressController.text.trim().isEmpty
+            ? null
+            : _addressController.text.trim(),
+        'addressLocationLink':
+            _addressLocationLinkController.text.trim().isEmpty
+                ? null
+                : _addressLocationLinkController.text.trim(),
+        'fatherOfConfession': _fatherOfConfessionController.text.trim().isEmpty
+            ? null
+            : _fatherOfConfessionController.text.trim(),
       };
 
       final updatedUser = await authProvider.updateUserProfile(updateData);
@@ -1546,12 +1651,14 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _selectedBirthdate != null 
+                    _selectedBirthdate != null
                         ? '${_selectedBirthdate!.day}/${_selectedBirthdate!.month}/${_selectedBirthdate!.year}'
                         : 'لم يتم تحديد تاريخ الميلاد',
                     style: TextStyle(
                       fontSize: 14,
-                      color: _selectedBirthdate != null ? AppColors.textPrimary : AppColors.textSecondary,
+                      color: _selectedBirthdate != null
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -1592,9 +1699,11 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: AppColors.primaryMaroon, width: 2),
+                      borderSide: const BorderSide(
+                          color: AppColors.primaryMaroon, width: 2),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
                   keyboardType: TextInputType.url,
                 ),
@@ -1607,7 +1716,8 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryMaroon,
                   foregroundColor: AppColors.accentWhite,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -1623,7 +1733,8 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
   Future<void> _selectBirthdate() async {
     final date = await showDatePicker(
       context: context,
-      initialDate: _selectedBirthdate ?? DateTime.now().subtract(const Duration(days: 365 * 20)),
+      initialDate: _selectedBirthdate ??
+          DateTime.now().subtract(const Duration(days: 365 * 20)),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );
@@ -1638,7 +1749,7 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
     try {
       // Check location permission
       LocationPermission permission = await Geolocator.checkPermission();
-      
+
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
@@ -1648,7 +1759,8 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        _showLocationError('تم رفض إذن الموقع نهائياً. يرجى تفعيله من الإعدادات');
+        _showLocationError(
+            'تم رفض إذن الموقع نهائياً. يرجى تفعيله من الإعدادات');
         return;
       }
 
@@ -1667,8 +1779,9 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
       );
 
       // Create Google Maps link
-      final locationLink = 'https://www.google.com/maps?q=${position.latitude},${position.longitude}';
-      
+      final locationLink =
+          'https://www.google.com/maps?q=${position.latitude},${position.longitude}';
+
       // Close loading dialog
       Navigator.of(context).pop();
 
@@ -1684,13 +1797,12 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
           backgroundColor: Colors.green,
         ),
       );
-
     } catch (e) {
       // Close loading dialog if it's open
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
-      
+
       _showLocationError('فشل في الحصول على الموقع: ${e.toString()}');
     }
   }
@@ -1758,7 +1870,7 @@ class _AddUserDialogState extends State<_AddUserDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         constraints: BoxConstraints(
-          maxWidth: 500, 
+          maxWidth: 500,
           maxHeight: MediaQuery.of(context).size.height * 0.9,
         ),
         child: Column(
@@ -1831,24 +1943,21 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                           if (value == null || value.trim().isEmpty) {
                             return 'يرجى إدخال البريد الإلكتروني';
                           }
-                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                              .hasMatch(value)) {
                             return 'يرجى إدخال بريد إلكتروني صحيح';
                           }
                           return null;
                         },
                       ),
                       const SizedBox(height: 16),
-                      _buildTextField(
+                      CountryPhoneField(
                         controller: _phoneController,
                         label: 'رقم الهاتف',
                         icon: Icons.phone,
-                        keyboardType: TextInputType.phone,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'يرجى إدخال رقم الهاتف';
-                          }
-                          if (!RegExp(r'^[+]?[\d\s-()]+$').hasMatch(value)) {
-                            return 'يرجى إدخال رقم هاتف صحيح';
                           }
                           return null;
                         },
@@ -1969,7 +2078,8 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentWhite),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    AppColors.accentWhite),
                               ),
                             )
                           : const Text('إضافة العضو'),
@@ -2007,7 +2117,8 @@ class _AddUserDialogState extends State<_AddUserDialog> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primaryMaroon, width: 2),
+          borderSide:
+              const BorderSide(color: AppColors.primaryMaroon, width: 2),
         ),
       ),
     );
@@ -2036,15 +2147,18 @@ class _AddUserDialogState extends State<_AddUserDialog> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.calendar_today, color: AppColors.primaryMaroon),
+                const Icon(Icons.calendar_today,
+                    color: AppColors.primaryMaroon),
                 const SizedBox(width: 12),
                 Text(
-                  _selectedBirthdate != null 
+                  _selectedBirthdate != null
                       ? '${_selectedBirthdate!.day}/${_selectedBirthdate!.month}/${_selectedBirthdate!.year}'
                       : 'اختيار تاريخ الميلاد',
                   style: TextStyle(
                     fontSize: 16,
-                    color: _selectedBirthdate != null ? AppColors.textPrimary : AppColors.textSecondary,
+                    color: _selectedBirthdate != null
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
                   ),
                 ),
                 const Spacer(),
@@ -2060,7 +2174,8 @@ class _AddUserDialogState extends State<_AddUserDialog> {
   Future<void> _selectBirthdate() async {
     final date = await showDatePicker(
       context: context,
-      initialDate: _selectedBirthdate ?? DateTime.now().subtract(const Duration(days: 365 * 20)),
+      initialDate: _selectedBirthdate ??
+          DateTime.now().subtract(const Duration(days: 365 * 20)),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );
@@ -2129,7 +2244,9 @@ class _AddUserDialogState extends State<_AddUserDialog> {
               child: OutlinedButton.icon(
                 onPressed: _pickImage,
                 icon: const Icon(Icons.image),
-                label: Text(_selectedImagePath != null ? 'تغيير الصورة' : 'اختيار صورة'),
+                label: Text(_selectedImagePath != null
+                    ? 'تغيير الصورة'
+                    : 'اختيار صورة'),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -2191,7 +2308,7 @@ class _AddUserDialogState extends State<_AddUserDialog> {
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+
       // Create user data for API call (including password)
       final userData = {
         'name': _nameController.text.trim(),
@@ -2199,22 +2316,35 @@ class _AddUserDialogState extends State<_AddUserDialog> {
         'phoneNumber': _phoneController.text.trim(),
         'password': _passwordController.text,
         'role': _selectedRole.name,
-        'fathersPhoneNumber': _fathersPhoneController.text.trim().isEmpty ? null : _fathersPhoneController.text.trim(),
-        'mothersPhoneNumber': _mothersPhoneController.text.trim().isEmpty ? null : _mothersPhoneController.text.trim(),
-        'birthdate': _selectedBirthdate?.toIso8601String().split('T')[0], // Format as YYYY-MM-DD
-        'address': _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
-        'addressLocationLink': _addressLocationLinkController.text.trim().isEmpty ? null : _addressLocationLinkController.text.trim(),
-        'fatherOfConfession': _fatherOfConfessionController.text.trim().isEmpty ? null : _fatherOfConfessionController.text.trim(),
+        'fathersPhoneNumber': _fathersPhoneController.text.trim().isEmpty
+            ? null
+            : _fathersPhoneController.text.trim(),
+        'mothersPhoneNumber': _mothersPhoneController.text.trim().isEmpty
+            ? null
+            : _mothersPhoneController.text.trim(),
+        'birthdate': _selectedBirthdate
+            ?.toIso8601String()
+            .split('T')[0], // Format as YYYY-MM-DD
+        'address': _addressController.text.trim().isEmpty
+            ? null
+            : _addressController.text.trim(),
+        'addressLocationLink':
+            _addressLocationLinkController.text.trim().isEmpty
+                ? null
+                : _addressLocationLinkController.text.trim(),
+        'fatherOfConfession': _fatherOfConfessionController.text.trim().isEmpty
+            ? null
+            : _fatherOfConfessionController.text.trim(),
         if (_selectedImagePath != null) 'profileImage': _selectedImagePath,
       };
 
       // Use the new method to create user with raw data
       final createdUser = await authProvider.addUserWithData(userData);
-      
+
       if (createdUser == null) {
         throw Exception('Failed to create user');
       }
-      
+
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2240,7 +2370,6 @@ class _AddUserDialogState extends State<_AddUserDialog> {
       }
     }
   }
-
 }
 
 // Add Attendance Dialog
@@ -2276,7 +2405,7 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         constraints: BoxConstraints(
-          maxWidth: 500, 
+          maxWidth: 500,
           maxHeight: MediaQuery.of(context).size.height * 0.9,
         ),
         child: Column(
@@ -2369,7 +2498,8 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentWhite),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    AppColors.accentWhite),
                               ),
                             )
                           : const Text('تسجيل الحضور'),
@@ -2407,7 +2537,8 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.primaryMaroon, width: 2),
+                  borderSide: const BorderSide(
+                      color: AppColors.primaryMaroon, width: 2),
                 ),
               ),
               items: classProvider.myMembers.map((user) {
@@ -2453,7 +2584,8 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.calendar_today, color: AppColors.primaryMaroon),
+                const Icon(Icons.calendar_today,
+                    color: AppColors.primaryMaroon),
                 const SizedBox(width: 12),
                 Text(
                   _formatDate(_selectedDate),
@@ -2492,7 +2624,8 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primaryMaroon, width: 2),
+              borderSide:
+                  const BorderSide(color: AppColors.primaryMaroon, width: 2),
             ),
           ),
         ),
@@ -2518,9 +2651,10 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
     setState(() => _isLoading = true);
 
     try {
-      final attendanceProvider = Provider.of<AttendanceProvider>(context, listen: false);
+      final attendanceProvider =
+          Provider.of<AttendanceProvider>(context, listen: false);
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      
+
       // Get user name from the selected user ID
       final selectedUser = userProvider.users.firstWhere(
         (user) => user.id == _selectedUserId!,
@@ -2532,9 +2666,11 @@ class _AddAttendanceDialogState extends State<_AddAttendanceDialog> {
         userName: selectedUser.name,
         type: widget.attendanceType,
         date: _selectedDate,
-        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
+        notes: _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
       );
-      
+
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2638,11 +2774,15 @@ class _EditUserDialogState extends State<_EditUserDialog> {
     super.initState();
     _nameController = TextEditingController(text: widget.user.name);
     _phoneController = TextEditingController(text: widget.user.phoneNumber);
-    _fathersPhoneController = TextEditingController(text: widget.user.fathersPhoneNumber ?? '');
-    _mothersPhoneController = TextEditingController(text: widget.user.mothersPhoneNumber ?? '');
+    _fathersPhoneController =
+        TextEditingController(text: widget.user.fathersPhoneNumber ?? '');
+    _mothersPhoneController =
+        TextEditingController(text: widget.user.mothersPhoneNumber ?? '');
     _addressController = TextEditingController(text: widget.user.address ?? '');
-    _addressLocationLinkController = TextEditingController(text: widget.user.addressLocationLink ?? '');
-    _fatherOfConfessionController = TextEditingController(text: widget.user.fatherOfConfession ?? '');
+    _addressLocationLinkController =
+        TextEditingController(text: widget.user.addressLocationLink ?? '');
+    _fatherOfConfessionController =
+        TextEditingController(text: widget.user.fatherOfConfession ?? '');
     _selectedBirthdate = widget.user.birthdate;
     _selectedImagePath = widget.user.profileImage;
   }
@@ -2665,7 +2805,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         constraints: BoxConstraints(
-          maxWidth: 500, 
+          maxWidth: 500,
           maxHeight: MediaQuery.of(context).size.height * 0.9,
         ),
         child: Column(
@@ -2729,50 +2869,28 @@ class _EditUserDialogState extends State<_EditUserDialog> {
                         },
                       ),
                       const SizedBox(height: 16),
-                      _buildTextField(
+                      CountryPhoneField(
                         controller: _phoneController,
                         label: 'رقم الهاتف',
                         icon: Icons.phone,
-                        keyboardType: TextInputType.phone,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'يرجى إدخال رقم الهاتف';
                           }
-                          if (!RegExp(r'^[+]?[\d\s-()]+$').hasMatch(value)) {
-                            return 'يرجى إدخال رقم هاتف صحيح';
-                          }
                           return null;
                         },
                       ),
                       const SizedBox(height: 16),
-                      _buildTextField(
+                      CountryPhoneField(
                         controller: _fathersPhoneController,
                         label: 'رقم هاتف الأب (اختياري)',
                         icon: Icons.phone,
-                        keyboardType: TextInputType.phone,
-                        validator: (value) {
-                          if (value != null && value.trim().isNotEmpty) {
-                            if (!RegExp(r'^[+]?[\d\s-()]+$').hasMatch(value)) {
-                              return 'يرجى إدخال رقم هاتف صحيح';
-                            }
-                          }
-                          return null;
-                        },
                       ),
                       const SizedBox(height: 16),
-                      _buildTextField(
+                      CountryPhoneField(
                         controller: _mothersPhoneController,
                         label: 'رقم هاتف الأم (اختياري)',
                         icon: Icons.phone,
-                        keyboardType: TextInputType.phone,
-                        validator: (value) {
-                          if (value != null && value.trim().isNotEmpty) {
-                            if (!RegExp(r'^[+]?[\d\s-()]+$').hasMatch(value)) {
-                              return 'يرجى إدخال رقم هاتف صحيح';
-                            }
-                          }
-                          return null;
-                        },
                       ),
                       const SizedBox(height: 16),
                       _buildBirthdateSelector(),
@@ -2842,7 +2960,8 @@ class _EditUserDialogState extends State<_EditUserDialog> {
                               width: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentWhite),
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                    AppColors.accentWhite),
                               ),
                             )
                           : const Text('حفظ التغييرات'),
@@ -2880,7 +2999,8 @@ class _EditUserDialogState extends State<_EditUserDialog> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.primaryMaroon, width: 2),
+          borderSide:
+              const BorderSide(color: AppColors.primaryMaroon, width: 2),
         ),
       ),
     );
@@ -2909,15 +3029,18 @@ class _EditUserDialogState extends State<_EditUserDialog> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.calendar_today, color: AppColors.primaryMaroon),
+                const Icon(Icons.calendar_today,
+                    color: AppColors.primaryMaroon),
                 const SizedBox(width: 12),
                 Text(
-                  _selectedBirthdate != null 
+                  _selectedBirthdate != null
                       ? '${_selectedBirthdate!.day}/${_selectedBirthdate!.month}/${_selectedBirthdate!.year}'
                       : 'اختيار تاريخ الميلاد',
                   style: TextStyle(
                     fontSize: 16,
-                    color: _selectedBirthdate != null ? AppColors.textPrimary : AppColors.textSecondary,
+                    color: _selectedBirthdate != null
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
                   ),
                 ),
                 const Spacer(),
@@ -2949,7 +3072,9 @@ class _EditUserDialogState extends State<_EditUserDialog> {
               child: OutlinedButton.icon(
                 onPressed: _pickImage,
                 icon: const Icon(Icons.image),
-                label: Text(_selectedImagePath != null ? 'تغيير الصورة' : 'اختيار صورة'),
+                label: Text(_selectedImagePath != null
+                    ? 'تغيير الصورة'
+                    : 'اختيار صورة'),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -2997,7 +3122,8 @@ class _EditUserDialogState extends State<_EditUserDialog> {
   Future<void> _selectBirthdate() async {
     final date = await showDatePicker(
       context: context,
-      initialDate: _selectedBirthdate ?? DateTime.now().subtract(const Duration(days: 365 * 20)),
+      initialDate: _selectedBirthdate ??
+          DateTime.now().subtract(const Duration(days: 365 * 20)),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );
@@ -3025,17 +3151,28 @@ class _EditUserDialogState extends State<_EditUserDialog> {
 
     try {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      
+
       // Prepare profile data (excluding email and password)
       final profileData = {
         'name': _nameController.text.trim(),
         'phoneNumber': _phoneController.text.trim(),
-        'fathersPhoneNumber': _fathersPhoneController.text.trim().isEmpty ? null : _fathersPhoneController.text.trim(),
-        'mothersPhoneNumber': _mothersPhoneController.text.trim().isEmpty ? null : _mothersPhoneController.text.trim(),
+        'fathersPhoneNumber': _fathersPhoneController.text.trim().isEmpty
+            ? null
+            : _fathersPhoneController.text.trim(),
+        'mothersPhoneNumber': _mothersPhoneController.text.trim().isEmpty
+            ? null
+            : _mothersPhoneController.text.trim(),
         'birthdate': _selectedBirthdate?.toIso8601String().split('T')[0],
-        'address': _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
-        'addressLocationLink': _addressLocationLinkController.text.trim().isEmpty ? null : _addressLocationLinkController.text.trim(),
-        'fatherOfConfession': _fatherOfConfessionController.text.trim().isEmpty ? null : _fatherOfConfessionController.text.trim(),
+        'address': _addressController.text.trim().isEmpty
+            ? null
+            : _addressController.text.trim(),
+        'addressLocationLink':
+            _addressLocationLinkController.text.trim().isEmpty
+                ? null
+                : _addressLocationLinkController.text.trim(),
+        'fatherOfConfession': _fatherOfConfessionController.text.trim().isEmpty
+            ? null
+            : _fatherOfConfessionController.text.trim(),
         if (_selectedImagePath != null) 'profileImage': _selectedImagePath,
       };
 
@@ -3044,7 +3181,7 @@ class _EditUserDialogState extends State<_EditUserDialog> {
         profileData,
         context,
       );
-      
+
       if (success && mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3057,7 +3194,8 @@ class _EditUserDialogState extends State<_EditUserDialog> {
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('فشل تحديث الملف الشخصي: ${userProvider.errorMessage}'),
+            content:
+                Text('فشل تحديث الملف الشخصي: ${userProvider.errorMessage}'),
             backgroundColor: AppColors.error,
           ),
         );

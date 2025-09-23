@@ -6,7 +6,7 @@ import '../models/user_model.dart';
 
 class ClassProvider with ChangeNotifier {
   final ApiService _apiService = ApiService.instance;
-  
+
   List<ClassModel> _classes = [];
   List<ClassMembershipModel> _memberships = [];
   List<UserModel> _myMembers = [];
@@ -34,11 +34,11 @@ class ClassProvider with ChangeNotifier {
 
     try {
       final response = await _apiService.getClasses();
-      
+
       _classes = response.map((json) {
         return ClassModel.fromJson(json);
       }).toList();
-      
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -124,14 +124,15 @@ class ClassProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _apiService.updateClass(classModel.id, classModel.toJson());
+      final response =
+          await _apiService.updateClass(classModel.id, classModel.toJson());
       final updatedClass = ClassModel.fromJson(response);
-      
+
       final index = _classes.indexWhere((c) => c.id == classModel.id);
       if (index != -1) {
         _classes[index] = updatedClass;
       }
-      
+
       _isLoading = false;
       notifyListeners();
       return true;
@@ -167,15 +168,15 @@ class ClassProvider with ChangeNotifier {
   Future<Map<String, List<UserModel>>?> getClassMembers(String classId) async {
     try {
       final response = await _apiService.getClassMembers(classId);
-      
+
       final khadem = (response['khadem'] as List)
           .map((json) => UserModel.fromJson(json))
           .toList();
-      
+
       final makhdoum = (response['makhdoum'] as List)
           .map((json) => UserModel.fromJson(json))
           .toList();
-      
+
       return {
         'khadem': khadem,
         'makhdoum': makhdoum,
@@ -188,7 +189,8 @@ class ClassProvider with ChangeNotifier {
   }
 
   // Add class member
-  Future<bool> addClassMember(String classId, String userId, UserRole role, {String? notes}) async {
+  Future<bool> addClassMember(String classId, String userId, UserRole role,
+      {String? notes}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -199,16 +201,20 @@ class ClassProvider with ChangeNotifier {
         'role': role.name,
         'notes': notes,
       };
-      
+
+      print(
+          'ClassProvider: Adding member to class $classId with data: $memberData');
       await _apiService.addClassMember(classId, memberData);
-      
+      print('ClassProvider: Successfully added member to class');
+
       // Refresh the class data
       await loadClasses();
-      
+
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
+      print('ClassProvider: Error adding member to class: $e');
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
@@ -224,15 +230,27 @@ class ClassProvider with ChangeNotifier {
 
     try {
       await _apiService.removeClassMember(classId, userId);
-      
+
       // Refresh the class data
       await loadClasses();
-      
+
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
-      _error = e.toString();
+      // Set more user-friendly error messages
+      if (e.toString().contains('404')) {
+        _error = 'User not found in this class or class does not exist.';
+      } else if (e.toString().contains('403')) {
+        _error =
+            'You do not have permission to remove this member from the class.';
+      } else if (e.toString().contains('500')) {
+        _error =
+            'Server error occurred while removing member. Please try again.';
+      } else {
+        _error = 'Failed to remove member from class: ${e.toString()}';
+      }
+
       _isLoading = false;
       notifyListeners();
       return false;
@@ -251,7 +269,8 @@ class ClassProvider with ChangeNotifier {
   }
 
   // Bulk assign users to class
-  Future<void> bulkAssignUsers(String classId, List<String> userIds, UserRole role) async {
+  Future<void> bulkAssignUsers(
+      String classId, List<String> userIds, UserRole role) async {
     try {
       for (final userId in userIds) {
         await _apiService.addClassMember(classId, {
@@ -268,19 +287,20 @@ class ClassProvider with ChangeNotifier {
   }
 
   // Transfer users between classes
-  Future<void> transferUsers(String fromClassId, String toClassId, List<String> userIds) async {
+  Future<void> transferUsers(
+      String fromClassId, String toClassId, List<String> userIds) async {
     try {
       for (final userId in userIds) {
         // Remove from old class
         await _apiService.removeClassMember(fromClassId, userId);
-        
+
         // Get user's role in old class to maintain it
         final memberships = await getClassMembersRaw(fromClassId);
         final userMembership = memberships['memberships']?.firstWhere(
           (m) => m['userId'] == userId,
           orElse: () => null,
         );
-        
+
         if (userMembership != null) {
           // Add to new class with same role
           await _apiService.addClassMember(toClassId, {
@@ -325,19 +345,22 @@ class ClassProvider with ChangeNotifier {
   // Get classes by capacity
   List<ClassModel> getClassesByCapacity({bool? hasSpace}) {
     if (hasSpace == null) return _classes;
-    
-    return _classes.where((c) => hasSpace ? c.canAddMember : c.isAtCapacity).toList();
+
+    return _classes
+        .where((c) => hasSpace ? c.canAddMember : c.isAtCapacity)
+        .toList();
   }
 
   // Search classes
   List<ClassModel> searchClasses(String query) {
     if (query.isEmpty) return _classes;
-    
+
     final lowercaseQuery = query.toLowerCase();
-    return _classes.where((c) => 
-      c.name.toLowerCase().contains(lowercaseQuery) ||
-      (c.description?.toLowerCase().contains(lowercaseQuery) ?? false) ||
-      (c.location?.toLowerCase().contains(lowercaseQuery) ?? false)
-    ).toList();
+    return _classes
+        .where((c) =>
+            c.name.toLowerCase().contains(lowercaseQuery) ||
+            (c.description?.toLowerCase().contains(lowercaseQuery) ?? false) ||
+            (c.location?.toLowerCase().contains(lowercaseQuery) ?? false))
+        .toList();
   }
 }

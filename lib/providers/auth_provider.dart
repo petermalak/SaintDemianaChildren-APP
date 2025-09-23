@@ -55,14 +55,15 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _apiService.updateUser(_currentUser!.id, updateData);
+      final response =
+          await _apiService.updateUser(_currentUser!.id, updateData);
       final updatedUser = UserModel.fromJson(response);
-      
+
       // Update current user if it's the same user
       if (_currentUser!.id == updatedUser.id) {
         _currentUser = updatedUser;
       }
-      
+
       _isLoading = false;
       notifyListeners();
       return updatedUser;
@@ -163,12 +164,26 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _apiService.deleteUser(userId);
+      final response = await _apiService.deleteUser(userId);
+
+      // Clear error message on success
+      _errorMessage = null;
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
-      _errorMessage = e.toString();
+      // Set more user-friendly error messages
+      if (e.toString().contains('Foreign key constraint')) {
+        _errorMessage =
+            'Cannot delete user. User has related data (classes, attendance records) that must be handled first.';
+      } else if (e.toString().contains('404')) {
+        _errorMessage = 'User not found.';
+      } else if (e.toString().contains('403')) {
+        _errorMessage = 'You do not have permission to delete this user.';
+      } else {
+        _errorMessage = 'Failed to delete user: ${e.toString()}';
+      }
+
       _isLoading = false;
       notifyListeners();
       return false;
@@ -197,7 +212,7 @@ class AuthProvider extends ChangeNotifier {
   // Refresh current user data from server
   Future<bool> refreshCurrentUser() async {
     if (_currentUser == null) return false;
-    
+
     _isLoading = true;
     notifyListeners();
 

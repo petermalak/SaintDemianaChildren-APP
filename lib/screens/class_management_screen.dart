@@ -73,13 +73,13 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
       final classProvider = Provider.of<ClassProvider>(context, listen: false);
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+
       // Load classes and users in parallel
       final results = await Future.wait([
         classProvider.loadClasses(),
         authProvider.getAllUsers(),
       ]);
-      
+
       // Update userProvider with the loaded users
       final users = results[1] as List<UserModel>;
       userProvider.setUsers(users);
@@ -252,7 +252,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
   Widget _buildTabBar() {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 600;
-    
+
     return Container(
       margin: EdgeInsets.symmetric(horizontal: screenWidth * 0.05),
       decoration: BoxDecoration(
@@ -304,7 +304,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
             child: CircularProgressIndicator(),
           );
         }
-        
+
         if (classProvider.error != null) {
           return Center(
             child: Column(
@@ -335,13 +335,20 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
             ),
           );
         }
-        
+
         final classes = classProvider.classes;
         final filteredClasses = _searchQuery.isEmpty
             ? classes
-            : classes.where((cls) =>
-                cls.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                (cls.description?.toLowerCase().contains(_searchQuery.toLowerCase()) ?? false)).toList();
+            : classes
+                .where((cls) =>
+                    cls.name
+                        .toLowerCase()
+                        .contains(_searchQuery.toLowerCase()) ||
+                    (cls.description
+                            ?.toLowerCase()
+                            .contains(_searchQuery.toLowerCase()) ??
+                        false))
+                .toList();
 
         return Column(
           children: [
@@ -374,9 +381,15 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
         final allUsers = userProvider.users;
         final filteredUsers = _searchQuery.isEmpty
             ? allUsers
-            : allUsers.where((user) =>
-                user.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                user.email.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+            : allUsers
+                .where((user) =>
+                    user.name
+                        .toLowerCase()
+                        .contains(_searchQuery.toLowerCase()) ||
+                    user.email
+                        .toLowerCase()
+                        .contains(_searchQuery.toLowerCase()))
+                .toList();
 
         return Column(
           children: [
@@ -390,7 +403,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                 decoration: BoxDecoration(
                   color: AppColors.accentGold.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.3)),
+                  border: Border.all(
+                      color: AppColors.accentGold.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -455,7 +469,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                 decoration: BoxDecoration(
                   color: AppColors.accentGold.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.3)),
+                  border: Border.all(
+                      color: AppColors.accentGold.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
@@ -494,7 +509,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                       ),
                     );
                   }
-                  
+
                   if (snapshot.hasError) {
                     return Center(
                       child: Column(
@@ -525,7 +540,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                       ),
                     );
                   }
-                  
+
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return _buildEmptyState(
                       icon: Icons.assignment,
@@ -533,14 +548,22 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                       subtitle: 'لم يتم تعيين أي أعضاء للفصول بعد',
                     );
                   }
-                  
+
                   final memberships = snapshot.data!;
                   final filteredMemberships = _searchQuery.isEmpty
                       ? memberships
-                      : memberships.where((membership) =>
-                          membership.user?.name.toLowerCase().contains(_searchQuery.toLowerCase()) == true ||
-                          membership.classModel?.name.toLowerCase().contains(_searchQuery.toLowerCase()) == true).toList();
-                  
+                      : memberships
+                          .where((membership) =>
+                              membership.user?.name
+                                      .toLowerCase()
+                                      .contains(_searchQuery.toLowerCase()) ==
+                                  true ||
+                              membership.classModel?.name
+                                      .toLowerCase()
+                                      .contains(_searchQuery.toLowerCase()) ==
+                                  true)
+                          .toList();
+
                   return ListView.builder(
                     padding: const EdgeInsets.all(20),
                     itemCount: filteredMemberships.length,
@@ -560,7 +583,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
 
   Widget _buildSearchSection() {
     final screenWidth = MediaQuery.of(context).size.width;
-    
+
     return Container(
       margin: EdgeInsets.all(screenWidth * 0.05),
       decoration: BoxDecoration(
@@ -584,7 +607,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
             fontSize: screenWidth * 0.04,
           ),
           prefixIcon: Icon(
-            Icons.search, 
+            Icons.search,
             color: AppColors.primaryMaroon,
             size: screenWidth * 0.05,
           ),
@@ -595,7 +618,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                     setState(() => _searchQuery = '');
                   },
                   icon: Icon(
-                    Icons.clear, 
+                    Icons.clear,
                     color: AppColors.textSecondary,
                     size: screenWidth * 0.05,
                   ),
@@ -603,7 +626,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
               : null,
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(
-            horizontal: screenWidth * 0.04, 
+            horizontal: screenWidth * 0.04,
             vertical: screenWidth * 0.03,
           ),
         ),
@@ -615,7 +638,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
   Widget _buildClassCard(ClassModel classItem) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 600;
-    
+
     return AnimatedBuilder(
       animation: _cardAnimation,
       builder: (context, child) {
@@ -682,13 +705,15 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                         ),
                       ),
                       PopupMenuButton<String>(
-                        onSelected: (value) => _handleClassAction(value, classItem),
+                        onSelected: (value) =>
+                            _handleClassAction(value, classItem),
                         itemBuilder: (context) => [
                           const PopupMenuItem(
                             value: 'edit',
                             child: Row(
                               children: [
-                                Icon(Icons.edit, color: AppColors.primaryMaroon),
+                                Icon(Icons.edit,
+                                    color: AppColors.primaryMaroon),
                                 SizedBox(width: 12),
                                 Text('تعديل'),
                               ],
@@ -698,7 +723,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                             value: 'members',
                             child: Row(
                               children: [
-                                Icon(Icons.people, color: AppColors.primaryMaroon),
+                                Icon(Icons.people,
+                                    color: AppColors.primaryMaroon),
                                 SizedBox(width: 12),
                                 Text('الأعضاء'),
                               ],
@@ -723,83 +749,83 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                       ),
                     ],
                   ),
-                  
+
                   SizedBox(height: screenWidth * 0.04),
-                  
+
                   // Class stats - responsive layout
-                  isSmallScreen 
-                    ? Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildStatChip(
-                                  icon: Icons.people,
-                                  label: 'الأعضاء',
-                                  value: '${classItem.memberCount}',
-                                  color: AppColors.primaryMaroon,
+                  isSmallScreen
+                      ? Column(
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildStatChip(
+                                    icon: Icons.people,
+                                    label: 'الأعضاء',
+                                    value: '${classItem.memberCount}',
+                                    color: AppColors.primaryMaroon,
+                                  ),
                                 ),
-                              ),
-                              SizedBox(width: screenWidth * 0.03),
-                              Expanded(
-                                child: _buildStatChip(
-                                  icon: Icons.person,
-                                  label: 'الخدام',
-                                  value: '${classItem.khademCount}',
-                                  color: AppColors.accentGold,
+                                SizedBox(width: screenWidth * 0.03),
+                                Expanded(
+                                  child: _buildStatChip(
+                                    icon: Icons.person,
+                                    label: 'الخدام',
+                                    value: '${classItem.khademCount}',
+                                    color: AppColors.accentGold,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          SizedBox(height: screenWidth * 0.02),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildStatChip(
-                                  icon: Icons.child_care,
-                                  label: 'المخدومين',
-                                  value: '${classItem.makhdoumCount}',
-                                  color: AppColors.primaryBrown,
+                              ],
+                            ),
+                            SizedBox(height: screenWidth * 0.02),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildStatChip(
+                                    icon: Icons.child_care,
+                                    label: 'المخدومين',
+                                    value: '${classItem.makhdoumCount}',
+                                    color: AppColors.primaryBrown,
+                                  ),
                                 ),
-                              ),
-                              SizedBox(width: screenWidth * 0.03),
-                              Expanded(child: Container()), // Empty space
-                            ],
-                          ),
-                        ],
-                      )
-                    : Row(
-                        children: [
-                          _buildStatChip(
-                            icon: Icons.people,
-                            label: 'الأعضاء',
-                            value: '${classItem.memberCount}',
-                            color: AppColors.primaryMaroon,
-                          ),
-                          SizedBox(width: screenWidth * 0.03),
-                          _buildStatChip(
-                            icon: Icons.person,
-                            label: 'الخدام',
-                            value: '${classItem.khademCount}',
-                            color: AppColors.accentGold,
-                          ),
-                          SizedBox(width: screenWidth * 0.03),
-                          _buildStatChip(
-                            icon: Icons.child_care,
-                            label: 'المخدومين',
-                            value: '${classItem.makhdoumCount}',
-                            color: AppColors.primaryBrown,
-                          ),
-                        ],
-                      ),
-                  
+                                SizedBox(width: screenWidth * 0.03),
+                                Expanded(child: Container()), // Empty space
+                              ],
+                            ),
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            _buildStatChip(
+                              icon: Icons.people,
+                              label: 'الأعضاء',
+                              value: '${classItem.memberCount}',
+                              color: AppColors.primaryMaroon,
+                            ),
+                            SizedBox(width: screenWidth * 0.03),
+                            _buildStatChip(
+                              icon: Icons.person,
+                              label: 'الخدام',
+                              value: '${classItem.khademCount}',
+                              color: AppColors.accentGold,
+                            ),
+                            SizedBox(width: screenWidth * 0.03),
+                            _buildStatChip(
+                              icon: Icons.child_care,
+                              label: 'المخدومين',
+                              value: '${classItem.makhdoumCount}',
+                              color: AppColors.primaryBrown,
+                            ),
+                          ],
+                        ),
+
                   if (classItem.location != null) ...[
                     SizedBox(height: screenWidth * 0.03),
                     Row(
                       children: [
                         Icon(
-                          Icons.location_on, 
-                          size: screenWidth * 0.04, 
+                          Icons.location_on,
+                          size: screenWidth * 0.04,
                           color: AppColors.textSecondary,
                         ),
                         SizedBox(width: screenWidth * 0.02),
@@ -815,14 +841,14 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                       ],
                     ),
                   ],
-                  
+
                   if (classItem.schedule != null) ...[
                     SizedBox(height: screenWidth * 0.02),
                     Row(
                       children: [
                         Icon(
-                          Icons.schedule, 
-                          size: screenWidth * 0.04, 
+                          Icons.schedule,
+                          size: screenWidth * 0.04,
                           color: AppColors.textSecondary,
                         ),
                         SizedBox(width: screenWidth * 0.02),
@@ -906,9 +932,11 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                         ),
                         const SizedBox(height: 4),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: _getRoleColor(user.role).withValues(alpha: 0.1),
+                            color:
+                                _getRoleColor(user.role).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -930,7 +958,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                         value: 'view',
                         child: Row(
                           children: [
-                            Icon(Icons.visibility, color: AppColors.primaryMaroon),
+                            Icon(Icons.visibility,
+                                color: AppColors.primaryMaroon),
                             SizedBox(width: 12),
                             Text('عرض التفاصيل'),
                           ],
@@ -940,7 +969,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                         value: 'assign',
                         child: Row(
                           children: [
-                            Icon(Icons.assignment, color: AppColors.primaryMaroon),
+                            Icon(Icons.assignment,
+                                color: AppColors.primaryMaroon),
                             SizedBox(width: 12),
                             Text('تعيين لفصل'),
                           ],
@@ -1119,7 +1149,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
     }
   }
 
-  void _handleMembershipAction(String action, ClassMembershipModel membership, ClassModel classItem) {
+  void _handleMembershipAction(
+      String action, ClassMembershipModel membership, ClassModel classItem) {
     switch (action) {
       case 'remove':
         _showRemoveMemberDialog(membership, classItem);
@@ -1127,10 +1158,12 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
     }
   }
 
-  void _handleAssignmentMembershipAction(String action, ClassMembershipModel membership) {
+  void _handleAssignmentMembershipAction(
+      String action, ClassMembershipModel membership) {
     switch (action) {
       case 'remove':
-        _showRemoveMemberDialogById(membership.classModel!.id, membership.userId);
+        _showRemoveMemberDialogById(
+            membership.classModel!.id, membership.userId);
         break;
       case 'transfer':
         _showTransferSingleMemberDialog(membership);
@@ -1138,13 +1171,14 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
     }
   }
 
-
-  void _showRemoveMemberDialog(ClassMembershipModel membership, ClassModel classItem) {
+  void _showRemoveMemberDialog(
+      ClassMembershipModel membership, ClassModel classItem) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('إزالة عضو من الفصل'),
-        content: Text('هل أنت متأكد من إزالة ${membership.user?.name ?? 'هذا العضو'} من "${classItem.name}"؟'),
+        content: Text(
+            'هل أنت متأكد من إزالة ${membership.user?.name ?? 'هذا العضو'} من "${classItem.name}"؟'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -1152,13 +1186,30 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
           ),
           ElevatedButton(
             onPressed: () async {
-              final classProvider = Provider.of<ClassProvider>(context, listen: false);
-              await classProvider.removeClassMember(classItem.id, membership.userId);
+              final classProvider =
+                  Provider.of<ClassProvider>(context, listen: false);
+              final success = await classProvider.removeClassMember(
+                  classItem.id, membership.userId);
               Navigator.pop(context);
-              _loadData();
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('تم إزالة ${membership.user?.name ?? 'العضو'} من الفصل')),
-              );
+
+              if (success) {
+                _loadData();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                        'تم إزالة ${membership.user?.name ?? 'العضو'} من الفصل'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                        classProvider.error ?? 'فشل في إزالة العضو من الفصل'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
@@ -1184,12 +1235,14 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
           ),
           ElevatedButton(
             onPressed: () async {
-              try {
-                final classProvider = Provider.of<ClassProvider>(context, listen: false);
-                await classProvider.removeClassMember(classId, userId);
-                Navigator.pop(context);
+              final classProvider =
+                  Provider.of<ClassProvider>(context, listen: false);
+              final success =
+                  await classProvider.removeClassMember(classId, userId);
+              Navigator.pop(context);
+
+              if (success) {
                 _loadData();
-                
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -1198,11 +1251,12 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                     ),
                   );
                 }
-              } catch (e) {
+              } else {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('خطأ في إزالة العضو: $e'),
+                      content: Text(
+                          classProvider.error ?? 'فشل في إزالة العضو من الفصل'),
                       backgroundColor: Colors.red,
                     ),
                   );
@@ -1231,14 +1285,15 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('نقل ${membership.user?.name} من ${membership.classModel?.name} إلى:'),
+              Text(
+                  'نقل ${membership.user?.name} من ${membership.classModel?.name} إلى:'),
               const SizedBox(height: 16),
               Consumer<ClassProvider>(
                 builder: (context, classProvider, child) {
                   final classes = classProvider.classes
                       .where((cls) => cls.id != membership.classModel?.id)
                       .toList();
-                  
+
                   return DropdownButtonFormField<String>(
                     value: toClassId,
                     decoration: const InputDecoration(
@@ -1265,35 +1320,49 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
             ElevatedButton(
               onPressed: toClassId != null
                   ? () async {
-                      try {
-                        final classProvider = Provider.of<ClassProvider>(context, listen: false);
-                        
-                        // Remove from current class
-                        await classProvider.removeClassMember(membership.classModel!.id, membership.userId);
-                        
+                      final classProvider =
+                          Provider.of<ClassProvider>(context, listen: false);
+
+                      // Remove from current class
+                      final removeSuccess =
+                          await classProvider.removeClassMember(
+                              membership.classModel!.id, membership.userId);
+
+                      if (removeSuccess) {
                         // Add to new class with same role
-                        await classProvider.addClassMember(
+                        final addSuccess = await classProvider.addClassMember(
                           toClassId!,
                           membership.userId,
                           membership.role,
                         );
-                        
+
                         Navigator.pop(context);
                         _loadData();
-                        
+
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('تم نقل العضو بنجاح'),
-                              backgroundColor: AppColors.success,
-                            ),
-                          );
+                          if (addSuccess) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('تم نقل العضو بنجاح'),
+                                backgroundColor: AppColors.success,
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(classProvider.error ??
+                                    'فشل في إضافة العضو للفصل الجديد'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
                         }
-                      } catch (e) {
+                      } else {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('خطأ في نقل العضو: $e'),
+                              content: Text(classProvider.error ??
+                                  'فشل في إزالة العضو من الفصل الحالي'),
                               backgroundColor: Colors.red,
                             ),
                           );
@@ -1320,7 +1389,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
     final descriptionController = TextEditingController();
     final locationController = TextEditingController();
     final maxMembersController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1373,14 +1442,22 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
           ElevatedButton(
             onPressed: () async {
               if (nameController.text.isNotEmpty) {
-                final classProvider = Provider.of<ClassProvider>(context, listen: false);
-                final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                final classProvider =
+                    Provider.of<ClassProvider>(context, listen: false);
+                final authProvider =
+                    Provider.of<AuthProvider>(context, listen: false);
                 final newClass = ClassModel(
                   id: '',
                   name: nameController.text,
-                  description: descriptionController.text.isNotEmpty ? descriptionController.text : null,
-                  location: locationController.text.isNotEmpty ? locationController.text : null,
-                  maxMembers: maxMembersController.text.isNotEmpty ? int.tryParse(maxMembersController.text) : null,
+                  description: descriptionController.text.isNotEmpty
+                      ? descriptionController.text
+                      : null,
+                  location: locationController.text.isNotEmpty
+                      ? locationController.text
+                      : null,
+                  maxMembers: maxMembersController.text.isNotEmpty
+                      ? int.tryParse(maxMembersController.text)
+                      : null,
                   isActive: true,
                   createdBy: authProvider.currentUser?.id ?? '',
                   createdAt: DateTime.now(),
@@ -1403,10 +1480,13 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
 
   void _showEditClassDialog(ClassModel classItem) {
     final nameController = TextEditingController(text: classItem.name);
-    final descriptionController = TextEditingController(text: classItem.description ?? '');
-    final locationController = TextEditingController(text: classItem.location ?? '');
-    final maxMembersController = TextEditingController(text: classItem.maxMembers?.toString() ?? '');
-    
+    final descriptionController =
+        TextEditingController(text: classItem.description ?? '');
+    final locationController =
+        TextEditingController(text: classItem.location ?? '');
+    final maxMembersController =
+        TextEditingController(text: classItem.maxMembers?.toString() ?? '');
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1459,12 +1539,19 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
           ElevatedButton(
             onPressed: () async {
               if (nameController.text.isNotEmpty) {
-                final classProvider = Provider.of<ClassProvider>(context, listen: false);
+                final classProvider =
+                    Provider.of<ClassProvider>(context, listen: false);
                 final updatedClass = classItem.copyWith(
                   name: nameController.text,
-                  description: descriptionController.text.isNotEmpty ? descriptionController.text : null,
-                  location: locationController.text.isNotEmpty ? locationController.text : null,
-                  maxMembers: maxMembersController.text.isNotEmpty ? int.tryParse(maxMembersController.text) : null,
+                  description: descriptionController.text.isNotEmpty
+                      ? descriptionController.text
+                      : null,
+                  location: locationController.text.isNotEmpty
+                      ? locationController.text
+                      : null,
+                  maxMembers: maxMembersController.text.isNotEmpty
+                      ? int.tryParse(maxMembersController.text)
+                      : null,
                   updatedAt: DateTime.now(),
                 );
                 await classProvider.updateClass(updatedClass);
@@ -1493,24 +1580,25 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
           child: Consumer<ClassProvider>(
             builder: (context, classProvider, child) {
               final memberships = classItem.memberships ?? [];
-              
+
               if (memberships.isEmpty) {
                 return const Center(
                   child: Text('لا يوجد أعضاء في هذا الفصل'),
                 );
               }
-              
+
               return ListView.builder(
                 itemCount: memberships.length,
                 itemBuilder: (context, index) {
                   final membership = memberships[index];
                   final user = membership.user;
-                  
+
                   if (user == null) return const SizedBox.shrink();
-                  
+
                   return ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: _getRoleColor(user.role).withValues(alpha: 0.1),
+                      backgroundColor:
+                          _getRoleColor(user.role).withValues(alpha: 0.1),
                       child: Icon(
                         _getRoleIcon(user.role),
                         color: _getRoleColor(user.role),
@@ -1519,7 +1607,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                     title: Text(user.name),
                     subtitle: Text(user.email),
                     trailing: PopupMenuButton<String>(
-                      onSelected: (value) => _handleMembershipAction(value, membership, classItem),
+                      onSelected: (value) =>
+                          _handleMembershipAction(value, membership, classItem),
                       itemBuilder: (context) => [
                         const PopupMenuItem(
                           value: 'remove',
@@ -1576,12 +1665,14 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
           ),
           ElevatedButton(
             onPressed: () async {
-              final classProvider = Provider.of<ClassProvider>(context, listen: false);
+              final classProvider =
+                  Provider.of<ClassProvider>(context, listen: false);
               await classProvider.deleteClass(classItem.id);
               Navigator.pop(context);
               _loadData();
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('تم حذف الفصل "${classItem.name}" بنجاح')),
+                SnackBar(
+                    content: Text('تم حذف الفصل "${classItem.name}" بنجاح')),
               );
             },
             style: ElevatedButton.styleFrom(
@@ -1632,79 +1723,100 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
   void _showAssignUserDialog(UserModel user) {
     String? selectedClassId;
     String? selectedRole = user.role == UserRole.khadem ? 'khadem' : 'makhdoum';
-    
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('تعيين ${user.name}'),
-        content: Consumer<ClassProvider>(
-          builder: (context, classProvider, child) {
-            final classes = classProvider.classes;
-            
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: selectedClassId,
-                  decoration: const InputDecoration(
-                    labelText: 'اختيار الفصل',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: classes.map((cls) {
-                    return DropdownMenuItem(
-                      value: cls.id,
-                      child: Text(cls.name),
-                    );
-                  }).toList(),
-                  onChanged: (value) => setState(() => selectedClassId = value),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: selectedRole,
-                  decoration: const InputDecoration(
-                    labelText: 'الدور في الفصل',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'khadem',
-                      child: Text('خادم'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('تعيين ${user.name}'),
+          content: Consumer<ClassProvider>(
+            builder: (context, classProvider, child) {
+              final classes = classProvider.classes;
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<String>(
+                    value: selectedClassId,
+                    decoration: const InputDecoration(
+                      labelText: 'اختيار الفصل',
+                      border: OutlineInputBorder(),
                     ),
-                    DropdownMenuItem(
-                      value: 'makhdoum',
-                      child: Text('مخدوم'),
+                    items: classes.map((cls) {
+                      return DropdownMenuItem(
+                        value: cls.id,
+                        child: Text(cls.name),
+                      );
+                    }).toList(),
+                    onChanged: (value) =>
+                        setState(() => selectedClassId = value),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    value: selectedRole,
+                    decoration: const InputDecoration(
+                      labelText: 'الدور في الفصل',
+                      border: OutlineInputBorder(),
                     ),
-                  ],
-                  onChanged: (value) => setState(() => selectedRole = value),
-                ),
-              ],
-            );
-          },
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (selectedClassId != null && selectedRole != null) {
-                final classProvider = Provider.of<ClassProvider>(context, listen: false);
-                await classProvider.addClassMember(
-                  selectedClassId!,
-                  user.id,
-                  UserModel.parseRole(selectedRole!),
-                );
-                Navigator.pop(context);
-                _loadData();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('تم تعيين ${user.name} للفصل بنجاح')),
-                );
-              }
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'khadem',
+                        child: Text('خادم'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'makhdoum',
+                        child: Text('مخدوم'),
+                      ),
+                    ],
+                    onChanged: (value) => setState(() => selectedRole = value),
+                  ),
+                ],
+              );
             },
-            child: const Text('تعيين'),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: selectedClassId != null && selectedRole != null
+                  ? () async {
+                      try {
+                        final classProvider =
+                            Provider.of<ClassProvider>(context, listen: false);
+                        await classProvider.addClassMember(
+                          selectedClassId!,
+                          user.id,
+                          UserModel.parseRole(selectedRole!),
+                        );
+                        Navigator.pop(context);
+                        _loadData();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content:
+                                  Text('تم تعيين ${user.name} للفصل بنجاح'),
+                              backgroundColor: AppColors.success,
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('خطأ في تعيين المستخدم: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  : null,
+              child: const Text('تعيين'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1743,18 +1855,20 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
       final classProvider = Provider.of<ClassProvider>(context, listen: false);
       final classes = classProvider.classes;
       final allMemberships = <ClassMembershipModel>[];
-      
+
       // Load memberships sequentially to avoid rate limiting
       for (final classItem in classes) {
         try {
           // Add a small delay between requests to avoid rate limiting
           await Future.delayed(const Duration(milliseconds: 100));
-          
+
           final response = await classProvider.getClassMembersRaw(classItem.id);
-          print('Class ${classItem.name} memberships response: ${response.keys}');
+          print(
+              'Class ${classItem.name} memberships response: ${response.keys}');
           if (response['memberships'] != null) {
             final membershipsList = response['memberships'] as List;
-            print('Class ${classItem.name} has ${membershipsList.length} memberships');
+            print(
+                'Class ${classItem.name} has ${membershipsList.length} memberships');
             final memberships = membershipsList
                 .map((m) => ClassMembershipModel.fromJson(m))
                 .toList();
@@ -1768,7 +1882,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
           continue;
         }
       }
-      
+
       print('Total memberships found: ${allMemberships.length}');
       return allMemberships;
     } catch (e) {
@@ -1800,7 +1914,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
             // User avatar
             CircleAvatar(
               radius: 24,
-              backgroundColor: _getRoleColor(membership.role).withValues(alpha: 0.1),
+              backgroundColor:
+                  _getRoleColor(membership.role).withValues(alpha: 0.1),
               child: Icon(
                 _getRoleIcon(membership.role),
                 color: _getRoleColor(membership.role),
@@ -1808,7 +1923,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
               ),
             ),
             const SizedBox(width: 16),
-            
+
             // User and class info
             Expanded(
               child: Column(
@@ -1862,10 +1977,11 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                 ],
               ),
             ),
-            
+
             // Actions
             PopupMenuButton<String>(
-              onSelected: (value) => _handleAssignmentMembershipAction(value, membership),
+              onSelected: (value) =>
+                  _handleAssignmentMembershipAction(value, membership),
               itemBuilder: (context) => [
                 const PopupMenuItem(
                   value: 'remove',
@@ -1922,7 +2038,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.primaryMaroon.withValues(alpha: 0.2)),
+        border:
+            Border.all(color: AppColors.primaryMaroon.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
             color: AppColors.primaryMaroon.withValues(alpha: 0.1),
@@ -1943,7 +2060,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                   color: AppColors.primaryMaroon.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(Icons.group_add, color: AppColors.primaryMaroon, size: 16),
+                child: Icon(Icons.group_add,
+                    color: AppColors.primaryMaroon, size: 16),
               ),
               const SizedBox(width: 8),
               const Expanded(
@@ -2011,7 +2129,6 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
     );
   }
 
-
   Widget _buildCompactActionCard({
     required IconData icon,
     required String title,
@@ -2057,7 +2174,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setState) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           child: Container(
             width: MediaQuery.of(context).size.width * 0.9,
             height: MediaQuery.of(context).size.height * 0.8,
@@ -2074,7 +2192,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                         color: AppColors.primaryMaroon.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(Icons.assignment_ind, color: AppColors.primaryMaroon, size: 24),
+                      child: Icon(Icons.assignment_ind,
+                          color: AppColors.primaryMaroon, size: 24),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -2107,7 +2226,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                   ],
                 ),
                 const SizedBox(height: 24),
-                
+
                 // Form
                 Expanded(
                   child: Consumer2<ClassProvider, UserProvider>(
@@ -2137,9 +2256,11 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                                       decoration: InputDecoration(
                                         hintText: 'اختر الفصل',
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                         ),
-                                        prefixIcon: Icon(Icons.class_, color: AppColors.primaryMaroon),
+                                        prefixIcon: Icon(Icons.class_,
+                                            color: AppColors.primaryMaroon),
                                       ),
                                       items: classes.map((cls) {
                                         return DropdownMenuItem(
@@ -2147,7 +2268,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                                           child: Text(cls.name),
                                         );
                                       }).toList(),
-                                      onChanged: (value) => setState(() => selectedClassId = value),
+                                      onChanged: (value) => setState(
+                                          () => selectedClassId = value),
                                     ),
                                   ],
                                 ),
@@ -2170,16 +2292,20 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                                       decoration: InputDecoration(
                                         hintText: 'اختر الدور',
                                         border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                         ),
-                                        prefixIcon: Icon(Icons.person, color: AppColors.primaryMaroon),
+                                        prefixIcon: Icon(Icons.person,
+                                            color: AppColors.primaryMaroon),
                                       ),
                                       items: [
                                         DropdownMenuItem(
                                           value: 'khadem',
                                           child: Row(
                                             children: [
-                                              Icon(Icons.supervisor_account, color: AppColors.accentGold, size: 16),
+                                              Icon(Icons.supervisor_account,
+                                                  color: AppColors.accentGold,
+                                                  size: 16),
                                               const SizedBox(width: 8),
                                               const Text('خادم'),
                                             ],
@@ -2189,14 +2315,17 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                                           value: 'makhdoum',
                                           child: Row(
                                             children: [
-                                              Icon(Icons.person, color: AppColors.primaryBrown, size: 16),
+                                              Icon(Icons.person,
+                                                  color: AppColors.primaryBrown,
+                                                  size: 16),
                                               const SizedBox(width: 8),
                                               const Text('مخدوم'),
                                             ],
                                           ),
                                         ),
                                       ],
-                                      onChanged: (value) => setState(() => selectedRole = value),
+                                      onChanged: (value) =>
+                                          setState(() => selectedRole = value),
                                     ),
                                   ],
                                 ),
@@ -2204,7 +2333,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                             ],
                           ),
                           const SizedBox(height: 24),
-                          
+
                           // User Selection Header
                           Row(
                             children: [
@@ -2219,9 +2348,11 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                               const Spacer(),
                               if (selectedUsers.isNotEmpty)
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: AppColors.primaryMaroon.withValues(alpha: 0.1),
+                                    color: AppColors.primaryMaroon
+                                        .withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Text(
@@ -2236,25 +2367,29 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                             ],
                           ),
                           const SizedBox(height: 12),
-                          
+
                           // User Selection List
                           Expanded(
                             child: Container(
                               decoration: BoxDecoration(
-                                border: Border.all(color: AppColors.borderLight),
+                                border:
+                                    Border.all(color: AppColors.borderLight),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: ListView.builder(
                                 itemCount: users.length,
                                 itemBuilder: (context, index) {
                                   final user = users[index];
-                                  final isSelected = selectedUsers.contains(user.id);
-                                  
+                                  final isSelected =
+                                      selectedUsers.contains(user.id);
+
                                   return Container(
-                                    margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    margin: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
-                                      color: isSelected 
-                                          ? AppColors.primaryMaroon.withValues(alpha: 0.1)
+                                      color: isSelected
+                                          ? AppColors.primaryMaroon
+                                              .withValues(alpha: 0.1)
                                           : Colors.transparent,
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -2263,7 +2398,9 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                                         user.name,
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
-                                          color: isSelected ? AppColors.primaryMaroon : AppColors.textPrimary,
+                                          color: isSelected
+                                              ? AppColors.primaryMaroon
+                                              : AppColors.textPrimary,
                                         ),
                                       ),
                                       subtitle: Row(
@@ -2305,7 +2442,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                     },
                   ),
                 ),
-                
+
                 // Actions
                 const SizedBox(height: 24),
                 Row(
@@ -2334,28 +2471,32 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                     Expanded(
                       flex: 2,
                       child: ElevatedButton(
-                        onPressed: selectedClassId != null && selectedUsers.isNotEmpty
-                            ? () async {
-                                final classProvider = Provider.of<ClassProvider>(context, listen: false);
-                                
-                                for (final userId in selectedUsers) {
-                                  await classProvider.addClassMember(
-                                    selectedClassId!,
-                                    userId,
-                                    UserModel.parseRole(selectedRole!),
-                                  );
-                                }
-                                
-                                Navigator.pop(context);
-                                _loadData();
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('تم تعيين ${selectedUsers.length} عضو للفصل بنجاح'),
-                                    backgroundColor: AppColors.success,
-                                  ),
-                                );
-                              }
-                            : null,
+                        onPressed:
+                            selectedClassId != null && selectedUsers.isNotEmpty
+                                ? () async {
+                                    final classProvider =
+                                        Provider.of<ClassProvider>(context,
+                                            listen: false);
+
+                                    for (final userId in selectedUsers) {
+                                      await classProvider.addClassMember(
+                                        selectedClassId!,
+                                        userId,
+                                        UserModel.parseRole(selectedRole!),
+                                      );
+                                    }
+
+                                    Navigator.pop(context);
+                                    _loadData();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                            'تم تعيين ${selectedUsers.length} عضو للفصل بنجاح'),
+                                        backgroundColor: AppColors.success,
+                                      ),
+                                    );
+                                  }
+                                : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primaryMaroon,
                           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -2417,7 +2558,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                     onChanged: (value) => setState(() => fromClassId = value),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // To Class Selection
                   DropdownButtonFormField<String>(
                     value: toClassId,
@@ -2425,7 +2566,9 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                       labelText: 'إلى الفصل',
                       border: OutlineInputBorder(),
                     ),
-                    items: classes.where((cls) => cls.id != fromClassId).map((cls) {
+                    items: classes
+                        .where((cls) => cls.id != fromClassId)
+                        .map((cls) {
                       return DropdownMenuItem(
                         value: cls.id,
                         child: Text(cls.name),
@@ -2434,7 +2577,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                     onChanged: (value) => setState(() => toClassId = value),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // User Selection (from selected class)
                   if (fromClassId != null)
                     Container(
@@ -2446,24 +2589,27 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                       child: FutureBuilder<List<ClassMembershipModel>>(
                         future: _getClassMembers(fromClassId!),
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return const Center(child: CircularProgressIndicator());
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator());
                           }
-                          
+
                           if (!snapshot.hasData || snapshot.data!.isEmpty) {
                             return const Center(
                               child: Text('لا يوجد أعضاء في هذا الفصل'),
                             );
                           }
-                          
+
                           final members = snapshot.data!;
-                          
+
                           return ListView.builder(
                             itemCount: members.length,
                             itemBuilder: (context, index) {
                               final membership = members[index];
-                              final isSelected = selectedUsers.contains(membership.userId);
-                              
+                              final isSelected =
+                                  selectedUsers.contains(membership.userId);
+
                               return CheckboxListTile(
                                 title: Text(membership.user?.name ?? 'Unknown'),
                                 subtitle: Text(membership.roleDisplayName),
@@ -2493,31 +2639,72 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
               child: const Text('إلغاء'),
             ),
             ElevatedButton(
-              onPressed: fromClassId != null && toClassId != null && selectedUsers.isNotEmpty
+              onPressed: fromClassId != null &&
+                      toClassId != null &&
+                      selectedUsers.isNotEmpty
                   ? () async {
-                      final classProvider = Provider.of<ClassProvider>(context, listen: false);
-                      
+                      final classProvider =
+                          Provider.of<ClassProvider>(context, listen: false);
+                      int successCount = 0;
+                      int failureCount = 0;
+
                       for (final userId in selectedUsers) {
                         // Remove from old class
-                        await classProvider.removeClassMember(fromClassId!, userId);
-                        // Add to new class (keeping same role)
-                        final membership = await _getUserMembership(fromClassId!, userId);
-                        if (membership != null) {
-                          await classProvider.addClassMember(
-                            toClassId!,
-                            userId,
-                            membership.role,
+                        final removeSuccess = await classProvider
+                            .removeClassMember(fromClassId!, userId);
+                        if (removeSuccess) {
+                          // Add to new class (keeping same role)
+                          final membership =
+                              await _getUserMembership(fromClassId!, userId);
+                          if (membership != null) {
+                            final addSuccess =
+                                await classProvider.addClassMember(
+                              toClassId!,
+                              userId,
+                              membership.role,
+                            );
+                            if (addSuccess) {
+                              successCount++;
+                            } else {
+                              failureCount++;
+                            }
+                          } else {
+                            failureCount++;
+                          }
+                        } else {
+                          failureCount++;
+                        }
+                      }
+
+                      Navigator.pop(context);
+                      _loadData();
+
+                      if (mounted) {
+                        if (failureCount == 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('تم نقل ${successCount} عضو بنجاح'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                        } else if (successCount > 0) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'تم نقل ${successCount} عضو بنجاح، فشل في نقل ${failureCount} عضو'),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'فشل في نقل جميع الأعضاء: ${classProvider.error ?? 'خطأ غير معروف'}'),
+                              backgroundColor: Colors.red,
+                            ),
                           );
                         }
                       }
-                      
-                      Navigator.pop(context);
-                      _loadData();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('تم نقل ${selectedUsers.length} عضو بنجاح'),
-                        ),
-                      );
                     }
                   : null,
               child: const Text('نقل'),
@@ -2533,7 +2720,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
     try {
       final classProvider = Provider.of<ClassProvider>(context, listen: false);
       final response = await classProvider.getClassMembersRaw(classId);
-      
+
       if (response['memberships'] != null) {
         return (response['memberships'] as List)
             .map((m) => ClassMembershipModel.fromJson(m))
@@ -2546,7 +2733,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
   }
 
   // Helper method to get user membership
-  Future<ClassMembershipModel?> _getUserMembership(String classId, String userId) async {
+  Future<ClassMembershipModel?> _getUserMembership(
+      String classId, String userId) async {
     try {
       final memberships = await _getClassMembers(classId);
       return memberships.firstWhere(

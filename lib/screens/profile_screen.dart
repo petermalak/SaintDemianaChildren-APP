@@ -8,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../widgets/profile_field.dart';
 import '../widgets/profile_image_picker.dart';
 import '../widgets/loading_button.dart';
+import '../widgets/country_phone_field.dart';
 
 class ProfileScreen extends StatefulWidget {
   final UserModel? user;
@@ -34,7 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _addressLocationLinkController = TextEditingController();
   final _fatherOfConfessionController = TextEditingController();
   DateTime? _selectedBirthdate;
-  
+
   String? _selectedImagePath;
   bool _isEditing = false;
   bool _isLoading = false;
@@ -223,7 +224,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildProfileFieldsSection() {
     final user = widget.user!;
     final isMakhdoum = user.role == UserRole.makhdoum;
-    
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -249,7 +250,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          
+
           // Name field - always editable
           ProfileField(
             label: 'الاسم',
@@ -264,7 +265,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               return null;
             },
           ),
-          
+
           // Email field - editable for khadem, read-only for makhdoum
           ProfileField(
             label: 'البريد الإلكتروني',
@@ -273,75 +274,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
             isRequired: true,
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
-            validator: _isEditing && !isMakhdoum ? (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'البريد الإلكتروني مطلوب';
-              }
-              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                return 'البريد الإلكتروني غير صحيح';
-              }
-              return null;
-            } : null,
+            validator: _isEditing && !isMakhdoum
+                ? (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'البريد الإلكتروني مطلوب';
+                    }
+                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
+                        .hasMatch(value)) {
+                      return 'البريد الإلكتروني غير صحيح';
+                    }
+                    return null;
+                  }
+                : null,
           ),
-          
+
           // Phone field - always editable
-          ProfileField(
-            label: 'رقم الهاتف',
-            value: _phoneController.text,
-            isEditable: _isEditing,
-            isRequired: true,
+          CountryPhoneField(
             controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            validator: _isEditing ? (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'رقم الهاتف مطلوب';
-              }
-              if (!RegExp(r'^[0-9+\-\s]+$').hasMatch(value)) {
-                return 'رقم الهاتف غير صحيح';
-              }
-              return null;
-            } : null,
+            label: 'رقم الهاتف',
+            enabled: true, // Always enabled to show country dropdown
+            icon: Icons.phone,
+            validator: _isEditing
+                ? (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'رقم الهاتف مطلوب';
+                    }
+                    return null;
+                  }
+                : null,
           ),
-          
+
           // Father's phone field - optional
-          ProfileField(
-            label: 'رقم هاتف الأب',
-            value: _fathersPhoneController.text,
-            isEditable: _isEditing,
-            isRequired: false,
+          CountryPhoneField(
             controller: _fathersPhoneController,
-            keyboardType: TextInputType.phone,
-            validator: _isEditing ? (value) {
-              if (value != null && value.trim().isNotEmpty) {
-                if (!RegExp(r'^[0-9+\-\s]+$').hasMatch(value)) {
-                  return 'رقم هاتف الأب غير صحيح';
-                }
-              }
-              return null;
-            } : null,
+            label: 'رقم هاتف الأب (اختياري)',
+            enabled: true, // Always enabled to show country dropdown
+            icon: Icons.phone,
           ),
-          
+
           // Mother's phone field - optional
-          ProfileField(
-            label: 'رقم هاتف الأم',
-            value: _mothersPhoneController.text,
-            isEditable: _isEditing,
-            isRequired: false,
+          CountryPhoneField(
             controller: _mothersPhoneController,
-            keyboardType: TextInputType.phone,
-            validator: _isEditing ? (value) {
-              if (value != null && value.trim().isNotEmpty) {
-                if (!RegExp(r'^[0-9+\-\s]+$').hasMatch(value)) {
-                  return 'رقم هاتف الأم غير صحيح';
-                }
-              }
-              return null;
-            } : null,
+            label: 'رقم هاتف الأم (اختياري)',
+            enabled: true, // Always enabled to show country dropdown
+            icon: Icons.phone,
           ),
-          
+
           // Birthdate field - optional
           _buildBirthdateField(),
-          
+
           // Address field - optional
           ProfileField(
             label: 'العنوان',
@@ -351,10 +332,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             controller: _addressController,
             maxLines: 3,
           ),
-          
+
           // Address location link field - optional with auto-location
           _buildLocationField(),
-          
+
           // Father of confession field - optional
           ProfileField(
             label: 'أب الاعتراف',
@@ -363,7 +344,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             isRequired: false,
             controller: _fatherOfConfessionController,
           ),
-          
+
           // Role field - always read-only
           ProfileField(
             label: 'الدور',
@@ -371,7 +352,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             isEditable: false,
             isRequired: false,
           ),
-          
+
           // ID field - always read-only
           ProfileField(
             label: 'رقم العضوية',
@@ -379,7 +360,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             isEditable: false,
             isRequired: false,
           ),
-          
+
           if (isMakhdoum)
             Container(
               padding: const EdgeInsets.all(AppSpacing.md),
@@ -418,7 +399,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildActionButtons() {
     if (!_isEditing) return const SizedBox.shrink();
-    
+
     return Row(
       children: [
         Expanded(
@@ -471,7 +452,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
-                color: _isEditing ? AppColors.backgroundCard : AppColors.backgroundSecondary,
+                color: _isEditing
+                    ? AppColors.backgroundCard
+                    : AppColors.backgroundSecondary,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: AppColors.borderLight),
               ),
@@ -479,17 +462,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   Icon(
                     Icons.calendar_today,
-                    color: _isEditing ? AppColors.primaryMaroon : AppColors.textSecondary,
+                    color: _isEditing
+                        ? AppColors.primaryMaroon
+                        : AppColors.textSecondary,
                     size: 20,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    _selectedBirthdate != null 
+                    _selectedBirthdate != null
                         ? '${_selectedBirthdate!.day}/${_selectedBirthdate!.month}/${_selectedBirthdate!.year}'
                         : 'لم يتم تحديد تاريخ الميلاد',
                     style: TextStyle(
                       fontSize: 14,
-                      color: _selectedBirthdate != null ? AppColors.textPrimary : AppColors.textSecondary,
+                      color: _selectedBirthdate != null
+                          ? AppColors.textPrimary
+                          : AppColors.textSecondary,
                     ),
                   ),
                   if (_isEditing) ...[
@@ -511,7 +498,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _selectBirthdate() async {
     final date = await showDatePicker(
       context: context,
-      initialDate: _selectedBirthdate ?? DateTime.now().subtract(const Duration(days: 365 * 20)),
+      initialDate: _selectedBirthdate ??
+          DateTime.now().subtract(const Duration(days: 365 * 20)),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );
@@ -541,20 +529,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: [
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                   decoration: BoxDecoration(
-                    color: _isEditing ? AppColors.backgroundCard : AppColors.backgroundSecondary,
+                    color: _isEditing
+                        ? AppColors.backgroundCard
+                        : AppColors.backgroundSecondary,
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: AppColors.borderLight),
                   ),
                   child: Text(
-                    _addressLocationLinkController.text.isNotEmpty 
+                    _addressLocationLinkController.text.isNotEmpty
                         ? _addressLocationLinkController.text
                         : 'لم يتم تحديد رابط الموقع',
                     style: TextStyle(
                       fontSize: 14,
-                      color: _addressLocationLinkController.text.isNotEmpty 
-                          ? AppColors.textPrimary 
+                      color: _addressLocationLinkController.text.isNotEmpty
+                          ? AppColors.textPrimary
                           : AppColors.textSecondary,
                     ),
                   ),
@@ -569,7 +560,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryMaroon,
                     foregroundColor: AppColors.accentWhite,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -618,7 +610,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       // Check location permission
       LocationPermission permission = await Geolocator.checkPermission();
-      
+
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
@@ -628,7 +620,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        _showLocationError('تم رفض إذن الموقع نهائياً. يرجى تفعيله من الإعدادات');
+        _showLocationError(
+            'تم رفض إذن الموقع نهائياً. يرجى تفعيله من الإعدادات');
         return;
       }
 
@@ -647,8 +640,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
 
       // Create Google Maps link
-      final locationLink = 'https://www.google.com/maps?q=${position.latitude},${position.longitude}';
-      
+      final locationLink =
+          'https://www.google.com/maps?q=${position.latitude},${position.longitude}';
+
       // Close loading dialog
       Navigator.of(context).pop();
 
@@ -664,13 +658,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           backgroundColor: Colors.green,
         ),
       );
-
     } catch (e) {
       // Close loading dialog if it's open
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }
-      
+
       _showLocationError('فشل في الحصول على الموقع: ${e.toString()}');
     }
   }
@@ -731,17 +724,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+
       // Prepare update data
       final updateData = {
         'name': _nameController.text.trim(),
         'phoneNumber': _phoneController.text.trim(),
-        'fathersPhoneNumber': _fathersPhoneController.text.trim().isEmpty ? null : _fathersPhoneController.text.trim(),
-        'mothersPhoneNumber': _mothersPhoneController.text.trim().isEmpty ? null : _mothersPhoneController.text.trim(),
-        'birthdate': _selectedBirthdate?.toIso8601String().split('T')[0], // Format as YYYY-MM-DD
-        'address': _addressController.text.trim().isEmpty ? null : _addressController.text.trim(),
-        'addressLocationLink': _addressLocationLinkController.text.trim().isEmpty ? null : _addressLocationLinkController.text.trim(),
-        'fatherOfConfession': _fatherOfConfessionController.text.trim().isEmpty ? null : _fatherOfConfessionController.text.trim(),
+        'fathersPhoneNumber': _fathersPhoneController.text.trim().isEmpty
+            ? null
+            : _fathersPhoneController.text.trim(),
+        'mothersPhoneNumber': _mothersPhoneController.text.trim().isEmpty
+            ? null
+            : _mothersPhoneController.text.trim(),
+        'birthdate': _selectedBirthdate
+            ?.toIso8601String()
+            .split('T')[0], // Format as YYYY-MM-DD
+        'address': _addressController.text.trim().isEmpty
+            ? null
+            : _addressController.text.trim(),
+        'addressLocationLink':
+            _addressLocationLinkController.text.trim().isEmpty
+                ? null
+                : _addressLocationLinkController.text.trim(),
+        'fatherOfConfession': _fatherOfConfessionController.text.trim().isEmpty
+            ? null
+            : _fatherOfConfessionController.text.trim(),
         if (_selectedImagePath != null) 'profileImage': _selectedImagePath,
       };
 
@@ -752,13 +758,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       // Update user profile
       final updatedUser = await authProvider.updateUserProfile(updateData);
-      
+
       if (updatedUser != null) {
         setState(() {
           _isEditing = false;
           _isLoading = false;
         });
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -772,7 +778,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

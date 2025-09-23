@@ -440,7 +440,7 @@ class _LoginScreenImprovedState extends State<LoginScreenImproved>
             context.go('/khadem'); // Admin uses khadem screen
             break;
           case UserRole.superAdmin:
-            context.go('/khadem'); // Super admin uses khadem screen
+            context.go('/super-admin-dashboard'); // Super admin uses dedicated dashboard
             break;
         }
       }
