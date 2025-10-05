@@ -266,7 +266,8 @@ class _CountryPhoneFieldState extends State<CountryPhoneField> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: BorderSide(color: AppColors.primaryMaroon),
+                      borderSide:
+                          const BorderSide(color: AppColors.primaryMaroon),
                     ),
                     disabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
@@ -281,19 +282,6 @@ class _CountryPhoneFieldState extends State<CountryPhoneField> {
                   validator: (value) {
                     if (widget.validator != null) {
                       return widget.validator!(value);
-                    }
-
-                    // Default validation
-                    if (value == null || value.trim().isEmpty) {
-                      return 'رقم الهاتف مطلوب';
-                    }
-
-                    // Validate against selected country pattern
-                    final cleanNumber =
-                        value.replaceAll(RegExp(r'[\s\-()]'), '');
-                    if (!RegExp(_selectedCountry.pattern)
-                        .hasMatch(cleanNumber)) {
-                      return 'رقم الهاتف غير صحيح لـ ${_selectedCountry.name}';
                     }
 
                     return null;

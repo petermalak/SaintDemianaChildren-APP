@@ -62,13 +62,17 @@ class ClassModel {
       schedule: schedule,
       createdBy: json['createdBy'] ?? '',
       creatorName: json['creator']?['name'],
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
+      createdAt:
+          DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+      updatedAt:
+          DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
       memberCount: json['memberCount'] ?? 0,
       khademCount: json['khademCount'] ?? 0,
       makhdoumCount: json['makhdoumCount'] ?? 0,
-      memberships: json['memberships'] != null 
-          ? (json['memberships'] as List).map((m) => ClassMembershipModel.fromJson(m)).toList()
+      memberships: json['memberships'] != null
+          ? (json['memberships'] as List)
+              .map((m) => ClassMembershipModel.fromJson(m))
+              .toList()
           : null,
     );
   }
@@ -141,11 +145,11 @@ class ClassModel {
 
   String get scheduleText {
     if (schedule == null) return 'لم يتم تحديد الجدول';
-    
+
     final days = schedule!['days'] as List<dynamic>?;
     final time = schedule!['time'] as String?;
     final frequency = schedule!['frequency'] as String?;
-    
+
     String result = '';
     if (days != null && days.isNotEmpty) {
       result += days.join('، ');
@@ -156,7 +160,7 @@ class ClassModel {
     if (frequency != null) {
       result += ' ($frequency)';
     }
-    
+
     return result.isEmpty ? 'لم يتم تحديد الجدول' : result;
   }
 

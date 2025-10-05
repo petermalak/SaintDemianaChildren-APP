@@ -209,9 +209,9 @@ class ProfileImagePicker extends StatelessWidget {
         maxHeight: 800,
         imageQuality: 80,
       );
-      
+
       Navigator.pop(context); // Close bottom sheet
-      
+
       if (image != null) {
         onImageChanged(image.path);
       }

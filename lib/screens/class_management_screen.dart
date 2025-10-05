@@ -4,10 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../core/constants/app_colors.dart';
 import '../models/class_model.dart';
 import '../models/class_membership_model.dart';
-import '../models/user_model.dart';
+import '../features/authentication/model/user_model.dart';
 import '../providers/class_provider.dart';
 import '../providers/user_provider.dart';
-import '../providers/auth_provider.dart';
 
 class ClassManagementScreen extends StatefulWidget {
   const ClassManagementScreen({super.key});
@@ -72,12 +71,11 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
     try {
       final classProvider = Provider.of<ClassProvider>(context, listen: false);
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
       // Load classes and users in parallel
       final results = await Future.wait([
         classProvider.loadClasses(),
-        authProvider.getAllUsers(),
+        // authProvider.getAllUsers(),
       ]);
 
       // Update userProvider with the loaded users
@@ -189,63 +187,59 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
   }
 
   Widget _buildProfileMenu() {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        return PopupMenuButton<String>(
-          onSelected: (value) => _handleMenuAction(value),
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'refresh',
-              child: Row(
-                children: [
-                  Icon(Icons.refresh, color: AppColors.primaryMaroon),
-                  SizedBox(width: 12),
-                  Text('تحديث البيانات'),
-                ],
-              ),
-            ),
-            const PopupMenuItem(
-              value: 'settings',
-              child: Row(
-                children: [
-                  Icon(Icons.settings, color: AppColors.primaryMaroon),
-                  SizedBox(width: 12),
-                  Text('الإعدادات'),
-                ],
-              ),
-            ),
-            const PopupMenuDivider(),
-            const PopupMenuItem(
-              value: 'logout',
-              child: Row(
-                children: [
-                  Icon(Icons.logout, color: AppColors.error),
-                  SizedBox(width: 12),
-                  Text('تسجيل الخروج'),
-                ],
-              ),
+    return PopupMenuButton<String>(
+      onSelected: (value) => _handleMenuAction(value),
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: 'refresh',
+          child: Row(
+            children: [
+              Icon(Icons.refresh, color: AppColors.primaryMaroon),
+              SizedBox(width: 12),
+              Text('تحديث البيانات'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'settings',
+          child: Row(
+            children: [
+              Icon(Icons.settings, color: AppColors.primaryMaroon),
+              SizedBox(width: 12),
+              Text('الإعدادات'),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: 'logout',
+          child: Row(
+            children: [
+              Icon(Icons.logout, color: AppColors.error),
+              SizedBox(width: 12),
+              Text('تسجيل الخروج'),
+            ],
+          ),
+        ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppColors.backgroundCard,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: AppColors.primaryMaroon.withValues(alpha: 0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
-          child: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.backgroundCard,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primaryMaroon.withValues(alpha: 0.1),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.more_vert,
-              color: AppColors.primaryMaroon,
-            ),
-          ),
-        );
-      },
+        ),
+        child: const Icon(
+          Icons.more_vert,
+          color: AppColors.primaryMaroon,
+        ),
+      ),
     );
   }
 
@@ -310,9 +304,9 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.error, size: 64, color: AppColors.error),
+                const Icon(Icons.error, size: 64, color: AppColors.error),
                 const SizedBox(height: 16),
-                Text(
+                const Text(
                   'خطأ في تحميل البيانات',
                   style: TextStyle(
                     fontSize: 18,
@@ -383,10 +377,10 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
             ? allUsers
             : allUsers
                 .where((user) =>
-                    user.name
+                    user.name!
                         .toLowerCase()
                         .contains(_searchQuery.toLowerCase()) ||
-                    user.email
+                    user.email!
                         .toLowerCase()
                         .contains(_searchQuery.toLowerCase()))
                 .toList();
@@ -408,12 +402,13 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info, color: AppColors.accentGold, size: 16),
+                    const Icon(Icons.info,
+                        color: AppColors.accentGold, size: 16),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'عدد الأعضاء المحملين: ${allUsers.length}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.accentGold,
                           fontWeight: FontWeight.w500,
@@ -474,12 +469,13 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info, color: AppColors.accentGold, size: 16),
+                    const Icon(Icons.info,
+                        color: AppColors.accentGold, size: 16),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'عدد الفصول المحملة: ${classProvider.classes.length}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.accentGold,
                           fontWeight: FontWeight.w500,
@@ -515,9 +511,9 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.error, color: Colors.red, size: 48),
+                          const Icon(Icons.error, color: Colors.red, size: 48),
                           const SizedBox(height: 16),
-                          Text(
+                          const Text(
                             'خطأ في تحميل التعيينات',
                             style: TextStyle(
                               fontSize: 18,
@@ -554,7 +550,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                       ? memberships
                       : memberships
                           .where((membership) =>
-                              membership.user?.name
+                              membership.user?.name!
                                       .toLowerCase()
                                       .contains(_searchQuery.toLowerCase()) ==
                                   true ||
@@ -900,12 +896,12 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: _getRoleColor(user.role).withValues(alpha: 0.1),
+                      color: _getRoleColor(user.role!).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
-                      _getRoleIcon(user.role),
-                      color: _getRoleColor(user.role),
+                      _getRoleIcon(user.role!),
+                      color: _getRoleColor(user.role!),
                       size: 24,
                     ),
                   ),
@@ -915,7 +911,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          user.name,
+                          user.name!,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -924,7 +920,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          user.email,
+                          user.email!,
                           style: TextStyle(
                             fontSize: 14,
                             color: AppColors.textSecondary,
@@ -935,8 +931,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color:
-                                _getRoleColor(user.role).withValues(alpha: 0.1),
+                            color: _getRoleColor(user.role!)
+                                .withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -944,7 +940,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: _getRoleColor(user.role),
+                              color: _getRoleColor(user.role!),
                             ),
                           ),
                         ),
@@ -1090,8 +1086,6 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
         return AppColors.accentGold;
       case UserRole.makhdoum:
         return AppColors.primaryBrown;
-      case UserRole.admin:
-        return AppColors.primaryMaroon;
       case UserRole.superAdmin:
         return AppColors.primaryBlue;
     }
@@ -1103,8 +1097,6 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
         return Icons.person;
       case UserRole.makhdoum:
         return Icons.child_care;
-      case UserRole.admin:
-        return Icons.admin_panel_settings;
       case UserRole.superAdmin:
         return Icons.supervisor_account;
     }
@@ -1295,7 +1287,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                       .toList();
 
                   return DropdownButtonFormField<String>(
-                    value: toClassId,
+                    initialValue: toClassId,
                     decoration: const InputDecoration(
                       labelText: 'اختر الفصل الوجهة',
                       border: OutlineInputBorder(),
@@ -1379,8 +1371,6 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
   }
 
   void _handleLogout() {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    authProvider.logout();
     context.go('/login');
   }
 
@@ -1444,8 +1434,6 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
               if (nameController.text.isNotEmpty) {
                 final classProvider =
                     Provider.of<ClassProvider>(context, listen: false);
-                final authProvider =
-                    Provider.of<AuthProvider>(context, listen: false);
                 final newClass = ClassModel(
                   id: '',
                   name: nameController.text,
@@ -1459,9 +1447,9 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                       ? int.tryParse(maxMembersController.text)
                       : null,
                   isActive: true,
-                  createdBy: authProvider.currentUser?.id ?? '',
                   createdAt: DateTime.now(),
                   updatedAt: DateTime.now(),
+                  createdBy: '',
                 );
                 await classProvider.createClass(newClass);
                 Navigator.pop(context);
@@ -1598,14 +1586,14 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                   return ListTile(
                     leading: CircleAvatar(
                       backgroundColor:
-                          _getRoleColor(user.role).withValues(alpha: 0.1),
+                          _getRoleColor(user.role!).withValues(alpha: 0.1),
                       child: Icon(
-                        _getRoleIcon(user.role),
-                        color: _getRoleColor(user.role),
+                        _getRoleIcon(user.role!),
+                        color: _getRoleColor(user.role!),
                       ),
                     ),
-                    title: Text(user.name),
-                    subtitle: Text(user.email),
+                    title: Text(user.name!),
+                    subtitle: Text(user.email!),
                     trailing: PopupMenuButton<String>(
                       onSelected: (value) =>
                           _handleMembershipAction(value, membership, classItem),
@@ -1690,13 +1678,13 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(user.name),
+        title: Text(user.name!),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildDetailRow('البريد الإلكتروني', user.email),
-            _buildDetailRow('رقم الهاتف', user.phoneNumber),
+            _buildDetailRow('البريد الإلكتروني', user.email!),
+            _buildDetailRow('رقم الهاتف', user.phoneNumber!),
             _buildDetailRow('الدور', user.roleDisplayName),
             if (user.fathersPhoneNumber?.isNotEmpty == true)
               _buildDetailRow('هاتف الأب', user.fathersPhoneNumber!),
@@ -1737,7 +1725,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   DropdownButtonFormField<String>(
-                    value: selectedClassId,
+                    initialValue: selectedClassId,
                     decoration: const InputDecoration(
                       labelText: 'اختيار الفصل',
                       border: OutlineInputBorder(),
@@ -1753,7 +1741,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: selectedRole,
+                    initialValue: selectedRole,
                     decoration: const InputDecoration(
                       labelText: 'الدور في الفصل',
                       border: OutlineInputBorder(),
@@ -1787,7 +1775,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                             Provider.of<ClassProvider>(context, listen: false);
                         await classProvider.addClassMember(
                           selectedClassId!,
-                          user.id,
+                          user.id!,
                           UserModel.parseRole(selectedRole!),
                         );
                         Navigator.pop(context);
@@ -2010,7 +1998,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                   color: AppColors.primaryMaroon.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.more_vert,
                   color: AppColors.primaryMaroon,
                   size: 20,
@@ -2060,7 +2048,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                   color: AppColors.primaryMaroon.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(Icons.group_add,
+                child: const Icon(Icons.group_add,
                     color: AppColors.primaryMaroon, size: 16),
               ),
               const SizedBox(width: 8),
@@ -2192,7 +2180,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                         color: AppColors.primaryMaroon.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(Icons.assignment_ind,
+                      child: const Icon(Icons.assignment_ind,
                           color: AppColors.primaryMaroon, size: 24),
                     ),
                     const SizedBox(width: 16),
@@ -2252,14 +2240,14 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                                     ),
                                     const SizedBox(height: 8),
                                     DropdownButtonFormField<String>(
-                                      value: selectedClassId,
+                                      initialValue: selectedClassId,
                                       decoration: InputDecoration(
                                         hintText: 'اختر الفصل',
                                         border: OutlineInputBorder(
                                           borderRadius:
                                               BorderRadius.circular(12),
                                         ),
-                                        prefixIcon: Icon(Icons.class_,
+                                        prefixIcon: const Icon(Icons.class_,
                                             color: AppColors.primaryMaroon),
                                       ),
                                       items: classes.map((cls) {
@@ -2288,17 +2276,17 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                                     ),
                                     const SizedBox(height: 8),
                                     DropdownButtonFormField<String>(
-                                      value: selectedRole,
+                                      initialValue: selectedRole,
                                       decoration: InputDecoration(
                                         hintText: 'اختر الدور',
                                         border: OutlineInputBorder(
                                           borderRadius:
                                               BorderRadius.circular(12),
                                         ),
-                                        prefixIcon: Icon(Icons.person,
+                                        prefixIcon: const Icon(Icons.person,
                                             color: AppColors.primaryMaroon),
                                       ),
-                                      items: [
+                                      items: const [
                                         DropdownMenuItem(
                                           value: 'khadem',
                                           child: Row(
@@ -2306,8 +2294,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                                               Icon(Icons.supervisor_account,
                                                   color: AppColors.accentGold,
                                                   size: 16),
-                                              const SizedBox(width: 8),
-                                              const Text('خادم'),
+                                              SizedBox(width: 8),
+                                              Text('خادم'),
                                             ],
                                           ),
                                         ),
@@ -2318,8 +2306,8 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                                               Icon(Icons.person,
                                                   color: AppColors.primaryBrown,
                                                   size: 16),
-                                              const SizedBox(width: 8),
-                                              const Text('مخدوم'),
+                                              SizedBox(width: 8),
+                                              Text('مخدوم'),
                                             ],
                                           ),
                                         ),
@@ -2395,7 +2383,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                                     ),
                                     child: CheckboxListTile(
                                       title: Text(
-                                        user.name,
+                                        user.name!,
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
                                           color: isSelected
@@ -2406,15 +2394,15 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                                       subtitle: Row(
                                         children: [
                                           Icon(
-                                            _getRoleIcon(user.role),
+                                            _getRoleIcon(user.role!),
                                             size: 14,
-                                            color: _getRoleColor(user.role),
+                                            color: _getRoleColor(user.role!),
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
                                             user.roleDisplayName,
                                             style: TextStyle(
-                                              color: _getRoleColor(user.role),
+                                              color: _getRoleColor(user.role!),
                                               fontSize: 12,
                                             ),
                                           ),
@@ -2424,7 +2412,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                                       onChanged: (value) {
                                         setState(() {
                                           if (value == true) {
-                                            selectedUsers.add(user.id);
+                                            selectedUsers.add(user.id!);
                                           } else {
                                             selectedUsers.remove(user.id);
                                           }
@@ -2544,7 +2532,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                 children: [
                   // From Class Selection
                   DropdownButtonFormField<String>(
-                    value: fromClassId,
+                    initialValue: fromClassId,
                     decoration: const InputDecoration(
                       labelText: 'من الفصل',
                       border: OutlineInputBorder(),
@@ -2561,7 +2549,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
 
                   // To Class Selection
                   DropdownButtonFormField<String>(
-                    value: toClassId,
+                    initialValue: toClassId,
                     decoration: const InputDecoration(
                       labelText: 'إلى الفصل',
                       border: OutlineInputBorder(),
@@ -2683,7 +2671,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                         if (failureCount == 0) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('تم نقل ${successCount} عضو بنجاح'),
+                              content: Text('تم نقل $successCount عضو بنجاح'),
                               backgroundColor: Colors.green,
                             ),
                           );
@@ -2691,7 +2679,7 @@ class _ClassManagementScreenState extends State<ClassManagementScreen>
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                  'تم نقل ${successCount} عضو بنجاح، فشل في نقل ${failureCount} عضو'),
+                                  'تم نقل $successCount عضو بنجاح، فشل في نقل $failureCount عضو'),
                               backgroundColor: Colors.orange,
                             ),
                           );

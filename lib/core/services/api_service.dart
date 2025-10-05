@@ -1,20 +1,22 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../config/app_config.dart';
+import 'package:flutter/foundation.dart';
+import 'package:saint_demiana_children/core/constants/api_endpoints.dart';
+import 'package:saint_demiana_children/core/services/interface/i_api_service.dart';
+import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
+import '../di/service_locator.dart';
 import 'logging_service.dart';
 
-class ApiService {
-  static String get baseUrl => AppConfig.apiUrl;
-
+class ApiService implements IApiService {
   late Dio _dio;
   static ApiService? _instance;
 
   ApiService._() {
     _dio = Dio(BaseOptions(
-      baseUrl: baseUrl,
-      connectTimeout: AppConfig.connectionTimeout,
-      receiveTimeout: AppConfig.receiveTimeout,
+      baseUrl: ApiEndpoints.baseUrl,
+      connectTimeout: const Duration(seconds: 45),
+      receiveTimeout: const Duration(seconds: 45),
+      sendTimeout: const Duration(seconds: 45),
       headers: {
         'Content-Type': 'application/json',
       },
@@ -36,7 +38,7 @@ class ApiService {
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           // Add auth token to requests
-          final token = await _getStoredToken();
+          final token = sl<IProfileRepository>().user?.token;
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
@@ -52,6 +54,7 @@ class ApiService {
           handler.next(options);
         },
         onResponse: (response, handler) {
+          print(response.data);
           // Log the response
           _logger.logResponse(
             response.requestOptions.method,
@@ -72,9 +75,7 @@ class ApiService {
           );
 
           // Handle common errors
-          if (error.response?.statusCode == 401) {
-            _clearStoredToken();
-          }
+          if (error.response?.statusCode == 401) {}
 
           handler.next(error);
         },
@@ -82,61 +83,62 @@ class ApiService {
     );
   }
 
-  Future<String?> _getStoredToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
-
-  Future<void> _storeToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_token', token);
-  }
-
-  Future<void> _clearStoredToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
-  }
-
-  // Authentication endpoints
-  Future<Map<String, dynamic>> login({
-    required String email,
-    required String password,
+  @override
+  Future<Response> get({
+    required String path,
+    Map<String, dynamic>? queryParameters,
   }) async {
-    try {
-      final response = await _dio.post('/auth/login', data: {
-        'email': email,
-        'password': password,
-      });
-
-      if (response.data['token'] != null) {
-        await _storeToken(response.data['token']);
-      }
-
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleError(e);
+    final response = await _dio.get(path, queryParameters: queryParameters);
+    if (kDebugMode) {
+      print(response.data);
     }
+    return response;
   }
 
-  Future<void> logout() async {
-    try {
-      await _dio.post('/auth/logout');
-      await _clearStoredToken();
-    } on DioException catch (e) {
-      // Even if logout fails on server, clear local token
-      await _clearStoredToken();
-      throw _handleError(e);
+  @override
+  Future<Response> put({
+    required String path,
+    Map<String, dynamic>? queryParameters,
+    dynamic body,
+  }) async {
+    final response = await _dio.put(
+      path,
+      queryParameters: queryParameters,
+      data: body,
+    );
+    if (kDebugMode) {
+      print(response.data);
     }
+    return response;
   }
 
-  // User endpoints
-  Future<Map<String, dynamic>> getMyProfile() async {
-    try {
-      final response = await _dio.get('/users/me');
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleError(e);
+  @override
+  Future<Response> delete({
+    required String path,
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    final response = await _dio.delete(path, queryParameters: queryParameters);
+    if (kDebugMode) {
+      print(response.data);
     }
+    return response;
+  }
+
+  @override
+  Future<Response> post({
+    required String path,
+    Map<String, dynamic>? queryParameters,
+    dynamic body,
+  }) async {
+    final response = await _dio.post(
+      path,
+      queryParameters: queryParameters,
+      data: body,
+    );
+    if (kDebugMode) {
+      print(response.data);
+    }
+    return response;
   }
 
   Future<Map<String, dynamic>> updateMyProfile(
@@ -145,7 +147,7 @@ class ApiService {
       final response = await _dio.patch('/users/me', data: data);
       return response.data;
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw handleError(e);
     }
   }
 
@@ -167,20 +169,7 @@ class ApiService {
 
       return response.data['imageUrl'];
     } on DioException catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-  Future<List<dynamic>> getUsers({String? role}) async {
-    try {
-      final Map<String, dynamic> queryParams =
-          {}; // Explicitly type as Map<String, dynamic>
-      if (role != null) queryParams['role'] = role;
-
-      final response = await _dio.get('/users', queryParameters: queryParams);
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleError(e);
+      throw handleError(e);
     }
   }
 
@@ -189,7 +178,31 @@ class ApiService {
       final response = await _dio.get('/users/$id');
       return response.data;
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw handleError(e);
+    }
+  }
+
+  @override
+  Future<bool> hasInternet() async {
+    if (kIsWeb) {
+      try {
+        final response = await Dio().get('https://www.google.com',
+            options: Options(
+              receiveTimeout: const Duration(seconds: 10),
+              sendTimeout: const Duration(seconds: 10),
+            ));
+        return response.statusCode == 200;
+      } catch (_) {
+        return false;
+      }
+    } else {
+      try {
+        final result = await InternetAddress.lookup('google.com')
+            .timeout(const Duration(seconds: 15));
+        return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
+      } on SocketException {
+        return false;
+      }
     }
   }
 
@@ -253,7 +266,7 @@ class ApiService {
         tag: 'API',
       );
 
-      throw _handleError(e);
+      throw handleError(e);
     }
   }
 
@@ -291,7 +304,7 @@ class ApiService {
         return response.data;
       }
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw handleError(e);
     }
   }
 
@@ -303,74 +316,7 @@ class ApiService {
           await _dio.patch('/users/$id/profile', data: profileData);
       return response.data;
     } on DioException catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-  Future<Map<String, dynamic>> deleteUser(String id) async {
-    try {
-      final response = await _dio.delete('/users/$id');
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-  // Attendance endpoints
-  Future<List<dynamic>> getAttendance({
-    String? type,
-    String? userId,
-    String? date,
-  }) async {
-    try {
-      final Map<String, dynamic> queryParams =
-          <String, dynamic>{}; // Explicit typing
-      if (type != null) queryParams['type'] = type;
-      if (userId != null) queryParams['userId'] = userId;
-      if (date != null) queryParams['date'] = date;
-
-      final response =
-          await _dio.get('/attendance', queryParameters: queryParams);
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-  Future<Map<String, dynamic>> getAttendanceById(String id) async {
-    try {
-      final response = await _dio.get('/attendance/$id');
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-  Future<Map<String, dynamic>> createAttendance(
-      Map<String, dynamic> attendanceData) async {
-    try {
-      final response = await _dio.post('/attendance', data: attendanceData);
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-  Future<Map<String, dynamic>> updateAttendance(
-      String id, Map<String, dynamic> attendanceData) async {
-    try {
-      final response = await _dio.put('/attendance/$id', data: attendanceData);
-      return response.data;
-    } on DioException catch (e) {
-      throw _handleError(e);
-    }
-  }
-
-  Future<void> deleteAttendance(String id) async {
-    try {
-      await _dio.delete('/attendance/$id');
-    } on DioException catch (e) {
-      throw _handleError(e);
+      throw handleError(e);
     }
   }
 
@@ -380,7 +326,7 @@ class ApiService {
       final response = await _dio.get('/classes');
       return response.data;
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw handleError(e);
     }
   }
 
@@ -389,7 +335,7 @@ class ApiService {
       final response = await _dio.get('/classes/$classId');
       return response.data;
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw handleError(e);
     }
   }
 
@@ -399,7 +345,7 @@ class ApiService {
       final response = await _dio.post('/classes', data: classData);
       return response.data;
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw handleError(e);
     }
   }
 
@@ -409,7 +355,7 @@ class ApiService {
       final response = await _dio.put('/classes/$classId', data: classData);
       return response.data;
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw handleError(e);
     }
   }
 
@@ -417,7 +363,7 @@ class ApiService {
     try {
       await _dio.delete('/classes/$classId');
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw handleError(e);
     }
   }
 
@@ -426,7 +372,7 @@ class ApiService {
       final response = await _dio.get('/classes/$classId/members');
       return response.data;
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw handleError(e);
     }
   }
 
@@ -437,7 +383,7 @@ class ApiService {
           await _dio.post('/classes/$classId/members', data: memberData);
       return response.data;
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw handleError(e);
     }
   }
 
@@ -445,7 +391,7 @@ class ApiService {
     try {
       await _dio.delete('/classes/$classId/members/$userId');
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw handleError(e);
     }
   }
 
@@ -454,7 +400,7 @@ class ApiService {
       final response = await _dio.get('/classes/my-classes');
       return response.data;
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw handleError(e);
     }
   }
 
@@ -463,20 +409,22 @@ class ApiService {
       final response = await _dio.get('/classes/my-members');
       return response.data;
     } on DioException catch (e) {
-      throw _handleError(e);
+      throw handleError(e);
     }
   }
 
   // Error handling
-  String _handleError(DioException error) {
+  @override
+  String handleError(DioException error) {
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
         return 'Connection timeout. Please check your internet connection.';
       case DioExceptionType.badResponse:
-        final statusCode = error.response?.statusCode;
-        final message = error.response?.data?['message'] ?? 'An error occurred';
+        final int? statusCode = error.response?.statusCode;
+        final String message =
+            error.response?.data?['message'] ?? 'An error occurred';
 
         switch (statusCode) {
           case 400:

@@ -82,15 +82,18 @@ class ProfileField extends StatelessWidget {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  borderSide: const BorderSide(color: AppColors.primaryMaroon, width: 2),
+                  borderSide: const BorderSide(
+                      color: AppColors.primaryMaroon, width: 2),
                 ),
                 errorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  borderSide: BorderSide(color: AppColors.error, width: 2),
+                  borderSide:
+                      const BorderSide(color: AppColors.error, width: 2),
                 ),
                 focusedErrorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  borderSide: BorderSide(color: AppColors.error, width: 2),
+                  borderSide:
+                      const BorderSide(color: AppColors.error, width: 2),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.md,
@@ -108,7 +111,9 @@ class ProfileField extends StatelessWidget {
                   color: AppColors.backgroundCard,
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                   border: Border.all(
-                    color: isEditable ? AppColors.borderLight : AppColors.borderMedium,
+                    color: isEditable
+                        ? AppColors.borderLight
+                        : AppColors.borderMedium,
                   ),
                 ),
                 child: Row(
@@ -118,10 +123,12 @@ class ProfileField extends StatelessWidget {
                         value.isEmpty ? 'غير محدد' : value,
                         style: TextStyle(
                           fontSize: 16,
-                          color: value.isEmpty 
-                              ? AppColors.textSecondary 
+                          color: value.isEmpty
+                              ? AppColors.textSecondary
                               : AppColors.textPrimary,
-                          fontStyle: value.isEmpty ? FontStyle.italic : FontStyle.normal,
+                          fontStyle: value.isEmpty
+                              ? FontStyle.italic
+                              : FontStyle.normal,
                         ),
                       ),
                     ),

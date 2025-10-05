@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import '../core/services/api_service.dart';
 import '../models/class_model.dart';
 import '../models/class_membership_model.dart';
-import '../models/user_model.dart';
+import '../features/authentication/model/user_model.dart';
 
 class ClassProvider with ChangeNotifier {
   final ApiService _apiService = ApiService.instance;
 
   List<ClassModel> _classes = [];
-  List<ClassMembershipModel> _memberships = [];
+  final List<ClassMembershipModel> _memberships = [];
   List<UserModel> _myMembers = [];
   bool _isLoading = false;
   String? _error;

@@ -3,8 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/constants/app_colors.dart';
-import '../models/user_model.dart';
-import '../providers/auth_provider.dart';
+import '../features/authentication/model/user_model.dart';
 import '../providers/class_provider.dart';
 import '../providers/user_provider.dart';
 
@@ -70,21 +69,20 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
     try {
       final classProvider = Provider.of<ClassProvider>(context, listen: false);
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
       // Load classes and users in parallel
       final results = await Future.wait([
         classProvider.loadClasses(),
-        authProvider.getAllUsers(),
       ]);
 
       // Update userProvider with the loaded users
       final users = results[1] as List<UserModel>;
       userProvider.setUsers(users);
-      
+
       print('Super Admin Dashboard: Loaded ${users.length} users');
-      print('Super Admin Dashboard: Loaded ${classProvider.classes.length} classes');
-      
+      print(
+          'Super Admin Dashboard: Loaded ${classProvider.classes.length} classes');
+
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -128,44 +126,44 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
               child: Column(
                 children: [
                   _buildHeader(),
-                   Expanded(
-                     child: _isLoading
-                         ? Center(
-                             child: Column(
-                               mainAxisAlignment: MainAxisAlignment.center,
-                               children: [
-                                 const CircularProgressIndicator(),
-                                 const SizedBox(height: 16),
-                                 Text(
-                                   'جاري تحميل البيانات...',
-                                   style: TextStyle(
-                                     fontSize: 16,
-                                     color: AppColors.textSecondary,
-                                   ),
-                                 ),
-                               ],
-                             ),
-                           )
-                         : SingleChildScrollView(
-                             padding: const EdgeInsets.all(20),
-                             child: Column(
-                               crossAxisAlignment: CrossAxisAlignment.start,
-                               children: [
-                                 _buildWelcomeSection(),
-                                 const SizedBox(height: 24),
-                                 _buildDebugInfo(),
-                                 const SizedBox(height: 24),
-                                 _buildQuickStats(),
-                                 const SizedBox(height: 24),
-                                 _buildQuickActions(),
-                                 const SizedBox(height: 24),
-                                 _buildManagementSections(),
-                                 const SizedBox(height: 24),
-                                 _buildSystemOverview(),
-                               ],
-                             ),
-                           ),
-                   ),
+                  Expanded(
+                    child: _isLoading
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const CircularProgressIndicator(),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'جاري تحميل البيانات...',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : SingleChildScrollView(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildWelcomeSection(),
+                                const SizedBox(height: 24),
+                                _buildDebugInfo(),
+                                const SizedBox(height: 24),
+                                _buildQuickStats(),
+                                const SizedBox(height: 24),
+                                _buildQuickActions(),
+                                const SizedBox(height: 24),
+                                _buildManagementSections(),
+                                const SizedBox(height: 24),
+                                _buildSystemOverview(),
+                              ],
+                            ),
+                          ),
+                  ),
                 ],
               ),
             ),
@@ -226,102 +224,98 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
               ],
             ),
           ),
-           Row(
-             mainAxisSize: MainAxisSize.min,
-             children: [
-               IconButton(
-                 onPressed: _loadData,
-                 icon: _isLoading 
-                   ? const SizedBox(
-                       width: 20,
-                       height: 20,
-                       child: CircularProgressIndicator(
-                         strokeWidth: 2,
-                         valueColor: AlwaysStoppedAnimation<Color>(AppColors.accentWhite),
-                       ),
-                     )
-                   : const Icon(
-                       Icons.refresh,
-                       color: AppColors.accentWhite,
-                     ),
-               ),
-               IconButton(
-                 onPressed: () => context.go('/khadem'),
-                 icon: const Icon(
-                   Icons.arrow_back,
-                   color: AppColors.accentWhite,
-                 ),
-               ),
-             ],
-           ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                onPressed: _loadData,
+                icon: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                              AppColors.accentWhite),
+                        ),
+                      )
+                    : const Icon(
+                        Icons.refresh,
+                        color: AppColors.accentWhite,
+                      ),
+              ),
+              IconButton(
+                onPressed: () => context.go('/khadem'),
+                icon: const Icon(
+                  Icons.arrow_back,
+                  color: AppColors.accentWhite,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
   Widget _buildWelcomeSection() {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        final user = authProvider.currentUser;
-        return Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                AppColors.accentGold.withValues(alpha: 0.1),
-                AppColors.primaryMaroon.withValues(alpha: 0.05),
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.accentGold.withValues(alpha: 0.1),
+            AppColors.primaryMaroon.withValues(alpha: 0.05),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.accentGold.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.accentGold.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(
+              Icons.waving_hand,
+              color: AppColors.accentGold,
+              size: 32,
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'مرحباً بك في لوحة التحكم الرئيسية. استخدم "إدارة الفصول والأعضاء" للوصول إلى جميع الميزات الرئيسية.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                    height: 1.4,
+                  ),
+                ),
               ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: AppColors.accentGold.withValues(alpha: 0.3),
             ),
           ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.accentGold.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  Icons.waving_hand,
-                  color: AppColors.accentGold,
-                  size: 32,
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'مرحباً، ${user?.name ?? 'المدير العام'}',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'مرحباً بك في لوحة التحكم الرئيسية. استخدم "إدارة الفصول والأعضاء" للوصول إلى جميع الميزات الرئيسية.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+        ],
+      ),
     );
   }
 
@@ -333,15 +327,16 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
           decoration: BoxDecoration(
             color: AppColors.accentGold.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.accentGold.withValues(alpha: 0.3)),
+            border:
+                Border.all(color: AppColors.accentGold.withValues(alpha: 0.3)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
+              const Row(
                 children: [
                   Icon(Icons.bug_report, color: AppColors.accentGold, size: 20),
-                  const SizedBox(width: 8),
+                  SizedBox(width: 8),
                   Text(
                     'معلومات التصحيح',
                     style: TextStyle(
@@ -357,10 +352,9 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
               Text('عدد المستخدمين: ${userProvider.users.length}'),
               if (userProvider.users.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Text('المستخدمين:'),
-                ...userProvider.users.take(3).map((user) => 
-                  Text('  - ${user.name} (${user.role.name})')
-                ),
+                const Text('المستخدمين:'),
+                ...userProvider.users.take(3).map(
+                    (user) => Text('  - ${user.name} (${user.role!.name})')),
                 if (userProvider.users.length > 3)
                   Text('  ... و ${userProvider.users.length - 3} آخرين'),
               ],
@@ -401,7 +395,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
     try {
       final classProvider = Provider.of<ClassProvider>(context, listen: false);
       final userProvider = Provider.of<UserProvider>(context, listen: false);
-      
+
       if (classProvider.classes.isEmpty || userProvider.users.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -411,23 +405,25 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
         );
         return;
       }
-      
+
       final firstClass = classProvider.classes.first;
       final firstUser = userProvider.users.first;
-      
-      print('Testing assignment: User ${firstUser.name} to Class ${firstClass.name}');
-      
+
+      print(
+          'Testing assignment: User ${firstUser.name} to Class ${firstClass.name}');
+
       final success = await classProvider.addClassMember(
         firstClass.id,
-        firstUser.id,
-        firstUser.role,
+        firstUser.id!,
+        firstUser.role!,
         notes: 'Test assignment from dashboard',
       );
-      
+
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('تم اختبار التعيين بنجاح: ${firstUser.name} -> ${firstClass.name}'),
+            content: Text(
+                'تم اختبار التعيين بنجاح: ${firstUser.name} -> ${firstClass.name}'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -456,8 +452,10 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
       builder: (context, classProvider, userProvider, child) {
         final totalClasses = classProvider.classes.length;
         final totalUsers = userProvider.users.length;
-        final khademCount = userProvider.users.where((u) => u.role == UserRole.khadem).length;
-        final makhdoumCount = userProvider.users.where((u) => u.role == UserRole.makhdoum).length;
+        final khademCount =
+            userProvider.users.where((u) => u.role == UserRole.khadem).length;
+        final makhdoumCount =
+            userProvider.users.where((u) => u.role == UserRole.makhdoum).length;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -475,15 +473,17 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
                 const Spacer(),
                 // Debug info
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppColors.primaryBlue.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.3)),
+                    border: Border.all(
+                        color: AppColors.primaryBlue.withValues(alpha: 0.3)),
                   ),
                   child: Text(
-                    '${totalUsers} مستخدم',
-                    style: TextStyle(
+                    '$totalUsers مستخدم',
+                    style: const TextStyle(
                       fontSize: 12,
                       color: AppColors.primaryBlue,
                       fontWeight: FontWeight.w600,
@@ -862,7 +862,7 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
                   color: AppColors.primaryBlue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.info_outline,
                   color: AppColors.primaryBlue,
                   size: 20,
@@ -917,7 +917,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
     );
   }
 
-  Widget _buildOverviewItem(String label, String value, IconData icon, {Color? color}) {
+  Widget _buildOverviewItem(String label, String value, IconData icon,
+      {Color? color}) {
     return Row(
       children: [
         Icon(
@@ -964,7 +965,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
                 ...UserRole.values.map((role) {
                   final count = users.where((u) => u.role == role).length;
                   return ListTile(
-                    leading: Icon(_getRoleIcon(role), color: _getRoleColor(role)),
+                    leading:
+                        Icon(_getRoleIcon(role), color: _getRoleColor(role)),
                     title: Text(_getRoleDisplayName(role)),
                     trailing: Text(count.toString()),
                   );
@@ -990,7 +992,8 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
         title: Text('${_getRoleDisplayName(role)} - نظرة عامة'),
         content: Consumer<UserProvider>(
           builder: (context, userProvider, child) {
-            final users = userProvider.users.where((u) => u.role == role).toList();
+            final users =
+                userProvider.users.where((u) => u.role == role).toList();
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -998,18 +1001,18 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
                 const SizedBox(height: 16),
                 if (users.isNotEmpty)
                   ...users.take(5).map((user) => ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: _getRoleColor(role).withValues(alpha: 0.1),
-                      child: Text(
-                        user.name[0],
-                        style: TextStyle(color: _getRoleColor(role)),
-                      ),
-                    ),
-                    title: Text(user.name),
-                    subtitle: Text(user.email),
-                  )),
-                if (users.length > 5)
-                  Text('و ${users.length - 5} آخرين...'),
+                        leading: CircleAvatar(
+                          backgroundColor:
+                              _getRoleColor(role).withValues(alpha: 0.1),
+                          child: Text(
+                            user.name![0],
+                            style: TextStyle(color: _getRoleColor(role)),
+                          ),
+                        ),
+                        title: Text(user.name!),
+                        subtitle: Text(user.email!),
+                      )),
+                if (users.length > 5) Text('و ${users.length - 5} آخرين...'),
               ],
             );
           },
@@ -1095,8 +1098,6 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
         return Icons.supervisor_account;
       case UserRole.makhdoum:
         return Icons.person;
-      case UserRole.admin:
-        return Icons.admin_panel_settings;
       case UserRole.superAdmin:
         return Icons.security;
     }
@@ -1108,8 +1109,6 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
         return AppColors.accentGold;
       case UserRole.makhdoum:
         return AppColors.primaryBrown;
-      case UserRole.admin:
-        return AppColors.primaryMaroon;
       case UserRole.superAdmin:
         return AppColors.primaryBlue;
     }
@@ -1121,8 +1120,6 @@ class _SuperAdminDashboardState extends State<SuperAdminDashboard>
         return 'خادم';
       case UserRole.makhdoum:
         return 'مخدوم';
-      case UserRole.admin:
-        return 'مدير';
       case UserRole.superAdmin:
         return 'مدير عام';
     }

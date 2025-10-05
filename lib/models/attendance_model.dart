@@ -1,8 +1,8 @@
 enum AttendanceType {
-  mass,           // قداس
+  mass, // قداس
   specialMeeting, // اجتماع خاص
   generalMeeting, // اجتماع عام
-  praise,         // تسبحة
+  praise, // تسبحة
 }
 
 class AttendanceRecord {
@@ -35,7 +35,8 @@ class AttendanceRecord {
       ),
       date: DateTime.parse(json['date'] ?? DateTime.now().toIso8601String()),
       notes: json['notes'],
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+      createdAt:
+          DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
     );
   }
 

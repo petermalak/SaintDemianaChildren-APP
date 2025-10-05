@@ -16,7 +16,7 @@ class AppTheme {
         // background: AppColors.backgroundPrimary, // Deprecated, using surface instead
         error: AppColors.error,
       ),
-      
+
       // Text Theme with responsive typography
       textTheme: GoogleFonts.cairoTextTheme().copyWith(
         displayLarge: GoogleFonts.cairo(
@@ -110,7 +110,7 @@ class AppTheme {
           height: 1.4,
         ),
       ),
-      
+
       // AppBar Theme
       appBarTheme: AppBarTheme(
         backgroundColor: AppColors.primaryMaroon,
@@ -124,25 +124,27 @@ class AppTheme {
           color: AppColors.accentWhite,
         ),
       ),
-      
+
       // Card Theme
       cardTheme: CardThemeData(
         color: AppColors.backgroundCard,
         elevation: AppSpacing.cardElevation,
-        shadowColor: AppColors.primaryMaroon.withValues(alpha: 0.1.clamp(0.0, 1.0)),
+        shadowColor:
+            AppColors.primaryMaroon.withValues(alpha: 0.1.clamp(0.0, 1.0)),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         ),
         margin: EdgeInsets.zero,
       ),
-      
+
       // Elevated Button Theme
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.buttonPrimary,
           foregroundColor: AppColors.accentWhite,
           elevation: AppSpacing.shadowBlurSm,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg, vertical: AppSpacing.md),
           minimumSize: const Size(0, AppSpacing.buttonHeightMd),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -153,13 +155,16 @@ class AppTheme {
           ),
         ),
       ),
-      
+
       // Outlined Button Theme
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.buttonPrimary,
-          side: const BorderSide(color: AppColors.buttonPrimary, width: AppSpacing.dividerThicknessBold),
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+          side: const BorderSide(
+              color: AppColors.buttonPrimary,
+              width: AppSpacing.dividerThicknessBold),
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg, vertical: AppSpacing.md),
           minimumSize: const Size(0, AppSpacing.buttonHeightMd),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -170,19 +175,20 @@ class AppTheme {
           ),
         ),
       ),
-      
+
       // Text Button Theme
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: AppColors.buttonPrimary,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md, vertical: AppSpacing.sm),
           textStyle: GoogleFonts.cairo(
             fontSize: AppSpacing.md - 2, // 14px
             fontWeight: FontWeight.w600,
           ),
         ),
       ),
-      
+
       // Input Decoration Theme
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -197,7 +203,9 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: const BorderSide(color: AppColors.buttonPrimary, width: AppSpacing.dividerThicknessBold),
+          borderSide: const BorderSide(
+              color: AppColors.buttonPrimary,
+              width: AppSpacing.dividerThicknessBold),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -205,9 +213,11 @@ class AppTheme {
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: const BorderSide(color: AppColors.error, width: AppSpacing.dividerThicknessBold),
+          borderSide: const BorderSide(
+              color: AppColors.error, width: AppSpacing.dividerThicknessBold),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.md),
+        contentPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md, vertical: AppSpacing.md),
         labelStyle: GoogleFonts.cairo(
           color: AppColors.textSecondary,
           fontSize: AppSpacing.md - 2, // 14px
@@ -217,7 +227,11 @@ class AppTheme {
           fontSize: AppSpacing.md - 2, // 14px
         ),
       ),
-      
+
+      //circular progress indicator theme
+      progressIndicatorTheme:
+          const ProgressIndicatorThemeData(color: AppColors.buttonPrimary),
+
       // Bottom Navigation Bar Theme
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: AppColors.backgroundCard,

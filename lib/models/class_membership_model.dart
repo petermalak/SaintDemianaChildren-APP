@@ -1,4 +1,4 @@
-import 'user_model.dart';
+import '../features/authentication/model/user_model.dart';
 import 'class_model.dart';
 
 class ClassMembershipModel {
@@ -36,14 +36,18 @@ class ClassMembershipModel {
       classId: json['classId'] ?? '',
       userId: json['userId'] ?? '',
       role: UserModel.parseRole(json['role']),
-      joinedAt: DateTime.parse(json['joinedAt'] ?? DateTime.now().toIso8601String()),
+      joinedAt:
+          DateTime.parse(json['joinedAt'] ?? DateTime.now().toIso8601String()),
       isActive: json['isActive'] ?? true,
       assignedBy: json['assignedBy'],
       notes: json['notes'],
-      createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
+      createdAt:
+          DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
+      updatedAt:
+          DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
       user: json['user'] != null ? UserModel.fromJson(json['user']) : null,
-      classModel: json['class'] != null ? ClassModel.fromJson(json['class']) : null,
+      classModel:
+          json['class'] != null ? ClassModel.fromJson(json['class']) : null,
     );
   }
 
@@ -98,8 +102,6 @@ class ClassMembershipModel {
         return 'خادم';
       case UserRole.makhdoum:
         return 'مخدوم';
-      case UserRole.admin:
-        return 'مدير';
       case UserRole.superAdmin:
         return 'مدير عام';
     }

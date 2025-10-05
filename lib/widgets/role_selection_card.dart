@@ -25,7 +25,8 @@ class RoleSelectionCard extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryMaroon : AppColors.backgroundCard,
+          color:
+              isSelected ? AppColors.primaryMaroon : AppColors.backgroundCard,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? AppColors.primaryMaroon : AppColors.borderLight,
@@ -47,16 +48,19 @@ class RoleSelectionCard extends StatelessWidget {
             Icon(
               icon,
               size: 32,
-              color: isSelected ? AppColors.accentWhite : AppColors.primaryMaroon,
+              color:
+                  isSelected ? AppColors.accentWhite : AppColors.primaryMaroon,
             ),
             const SizedBox(height: 8),
             Flexible(
               child: Text(
                 title,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: isSelected ? AppColors.accentWhite : AppColors.textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
+                      color: isSelected
+                          ? AppColors.accentWhite
+                          : AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
                 maxLines: 2,
@@ -67,10 +71,10 @@ class RoleSelectionCard extends StatelessWidget {
               child: Text(
                 subtitle,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: isSelected 
-                      ? AppColors.accentWhite.withValues(alpha: 0.8)
-                      : AppColors.textSecondary,
-                ),
+                      color: isSelected
+                          ? AppColors.accentWhite.withValues(alpha: 0.8)
+                          : AppColors.textSecondary,
+                    ),
                 textAlign: TextAlign.center,
                 overflow: TextOverflow.ellipsis,
                 maxLines: 2,

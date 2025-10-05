@@ -8,7 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:saint_demiana_children/main.dart';
+import 'package:saint_demiana_children/core/main.dart';
 
 void main() {
   testWidgets('App loads successfully', (WidgetTester tester) async {

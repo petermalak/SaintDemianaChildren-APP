@@ -1,0 +1,84 @@
+import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
+import 'package:saint_demiana_children/core/services/interface/i_api_service.dart';
+import 'package:saint_demiana_children/features/authentication/model/user_model.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/repository/i_members_repository.dart';
+
+import '../../../../core/constants/api_endpoints.dart';
+
+class MembersRepository implements IMembersRepository {
+  final IApiService _apiService;
+  @override
+  List<UserModel> members = [];
+  MembersRepository(this._apiService);
+  @override
+  Future<Either<String, List<UserModel>>> fetchMembers(
+      bool isSuperAdmin) async {
+    try {
+      // final response = await _apiService.get(path: isSuperAdmin?ApiEndpoints.users:ApiEndpoints.members);
+      // final members = (response.data as List)
+      //     .map((memberJson) => UserModel.fromJson(memberJson))
+      //     .toList();
+      // this.members = members;
+      // return right(members);
+      return right([
+        UserModel(
+            id: "1",
+            name: "John Doe",
+            email: "",
+            role: UserRole.makhdoum,
+            phoneNumber: '',
+            createdAt: DateTime.now()),
+        UserModel(
+            id: "2",
+            name: "Jane Smith",
+            email: "",
+            role: UserRole.makhdoum,
+            phoneNumber: '',
+            createdAt: DateTime.now()),
+        UserModel(
+            id: "3",
+            name: "Alice Johnson",
+            email: "",
+            role: UserRole.makhdoum,
+            phoneNumber: '',
+            createdAt: DateTime.now()),
+      ]);
+    } on DioException catch (e) {
+      return left(_apiService.handleError(e));
+    } catch (e) {
+      return left("An unexpected error occurred");
+    }
+  }
+
+  @override
+  Future<Either<String, Unit>> addMember(UserModel user) async {
+    try {
+      final response =
+          await _apiService.post(path: ApiEndpoints.users, body: user.toJson());
+      members.add(UserModel.fromJson(response.data));
+      return right(unit);
+      //TODO:refresh members list and stats
+    } on DioException catch (e) {
+      return left(_apiService.handleError(e));
+    } catch (e) {
+      return left("An unexpected error occurred");
+    }
+  }
+
+  @override
+  Future<Either<String, Unit>> updateMember(UserModel user) async {
+    try {
+      final response = await _apiService.put(
+          path: ApiEndpoints.users + user.id!, body: user.toJson());
+      members.removeWhere((element) => element.id == user.id);
+      members.add(UserModel.fromJson(response.data));
+      return right(unit);
+      //TODO:refresh members list and stats
+    } on DioException catch (e) {
+      return left(_apiService.handleError(e));
+    } catch (e) {
+      return left("An unexpected error occurred");
+    }
+  }
+}
