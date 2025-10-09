@@ -6,9 +6,9 @@ import 'package:saint_demiana_children/features/authentication/viewmodel/login_c
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/di/service_locator.dart';
+import '../../../../core/widgets/custom_text_field.dart';
+import '../../../../core/widgets/loading_button.dart';
 import '../../model/user_model.dart';
-import '../../../../widgets/custom_text_field.dart';
-import '../../../../widgets/loading_button.dart';
 import '../../repository/i_authentication_repository.dart';
 
 class LoginScreen extends StatefulWidget {

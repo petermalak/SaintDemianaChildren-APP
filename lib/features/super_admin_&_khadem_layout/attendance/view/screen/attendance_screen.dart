@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../repository/i_attendance_repository.dart';
-import '../../viewmodel/attendance_cubit.dart';
+import '../../viewmodel/get_attendance/get_attendance_cubit.dart';
 
 class AttendanceScreen extends StatelessWidget {
   const AttendanceScreen({super.key});
@@ -12,16 +12,16 @@ class AttendanceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => AttendanceCubit(
+      create: (context) => GetAttendanceCubit(
         sl<IAttendanceRepository>(),
       )..fetchAttendance(),
-      child: BlocBuilder<AttendanceCubit, AttendanceState>(
+      child: BlocBuilder<GetAttendanceCubit, GetAttendanceState>(
         builder: (context, state) {
-          if (state is AttendanceLoading) {
+          if (state is GetAttendanceLoading) {
             return const Center(
               child: CircularProgressIndicator(),
             );
-          } else if (state is AttendanceFailure) {
+          } else if (state is GetAttendanceFailure) {
             return Padding(
               padding: const EdgeInsets.all(8.0),
               child: SizedBox(
@@ -33,7 +33,7 @@ class AttendanceScreen extends StatelessWidget {
                               fontSize: 24,
                               fontWeight: FontWeight.bold)))),
             );
-          } else if (state is AttendanceSuccess) {
+          } else if (state is GetAttendanceSuccess) {
             // Mocked static data for demonstration
             final dates = ['12/10/2025', '5/10/2025'];
             final members = ['John Doe', 'Jane Smith'];
@@ -162,14 +162,14 @@ class _AttendanceTableState extends State<AttendanceTable> {
               ),
               // Individual date buttons
               ...widget.dates.map((date) => FilterChip(
-                label: Text(date),
-                selected: selectedDates.contains(date),
-                onSelected: (selected) {
-                  toggleDateSelection(date);
-                },
-                selectedColor: Colors.green.shade100,
-                checkmarkColor: Colors.green.shade700,
-              )),
+                    label: Text(date),
+                    selected: selectedDates.contains(date),
+                    onSelected: (selected) {
+                      toggleDateSelection(date);
+                    },
+                    selectedColor: Colors.green.shade100,
+                    checkmarkColor: Colors.green.shade700,
+                  )),
             ],
           ),
         ),
@@ -186,7 +186,8 @@ class _AttendanceTableState extends State<AttendanceTable> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     alignment: Alignment.center,
-                    child: const Text('Name', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: const Text('Name',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                   for (final date in filteredDates)
                     TableCell(
@@ -195,7 +196,9 @@ class _AttendanceTableState extends State<AttendanceTable> {
                         padding: const EdgeInsets.all(8),
                         child: Column(
                           children: [
-                            Text(date, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text(date,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
@@ -203,7 +206,8 @@ class _AttendanceTableState extends State<AttendanceTable> {
                                   Container(
                                     width: 50,
                                     alignment: Alignment.center,
-                                    child: Text(cat, style: const TextStyle(fontSize: 12)),
+                                    child: Text(cat,
+                                        style: const TextStyle(fontSize: 12)),
                                   ),
                               ],
                             ),
@@ -220,7 +224,8 @@ class _AttendanceTableState extends State<AttendanceTable> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       alignment: Alignment.centerLeft,
-                      child: Text(member, style: const TextStyle(fontWeight: FontWeight.w500)),
+                      child: Text(member,
+                          style: const TextStyle(fontWeight: FontWeight.w500)),
                     ),
                     for (final date in filteredDates)
                       TableCell(
@@ -234,11 +239,16 @@ class _AttendanceTableState extends State<AttendanceTable> {
                                 alignment: Alignment.center,
                                 decoration: BoxDecoration(
                                   border: Border(
-                                    right: BorderSide(color: Colors.grey.shade300),
+                                    right:
+                                        BorderSide(color: Colors.grey.shade300),
                                   ),
                                 ),
-                                child: widget.attendance[member]?[date]?[cat] == true
-                                    ? const Text('+', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green))
+                                child: widget.attendance[member]?[date]?[cat] ==
+                                        true
+                                    ? const Text('+',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.green))
                                     : const SizedBox.shrink(),
                               ),
                           ],

@@ -1,19 +1,22 @@
 class StatsModel {
   final num totalUsers;
-  final num makhdoumCount;
-  final num khademCount;
+  final num attendanceRate;
+  final num eftekadCompletionRate;
+  final num totalClasses;
 
   StatsModel({
     required this.totalUsers,
-    required this.makhdoumCount,
-    required this.khademCount,
+    required this.attendanceRate,
+    required this.eftekadCompletionRate,
+    required this.totalClasses,
   });
 
   factory StatsModel.fromJson(Map<String, dynamic> json) {
     return StatsModel(
-      totalUsers: json['total_users'] ?? 0,
-      makhdoumCount: json['makhdoum_count'] ?? 0,
-      khademCount: json['khadem_count'] ?? 0,
+      totalUsers: json['totalUsers'] ?? 0,
+      attendanceRate: json['attendanceRate'] ?? 0,
+      eftekadCompletionRate: json['eftekadCompletionRate'] ?? 0,
+      totalClasses: json['totalClasses'] ?? 0,
     );
   }
 }

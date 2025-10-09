@@ -13,15 +13,15 @@ class HomeRepository implements IHomeRepository {
 
   @override
   Future<Either<String, StatsModel>> fetchStats() async {
-
     try {
       // final response = await _apiService.get(path: ApiEndpoints.stats);
-      //
-      // return right(StatsModel.fromJson(response.data['stats']));
+
+      // return right(StatsModel.fromJson(response.data['data']));
       return right(StatsModel(
         totalUsers: 20,
-        makhdoumCount: 5,
-        khademCount: 3,
+        attendanceRate: 5,
+        eftekadCompletionRate: 3,
+        totalClasses: 4,
       ));
     } on DioException catch (e) {
       return left(_apiService.handleError(e));

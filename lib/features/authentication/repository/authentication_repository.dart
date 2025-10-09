@@ -22,36 +22,36 @@ class AuthenticationRepository implements IAuthenticationRepository {
   @override
   Future<Either<String, UserModel>> login(
       {required String email, required String password}) async {
-     UserModel user;
+    UserModel user;
     if (email == "superAdmin@test.com" && password == "superAdmin123") {
-      user=UserModel(
+      user = UserModel(
           phoneNumber: "+201000000000",
           id: "1",
           name: "Super Admin",
           email: email,
           role: UserRole.superAdmin,
           token: "token");
-      _profileRepository.user=user;
-      return right(user);    }
-      else if (email == "khadem@test.com" && password == "khadem123"){
-        user=UserModel(
-            phoneNumber: "+201000000001",
-            id: "2",
-            name: "Khadem",
-            email: email,
-            role: UserRole.khadem,
-            token: "token");
-        _profileRepository.user=user;
-        return right(user);    }
-    else if (email == "makhdoum@test.com" && password == "makhdoum123"){
-      user=UserModel(
+      _profileRepository.user = user;
+      return right(user);
+    } else if (email == "khadem@test.com" && password == "khadem123") {
+      user = UserModel(
+          phoneNumber: "+201000000001",
+          id: "2",
+          name: "Khadem",
+          email: email,
+          role: UserRole.khadem,
+          token: "token");
+      _profileRepository.user = user;
+      return right(user);
+    } else if (email == "makhdoum@test.com" && password == "makhdoum123") {
+      user = UserModel(
           phoneNumber: "+201000000002",
           id: "3",
           name: "Makhdoum",
           email: email,
           role: UserRole.makhdoum,
           token: "token");
-      _profileRepository.user=user;
+      _profileRepository.user = user;
       return right(user);
     }
 

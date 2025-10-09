@@ -27,8 +27,6 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-
-    // Initialize animation controllers
     _logoController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
@@ -44,7 +42,6 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
     );
 
-    // Initialize animations
     _logoScale = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -81,22 +78,25 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _startAnimations() async {
-    // Start logo animation
     await _logoController.forward();
 
-    // Start text animation
     await _textController.forward();
 
-    // Start fade animation
     await _fadeController.forward();
 
-    // Wait a bit then check authentication
     await Future.delayed(const Duration(milliseconds: 1000));
 
     _checkAuthentication();
   }
 
   void _checkAuthentication() async {
+    // sl<IProfileRepository>().user = UserModel(
+    //     id: "1",
+    //     role: UserRole.superAdmin,
+    //     name: "felo",
+    //     token:
+    //         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjA0OTBlOTk3LWQ5N2QtNDhlNC04NzFlLTQyYjhmM2FhNGU0ZSIsIm5hbWUiOiJTdXBlciBBZG1pbiIsImVtYWlsIjoic3VwZXJhZG1pbkB0ZXN0LmNvbSIsInBob25lTnVtYmVyIjoiKzEyMzQ1Njc4OTAiLCJyb2xlIjoic3VwZXJfYWRtaW4iLCJwcm9maWxlSW1hZ2UiOm51bGwsInBhc3N3b3JkSGFzaCI6IiQyYiQxMCRTdWZEdy51cjVHM0dXVEtleGVPR1JPaXY1aUouODZmRmQ5aGguRC50S3VoQUZabEQ4U0NycSIsImZhdGhlcnNQaG9uZU51bWJlciI6bnVsbCwibW90aGVyc1Bob25lTnVtYmVyIjpudWxsLCJiaXJ0aGRhdGUiOm51bGwsImFkZHJlc3MiOiIxMjMgU3VwZXIgQWRtaW4gU3QiLCJhZGRyZXNzTG9jYXRpb25MaW5rIjpudWxsLCJmYXRoZXJPZkNvbmZlc3Npb24iOm51bGwsImNyZWF0ZWRBdCI6IjIwMjUtMTAtMDFUMTE6NTE6MjAuMDAwWiIsInVwZGF0ZWRBdCI6IjIwMjUtMTAtMDFUMTE6NTE6MjAuMDAwWiIsImlhdCI6MTc1OTg0MzMyMSwiZXhwIjoxNzYwNDQ4MTIxfQ.S3HoTHbZ8HhsPgFNmz_UZJJP8vcPR2MHeW8iS0LD-KM",
+    //     email: "superAdmin@test.com");
     final user = sl<IProfileRepository>().user;
     if (user != null) {
       if (user.role == UserRole.khadem || user.role == UserRole.superAdmin) {
@@ -134,7 +134,6 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo Section
                 AnimatedBuilder(
                   animation: _logoController,
                   builder: (context, child) {
@@ -187,10 +186,7 @@ class _SplashScreenState extends State<SplashScreen>
                     );
                   },
                 ),
-
                 SizedBox(height: isMobile ? AppSpacing.xl : AppSpacing.xxl),
-
-                // App Name Section
                 AnimatedBuilder(
                   animation: _textController,
                   builder: (context, child) {
@@ -199,7 +195,7 @@ class _SplashScreenState extends State<SplashScreen>
                       child: Column(
                         children: [
                           Text(
-                            'Saint Demiana Children',
+                            'Saint Demiana Church',
                             style: Theme.of(context)
                                 .textTheme
                                 .headlineLarge
@@ -212,7 +208,7 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           Text(
-                            'أطفال القديسة دميانة',
+                            'كنيسة القديسة دميانة',
                             style: Theme.of(context)
                                 .textTheme
                                 .headlineSmall
@@ -228,10 +224,7 @@ class _SplashScreenState extends State<SplashScreen>
                     );
                   },
                 ),
-
                 SizedBox(height: isMobile ? AppSpacing.xl : AppSpacing.xxl),
-
-                // Loading Indicator
                 AnimatedBuilder(
                   animation: _fadeAnimation,
                   builder: (context, child) {

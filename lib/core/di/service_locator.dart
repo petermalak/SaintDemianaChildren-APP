@@ -16,6 +16,8 @@ import '../../features/super_admin_&_khadem_layout/home/repository/home_reposito
 import '../../features/super_admin_&_khadem_layout/home/repository/i_home_repository.dart';
 import '../../features/super_admin_&_khadem_layout/members/repository/i_members_repository.dart';
 import '../../features/super_admin_&_khadem_layout/members/repository/members_repository.dart';
+import '../../features/super_admin_&_khadem_layout/super_admin/class_management/repository/class_repository.dart';
+import '../../features/super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 
@@ -25,8 +27,8 @@ Future<void> setupServiceLocator() async {
   sl.registerLazySingleton<IApiService>(() => ApiService.instance);
   sl.registerLazySingleton<IStorageService>(() => StorageService.instance);
   // Repositories
-  sl.registerLazySingleton<IAuthenticationRepository>(
-      () => AuthenticationRepository(sl<IApiService>(), sl<IProfileRepository>()));
+  sl.registerLazySingleton<IAuthenticationRepository>(() =>
+      AuthenticationRepository(sl<IApiService>(), sl<IProfileRepository>()));
   sl.registerLazySingleton<IHomeRepository>(
       () => HomeRepository(sl<IApiService>()));
   sl.registerLazySingleton<IMembersRepository>(
@@ -39,4 +41,6 @@ Future<void> setupServiceLocator() async {
       () => ProfileRepository(sl<IApiService>(), sl<IStorageService>()));
   sl.registerLazySingleton<IFeedRepository>(
       () => FeedRepository(sl<IApiService>()));
+  sl.registerLazySingleton<IClassRepository>(
+      () => ClassRepository(sl<IApiService>()));
 }

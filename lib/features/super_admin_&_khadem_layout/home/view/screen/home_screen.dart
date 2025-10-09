@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:saint_demiana_children/features/authentication/model/user_model.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/home/model/stats_model.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/home/viewmodel/stats_cubit.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/view/widget/add_user_dialog.dart';
@@ -30,7 +29,6 @@ class HomeScreen extends StatelessWidget {
                       height: 250,
                       child: Center(child: CircularProgressIndicator()));
                 } else if (state is StatsFailure) {
-                  // return _buildStatsGrid(StatsModel(totalUsers: 0, makhdoumCount: 0, khademCount: 0));
                   return SizedBox(
                       height: 250,
                       child: Center(
@@ -109,12 +107,15 @@ class HomeScreen extends StatelessWidget {
           children: [
             _buildStatCard('إجمالي الأعضاء', stats.totalUsers.toString(),
                 Icons.people, AppColors.primaryMaroon),
-            _buildStatCard('المخدومين', stats.makhdoumCount.toString(),
+            _buildStatCard('نسبة الحضور', stats.attendanceRate.toString(),
                 Icons.person, AppColors.primaryBrown),
-            _buildStatCard('الخدام', stats.khademCount.toString(),
-                Icons.admin_panel_settings, AppColors.accentGold),
             _buildStatCard(
-                'نشاط اليوم', '12', Icons.trending_up, AppColors.success)
+                'نسبة الافتقاد',
+                stats.eftekadCompletionRate.toString(),
+                Icons.admin_panel_settings,
+                AppColors.accentGold),
+            _buildStatCard('عدد الفصول', stats.totalClasses.toString(),
+                Icons.trending_up, AppColors.success)
           ])
     ]);
   }
@@ -190,7 +191,7 @@ class HomeScreen extends StatelessWidget {
           onTap: () => showDialog(
               context: context,
               builder: (BuildContext context) {
-                return AddUserDialog(user: UserModel());
+                return AddUserDialog();
               }),
         )),
         const SizedBox(width: 16),

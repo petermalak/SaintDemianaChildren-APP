@@ -26,7 +26,7 @@ class CommunicationService implements ICommunicationService {
   }
 
   @override
-  Future<Either<String, Unit>> openWhatsAppChat(String phoneNumber)async {
+  Future<Either<String, Unit>> openWhatsAppChat(String phoneNumber) async {
     try {
       final cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d+]'), '');
       String formattedNumber = cleanNumber;

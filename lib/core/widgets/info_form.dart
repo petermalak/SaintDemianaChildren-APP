@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../core/constants/app_colors.dart';
-import '../features/authentication/model/user_model.dart';
+import '../../features/authentication/model/user_model.dart';
+import '../constants/app_colors.dart';
 import 'country_phone_field.dart';
 
 class InfoForm extends StatefulWidget {
@@ -14,25 +14,11 @@ class InfoForm extends StatefulWidget {
     this.isEditing = true,
     required this.user,
     required this.selectedImagePath,
-    this.nameController,
-    this.phoneController,
-    this.fatherPhoneController,
-    this.motherPhoneController,
-    this.addressController,
-    this.addressLinkController,
-    this.fatherOfConfessionController,
   });
 
   final UserModel user;
   String? selectedImagePath;
   final bool isEditing;
-  final TextEditingController? nameController;
-  final TextEditingController? phoneController;
-  final TextEditingController? fatherPhoneController;
-  final TextEditingController? motherPhoneController;
-  final TextEditingController? addressController;
-  final TextEditingController? addressLinkController;
-  final TextEditingController? fatherOfConfessionController;
 
   @override
   State<InfoForm> createState() => InfoFormState();
@@ -51,33 +37,30 @@ class InfoFormState extends State<InfoForm> {
   @override
   void initState() {
     super.initState();
-    _nameController =
-        widget.nameController ?? TextEditingController(text: widget.user.name);
-    _phoneController = widget.phoneController ??
-        TextEditingController(text: widget.user.phoneNumber);
-    _fatherPhoneController = widget.fatherPhoneController ??
+    _nameController = TextEditingController(text: widget.user.name);
+    _phoneController = TextEditingController(text: widget.user.phoneNumber);
+    _fatherPhoneController =
         TextEditingController(text: widget.user.fathersPhoneNumber);
-    _motherPhoneController = widget.motherPhoneController ??
+    _motherPhoneController =
         TextEditingController(text: widget.user.mothersPhoneNumber);
-    _addressController = widget.addressController ??
-        TextEditingController(text: widget.user.address);
-    _addressLinkController = widget.addressLinkController ??
+    _addressController = TextEditingController(text: widget.user.address);
+    _addressLinkController =
         TextEditingController(text: widget.user.addressLocationLink);
-    _fatherOfConfessionController = widget.fatherOfConfessionController ??
+    _fatherOfConfessionController =
         TextEditingController(text: widget.user.fatherOfConfession ?? '');
   }
 
   @override
   void dispose() {
-    if (widget.nameController == null) _nameController.dispose();
-    if (widget.phoneController == null) _phoneController.dispose();
-    if (widget.fatherPhoneController == null) _fatherPhoneController.dispose();
-    if (widget.motherPhoneController == null) _motherPhoneController.dispose();
-    if (widget.addressController == null) _addressController.dispose();
-    if (widget.addressLinkController == null) _addressLinkController.dispose();
-    if (widget.fatherOfConfessionController == null) {
-      _fatherOfConfessionController.dispose();
-    }
+    _nameController.dispose();
+    _phoneController.dispose();
+    _fatherPhoneController.dispose();
+    _motherPhoneController.dispose();
+    _addressController.dispose();
+    _addressLinkController.dispose();
+
+    _fatherOfConfessionController.dispose();
+
     super.dispose();
   }
 
@@ -254,7 +237,6 @@ class InfoFormState extends State<InfoForm> {
         ),
       );
     } catch (e) {
-      // Close loading dialog if it's open
       if (Navigator.of(context).canPop()) {
         Navigator.of(context).pop();
       }

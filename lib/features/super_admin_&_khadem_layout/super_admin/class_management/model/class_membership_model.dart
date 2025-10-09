@@ -1,4 +1,4 @@
-import '../features/authentication/model/user_model.dart';
+import '../../../../authentication/model/user_model.dart';
 import 'class_model.dart';
 
 class ClassMembershipModel {

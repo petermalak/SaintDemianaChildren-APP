@@ -13,7 +13,6 @@ import '../../../../authentication/model/user_model.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
 import '../../../members/view/widget/add_user_dialog.dart';
 import '../../../members/view/widget/attendance_dialog.dart';
-import '../../../../../models/attendance_model.dart';
 
 class KhademMainScreen extends StatefulWidget {
   const KhademMainScreen({super.key});
@@ -28,12 +27,18 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   late AnimationController _fabAnimationController;
   late AnimationController _cardAnimationController;
   late Animation<double> _cardAnimation;
-
-  // Track selected members for Members tab
   List<UserModel> _selectedMembers = [];
+  final Map<int, Widget> _cachedTabs = {};
 
   @override
   void initState() {
+    // sl<IProfileRepository>().user = UserModel(
+    //     id: "1",
+    //     role: UserRole.superAdmin,
+    //     name: "felo",
+    //     token:
+    //         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjA0OTBlOTk3LWQ5N2QtNDhlNC04NzFlLTQyYjhmM2FhNGU0ZSIsIm5hbWUiOiJTdXBlciBBZG1pbiIsImVtYWlsIjoic3VwZXJhZG1pbkB0ZXN0LmNvbSIsInBob25lTnVtYmVyIjoiKzEyMzQ1Njc4OTAiLCJyb2xlIjoic3VwZXJfYWRtaW4iLCJwcm9maWxlSW1hZ2UiOm51bGwsInBhc3N3b3JkSGFzaCI6IiQyYiQxMCRTdWZEdy51cjVHM0dXVEtleGVPR1JPaXY1aUouODZmRmQ5aGguRC50S3VoQUZabEQ4U0NycSIsImZhdGhlcnNQaG9uZU51bWJlciI6bnVsbCwibW90aGVyc1Bob25lTnVtYmVyIjpudWxsLCJiaXJ0aGRhdGUiOm51bGwsImFkZHJlc3MiOiIxMjMgU3VwZXIgQWRtaW4gU3QiLCJhZGRyZXNzTG9jYXRpb25MaW5rIjpudWxsLCJmYXRoZXJPZkNvbmZlc3Npb24iOm51bGwsImNyZWF0ZWRBdCI6IjIwMjUtMTAtMDFUMTE6NTE6MjAuMDAwWiIsInVwZGF0ZWRBdCI6IjIwMjUtMTAtMDFUMTE6NTE6MjAuMDAwWiIsImlhdCI6MTc1OTg0MzMyMSwiZXhwIjoxNzYwNDQ4MTIxfQ.S3HoTHbZ8HhsPgFNmz_UZJJP8vcPR2MHeW8iS0LD-KM",
+    //     email: "superAdmin@test.com");
     super.initState();
     _initializeAnimations();
   }
@@ -181,10 +186,8 @@ class _KhademMainScreenState extends State<KhademMainScreen>
       onSelected: (value) {
         if (value == 'logout') {
           _handleLogout(context);
-        } else if (value == 'class-management') {
-          context.go('/class-management');
-        } else if (value == 'super-super_admin-dashboard') {
-          context.go('/super-super_admin-dashboard');
+        } else if (value == '/class-management') {
+          context.push('/class-management');
         } else if (value == 'profile') {
           context.push('/profile');
         }
@@ -200,10 +203,9 @@ class _KhademMainScreenState extends State<KhademMainScreen>
             ],
           ),
         ),
-        if (sl<IProfileRepository>().user!.role ==
-            UserRole.superAdmin) ...[
+        if (sl<IProfileRepository>().user!.role == UserRole.superAdmin) ...[
           const PopupMenuItem(
-            value: 'super-super_admin-dashboard',
+            value: '/class-management',
             child: Row(
               children: [
                 Icon(Icons.dashboard, color: AppColors.primaryBlue),
@@ -211,14 +213,6 @@ class _KhademMainScreenState extends State<KhademMainScreen>
                 Text('لوحة التحكم'),
               ],
             ),
-          ),
-          const PopupMenuItem(
-            value: 'class-management',
-            child: Row(children: [
-              Icon(Icons.class_, color: AppColors.primaryMaroon),
-              SizedBox(width: 12),
-              Text('إدارة الفصول'),
-            ]),
           ),
         ],
         const PopupMenuDivider(),
@@ -293,9 +287,7 @@ class _KhademMainScreenState extends State<KhademMainScreen>
                 ),
                 child: Icon(
                   icon,
-                  color: isSelected
-                      ? AppColors.primaryMaroon
-                      : AppColors.primaryMaroon,
+                  color: AppColors.primaryMaroon,
                   size: 20,
                 ),
               ),
@@ -334,7 +326,16 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   }
 
   Widget _buildTabContent() {
-    switch (_selectedTab) {
+    return IndexedStack(
+      index: _selectedTab,
+      children: List.generate(5, (index) {
+        return _cachedTabs.putIfAbsent(index, () => _buildTabWidget(index));
+      }),
+    );
+  }
+
+  Widget _buildTabWidget(int index) {
+    switch (index) {
       case 0:
         return Provider.value(
           value: onTabSelected,
@@ -384,8 +385,7 @@ class _KhademMainScreenState extends State<KhademMainScreen>
           ? FloatingActionButton.extended(
               key: const ValueKey('fab'),
               onPressed: isMemberSelected
-                  ? () =>
-                      _showAddAttendanceDialog(AttendanceType.generalMeeting)
+                  ? () => _showAddAttendanceDialog()
                   : () => _showAddUserDialog(),
               backgroundColor:
                   isMemberSelected ? Colors.green : AppColors.primaryMaroon,
@@ -408,13 +408,11 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   void _showAddUserDialog() {
     showDialog(
       context: context,
-      builder: (context) => AddUserDialog(
-        user: UserModel(),
-      ),
+      builder: (context) => AddUserDialog(),
     );
   }
 
-  void _showAddAttendanceDialog(AttendanceType type) {
+  void _showAddAttendanceDialog() {
     showDialog(
       context: context,
       builder: (context) => AddAttendanceDialog(members: _selectedMembers),

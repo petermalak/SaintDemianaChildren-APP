@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/view/widget/member_card.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/viewmodel/get_members/get_members_cubit.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../authentication/model/user_model.dart';
-import '../../../../profile/repository/i_profile_repository.dart';
 import '../../repository/i_members_repository.dart';
 
 class MembersScreen extends StatefulWidget {
@@ -31,9 +31,8 @@ class _MembersScreenState extends State<MembersScreen> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => GetMembersCubit(sl<IMembersRepository>())
-        ..fetchMembers(
-            sl<IProfileRepository>().user!.role == UserRole.superAdmin),
+      create: (context) =>
+          GetMembersCubit(sl<IMembersRepository>())..fetchMembers(sl<IProfileRepository>().user!.role==UserRole.superAdmin),
       child: BlocBuilder<GetMembersCubit, GetMembersState>(
         builder: (context, state) {
           if (state is GetMembersLoading) {
@@ -142,7 +141,7 @@ class _MembersScreenState extends State<MembersScreen> {
                           .withValues(alpha: 0.7.clamp(0.0, 1.0))),
                   onPressed: () {
                     _searchController.clear();
-                    setState(() {}); // Trigger rebuild to clear search
+                    setState(() {});
                   },
                 )
               : null,
@@ -157,7 +156,7 @@ class _MembersScreenState extends State<MembersScreen> {
                         .toLowerCase()
                         .contains(value.toLowerCase()))
                 .toList();
-          }); // Trigger rebuild when search text changes
+          });
         },
       ),
     );

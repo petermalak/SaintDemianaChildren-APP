@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/viewmodel/add_member/add_member_cubit.dart';
-import 'package:saint_demiana_children/widgets/info_form.dart';
 
 import '../../../../../core/constants/app_colors.dart';
+import '../../../../../core/di/service_locator.dart';
+import '../../../../../core/widgets/info_form.dart';
 import '../../../../authentication/model/user_model.dart';
+import '../../repository/i_members_repository.dart';
 import '../../viewmodel/get_members/get_members_cubit.dart';
 
 class AddUserDialog extends StatelessWidget {
-  final UserModel user;
+  late final UserModel? user;
 
   AddUserDialog({
     super.key,
-    required this.user,
+    this.user,
   });
 
   final _formKey = GlobalKey<FormState>();
@@ -21,7 +23,9 @@ class AddUserDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     String? selectedImagePath;
-    bool isUpdate = user.id != null && user.id!.isNotEmpty;
+
+    bool isUpdate = user != null;
+    user ??= UserModel();
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
@@ -51,7 +55,7 @@ class AddUserDialog extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    isUpdate ? 'تعديل ملف ${user.name}' : 'إضافة عضو جديد',
+                    isUpdate ? 'تعديل ملف ${user!.name}' : 'إضافة عضو جديد',
                     style: const TextStyle(
                       color: AppColors.accentWhite,
                       fontSize: 18,
@@ -77,7 +81,7 @@ class AddUserDialog extends StatelessWidget {
                   key: _formKey,
                   child: InfoForm(
                     key: _infoFormKey, // Add this key
-                    user: user,
+                    user: user!,
                     selectedImagePath: selectedImagePath,
                   ),
                 ),
@@ -92,7 +96,7 @@ class AddUserDialog extends StatelessWidget {
                 ),
               ),
               child: BlocProvider(
-                create: (context) => AddMemberCubit(),
+                create: (context) => AddMemberCubit(sl<IMembersRepository>()),
                 child: BlocConsumer<AddMemberCubit, AddMemberState>(
                   listener: (context, state) {
                     if (state is AddMemberSuccess) {
@@ -133,25 +137,19 @@ class AddUserDialog extends StatelessWidget {
                         Expanded(
                           child: ElevatedButton(
                             onPressed: () {
+                              final addMemberCubit =
+                                  context.read<AddMemberCubit>();
                               if (_infoFormKey.currentState
                                       ?.saveFormToModel() ??
                                   false) {
                                 if (_formKey.currentState?.validate() ??
                                     false) {
                                   if (isUpdate) {
-                                    context
-                                        .read<AddMemberCubit>()
-                                        .updateMember(user);
+                                    addMemberCubit.updateMemberProfile(user!);
                                   } else {
-                                    context
-                                        .read<AddMemberCubit>()
-                                        .addMember(user);
+                                    addMemberCubit.addMember(user!);
                                   }
                                 }
-                                print('Updated user data:');
-                                print(user.toJson());
-                              } else {
-                                print('Form validation failed');
                               }
                             },
                             style: ElevatedButton.styleFrom(

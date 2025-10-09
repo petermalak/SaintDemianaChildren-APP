@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
 import 'di/service_locator.dart';
 import 'theme/app_theme.dart';
-import '../providers/user_provider.dart';
-import '../providers/class_provider.dart';
 import '../features/splash_screen/view/screen/splash_screen.dart';
 import '../features/authentication/view/screen/login_screen.dart';
 import '../features/super_admin_&_khadem_layout/home/view/screen/super_admin_&_khadem_main_screen.dart';
 import '../features/makhdoum_layout/home/view/screen/makhdoum_main_screen.dart';
-import '../screens/class_management_screen.dart';
-import '../screens/super_admin_dashboard.dart';
+import '../features/super_admin_&_khadem_layout/super_admin/class_management/view/screen/class_management_screen.dart';
 import '../features/profile/view/screen/profile_screen.dart';
 
 void main() {
@@ -25,22 +21,16 @@ class SaintDemianaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => UserProvider()),
-        ChangeNotifierProvider(create: (_) => ClassProvider()),
-      ],
-      child: MaterialApp.router(
-        locale: const Locale('ar', 'EG'),
-        title: 'Saint Demiana Children',
-        builder: (context, child) => Directionality(
-          textDirection: TextDirection.rtl,
-          child: child ?? const SizedBox.shrink(),
-        ),
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        routerConfig: _router,
+    return MaterialApp.router(
+      locale: const Locale('ar', 'EG'),
+      title: 'Saint Demiana Children',
+      builder: (context, child) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: child ?? const SizedBox.shrink(),
       ),
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
+      routerConfig: _router,
     );
   }
 }
@@ -66,11 +56,9 @@ final GoRouter _router = GoRouter(
     ),
     GoRoute(
       path: '/class-management',
-      builder: (context, state) => const ClassManagementScreen(),
-    ),
-    GoRoute(
-      path: '/super-super_admin-dashboard',
-      builder: (context, state) => const SuperAdminDashboard(),
+      builder: (context, state) {
+        return const MainClassManagementScreen();
+      },
     ),
     GoRoute(
       path: '/profile',

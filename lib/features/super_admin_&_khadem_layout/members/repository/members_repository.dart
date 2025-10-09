@@ -11,9 +11,14 @@ class MembersRepository implements IMembersRepository {
   @override
   List<UserModel> members = [];
   MembersRepository(this._apiService);
+
   @override
-  Future<Either<String, List<UserModel>>> fetchMembers(
-      bool isSuperAdmin) async {
+  void setMembers(List<UserModel> newMembers) {
+    members = newMembers;
+  }
+
+  @override
+  Future<Either<String, List<UserModel>>> fetchMembers(bool isSuperAdmin) async {
     try {
       // final response = await _apiService.get(path: isSuperAdmin?ApiEndpoints.users:ApiEndpoints.members);
       // final members = (response.data as List)
@@ -67,7 +72,7 @@ class MembersRepository implements IMembersRepository {
   }
 
   @override
-  Future<Either<String, Unit>> updateMember(UserModel user) async {
+  Future<Either<String, Unit>> updateMemberProfile(UserModel user) async {
     try {
       final response = await _apiService.put(
           path: ApiEndpoints.users + user.id!, body: user.toJson());
@@ -80,5 +85,12 @@ class MembersRepository implements IMembersRepository {
     } catch (e) {
       return left("An unexpected error occurred");
     }
+  }
+
+  @override
+  void deleteMember(UserModel user) {
+    _apiService.delete(path: ApiEndpoints.users + user.id!);
+    members.removeWhere((element) => element.id == user.id);
+    //TODO:refresh members list and stats
   }
 }

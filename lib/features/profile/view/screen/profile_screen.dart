@@ -4,10 +4,10 @@ import 'package:geolocator/geolocator.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/di/service_locator.dart';
+import '../../../../core/widgets/country_phone_field.dart';
+import '../../../../core/widgets/profile_field.dart';
+import '../../../../core/widgets/profile_image_picker.dart';
 import '../../../authentication/model/user_model.dart';
-import '../../../../widgets/profile_field.dart';
-import '../../../../widgets/profile_image_picker.dart';
-import '../../../../widgets/country_phone_field.dart';
 import '../../repository/i_profile_repository.dart';
 import '../../viewmodel/profile_cubit.dart';
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../core/constants/app_colors.dart';
-import '../core/constants/spacing.dart';
+import '../constants/app_colors.dart';
+import '../constants/spacing.dart';
 
 class ProfileField extends StatelessWidget {
   final String label;

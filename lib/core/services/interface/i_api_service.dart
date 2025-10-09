@@ -24,5 +24,12 @@ abstract class IApiService {
     required String path,
     Map<String, dynamic>? queryParameters,
   });
+
+  Future<Response> patch({
+    required String path,
+    Map<String, dynamic>? queryParameters,
+    dynamic body,
+  });
+
   String handleError(DioException error);
 }

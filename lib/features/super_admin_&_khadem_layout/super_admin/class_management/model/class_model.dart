@@ -3,11 +3,11 @@ import 'class_membership_model.dart';
 
 class ClassModel {
   final String id;
-  final String name;
+   String name;
   final String? description;
   final bool isActive;
   final int? maxMembers;
-  final String? location;
+   String? location;
   final Map<String, dynamic>? schedule;
   final String createdBy;
   final String? creatorName;
@@ -37,7 +37,6 @@ class ClassModel {
   });
 
   factory ClassModel.fromJson(Map<String, dynamic> json) {
-    // Parse schedule field - it might be a string or a Map
     Map<String, dynamic>? schedule;
     if (json['schedule'] != null) {
       if (json['schedule'] is String) {

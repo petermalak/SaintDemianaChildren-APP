@@ -25,7 +25,6 @@ class ApiService implements IApiService {
     _setupInterceptors();
   }
 
-  // Get the logging service instance
   LoggingService get _logger => LoggingService.instance;
 
   static ApiService get instance {
@@ -37,7 +36,6 @@ class ApiService implements IApiService {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // Add auth token to requests
           final token = sl<IProfileRepository>().user?.token;
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
@@ -89,6 +87,18 @@ class ApiService implements IApiService {
     Map<String, dynamic>? queryParameters,
   }) async {
     final response = await _dio.get(path, queryParameters: queryParameters);
+    if (kDebugMode) {
+      print(response.data);
+    }
+    return response;
+  }
+
+  @override
+  Future<Response> patch(
+      {required String path,
+      Map<String, dynamic>? queryParameters,
+      body}) async {
+    final response = await _dio.patch(path, queryParameters: queryParameters);
     if (kDebugMode) {
       print(response.data);
     }

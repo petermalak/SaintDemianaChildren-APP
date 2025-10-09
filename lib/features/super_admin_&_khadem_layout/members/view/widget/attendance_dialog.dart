@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/attendance/viewmodel/add_attendance/add_attendance_cubit.dart';
 
 import '../../../../../core/constants/app_colors.dart';
+import '../../../../../core/di/service_locator.dart';
+import '../../../../../core/widgets/custom_text_field.dart';
 import '../../../../authentication/model/user_model.dart';
+import '../../../../super_admin_&_khadem_layout/attendance/repository/i_attendance_repository.dart';
 
 class AddAttendanceDialog extends StatefulWidget {
   final List<UserModel> members;
@@ -30,13 +35,13 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
         constraints: BoxConstraints(
+          minHeight: MediaQuery.of(context).size.height * 0.8,
           maxWidth: 500,
           maxHeight: MediaQuery.of(context).size.height * 0.9,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
@@ -73,7 +78,6 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                 ],
               ),
             ),
-            // Form
             Flexible(
               child: Form(
                 key: _formKey,
@@ -84,16 +88,18 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildEventSelector(),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       _buildDateSelector(),
                       const SizedBox(height: 16),
+                      CustomTextField(
+                          controller: _notesController, labelText: 'Note'),
+                      const SizedBox(height: 12),
                       _buildMembersField(),
                     ],
                   ),
                 ),
               ),
             ),
-            // Actions
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -101,27 +107,53 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                   top: BorderSide(color: AppColors.borderLight),
                 ),
               ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('إلغاء'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _handleAddAttendance,
-                      style: ElevatedButton.styleFrom(
-                        // backgroundColor: _getTypeColor(widget.attendanceType),
-                        foregroundColor: AppColors.accentWhite,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text('تسجيل الحضور'),
-                    ),
-                  ),
-                ],
+              child: BlocProvider(
+                create: (context) =>
+                    AddAttendanceCubit(sl<IAttendanceRepository>()),
+                child: BlocConsumer<AddAttendanceCubit, AddAttendanceState>(
+                  listener: (context, state) {
+                    if (state is AddAttendanceSuccess) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('تم تسجيل الحضور بنجاح'),
+                        ),
+                      );
+                    } else if (state is AddAttendanceFailure) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(state.errorMessage),
+                        ),
+                      );
+                    }
+                  },
+                  builder: (context, state) {
+                    if (state is AddAttendanceLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text('إلغاء'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _handleAddAttendance,
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: AppColors.accentWhite,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: const Text('تسجيل الحضور'),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ],
@@ -143,32 +175,34 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
           ),
         ),
         const SizedBox(height: 8),
-        DropdownButtonFormField<String>(
-          initialValue: _selectedEvent,
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+        Builder(builder: (context) {
+          return DropdownButtonFormField<String>(
+            initialValue: _selectedEvent,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide:
+                    const BorderSide(color: AppColors.primaryMaroon, width: 2),
+              ),
             ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide:
-                  const BorderSide(color: AppColors.primaryMaroon, width: 2),
-            ),
-          ),
-          items: ['تسبحة', 'اجتماع عام', 'اجتماع خاص', 'قداس'].map((event) {
-            return DropdownMenuItem(
-              value: event,
-              child: Text(event),
-            );
-          }).toList(),
-          onChanged: (value) => setState(() => _selectedEvent = value),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'يرجى اختيار العضو';
-            }
-            return null;
-          },
-        ),
+            items: ['تسبحة', 'اجتماع عام', 'اجتماع خاص', 'قداس'].map((event) {
+              return DropdownMenuItem(
+                value: event,
+                child: Text(event),
+              );
+            }).toList(),
+            onChanged: (value) => setState(() => _selectedEvent = value),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'يرجى اختيار العضو';
+              }
+              return null;
+            },
+          );
+        }),
       ],
     );
   }
@@ -186,30 +220,32 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
           ),
         ),
         const SizedBox(height: 8),
-        InkWell(
-          onTap: _selectDate,
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.accentWhite,
-              border: Border.all(color: AppColors.borderLight),
-              borderRadius: BorderRadius.circular(12),
+        Builder(builder: (context) {
+          return InkWell(
+            onTap: _selectDate,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.accentWhite,
+                border: Border.all(color: AppColors.borderLight),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.calendar_today,
+                      color: AppColors.primaryMaroon),
+                  const SizedBox(width: 12),
+                  Text(
+                    _formatDate(_selectedDate),
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.arrow_drop_down),
+                ],
+              ),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.calendar_today,
-                    color: AppColors.primaryMaroon),
-                const SizedBox(width: 12),
-                Text(
-                  _formatDate(_selectedDate),
-                  style: const TextStyle(fontSize: 16),
-                ),
-                const Spacer(),
-                const Icon(Icons.arrow_drop_down),
-              ],
-            ),
-          ),
-        ),
+          );
+        }),
       ],
     );
   }
@@ -268,6 +304,8 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
 
   Future<void> _handleAddAttendance() async {
     if (!_formKey.currentState!.validate()) return;
+    context.read<AddAttendanceCubit>().bulkAddAttendance(
+        members: widget.members, event: _selectedEvent!, date: _selectedDate);
   }
 
   String _formatDate(DateTime date) {
