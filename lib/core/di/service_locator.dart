@@ -28,7 +28,7 @@ Future<void> setupServiceLocator() async {
   sl.registerLazySingleton<IStorageService>(() => StorageService.instance);
   // Repositories
   sl.registerLazySingleton<IAuthenticationRepository>(() =>
-      AuthenticationRepository(sl<IApiService>(), sl<IProfileRepository>()));
+      AuthenticationRepository(sl<IApiService>(), sl<IProfileRepository>(), sl<IMembersRepository>()));
   sl.registerLazySingleton<IHomeRepository>(
       () => HomeRepository(sl<IApiService>()));
   sl.registerLazySingleton<IMembersRepository>(

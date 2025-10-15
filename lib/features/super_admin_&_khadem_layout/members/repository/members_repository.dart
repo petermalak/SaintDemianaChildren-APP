@@ -20,47 +20,50 @@ class MembersRepository implements IMembersRepository {
   @override
   Future<Either<String, List<UserModel>>> fetchMembers(bool isSuperAdmin) async {
     try {
-      // final response = await _apiService.get(path: isSuperAdmin?ApiEndpoints.users:ApiEndpoints.members);
-      // final members = (response.data as List)
-      //     .map((memberJson) => UserModel.fromJson(memberJson))
-      //     .toList();
-      // this.members = members;
-      // return right(members);
-      return right([
-        UserModel(
-            id: "1",
-            name: "John Doe",
-            email: "",
-            role: UserRole.makhdoum,
-            phoneNumber: '',
-            createdAt: DateTime.now()),
-        UserModel(
-            id: "2",
-            name: "Jane Smith",
-            email: "",
-            role: UserRole.makhdoum,
-            phoneNumber: '',
-            createdAt: DateTime.now()),
-        UserModel(
-            id: "3",
-            name: "Alice Johnson",
-            email: "",
-            role: UserRole.makhdoum,
-            phoneNumber: '',
-            createdAt: DateTime.now()),
-      ]);
+      final response = await _apiService.get(path: isSuperAdmin?ApiEndpoints.users:ApiEndpoints.members);
+      final members = (response.data as List)
+          .map((memberJson) => UserModel.fromJson(memberJson))
+          .toList();
+      this.members = members;
+      return right(members);
+      // return right([
+      //   UserModel(
+      //       id: "1",
+      //       name: "John Doe",
+      //       email: "",
+      //       role: UserRole.makhdoum,
+      //       phoneNumber: '',
+      //       createdAt: DateTime.now()),
+      //   UserModel(
+      //       id: "2",
+      //       name: "Jane Smith",
+      //       email: "",
+      //       role: UserRole.makhdoum,
+      //       phoneNumber: '',
+      //       createdAt: DateTime.now()),
+      //   UserModel(
+      //       id: "3",
+      //       name: "Alice Johnson",
+      //       email: "",
+      //       role: UserRole.makhdoum,
+      //       phoneNumber: '',
+      //       createdAt: DateTime.now()),
+      // ]);
     } on DioException catch (e) {
       return left(_apiService.handleError(e));
     } catch (e) {
-      return left("An unexpected error occurred");
+      print(e.toString());
+      return left(e.toString());
     }
   }
 
   @override
   Future<Either<String, Unit>> addMember(UserModel user) async {
     try {
+      print("cccccccccccccccccccccccccccccccccccccc");
       final response =
           await _apiService.post(path: ApiEndpoints.users, body: user.toJson());
+      print("xxxxxxxxxxxxxxxxxxx");
       members.add(UserModel.fromJson(response.data));
       return right(unit);
       //TODO:refresh members list and stats

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:saint_demiana_children/core/widgets/custom_text_field.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/viewmodel/add_member/add_member_cubit.dart';
 
 import '../../../../../core/constants/app_colors.dart';
@@ -9,23 +10,40 @@ import '../../../../authentication/model/user_model.dart';
 import '../../repository/i_members_repository.dart';
 import '../../viewmodel/get_members/get_members_cubit.dart';
 
-class AddUserDialog extends StatelessWidget {
-  late final UserModel? user;
-
+class AddUserDialog extends StatefulWidget {
+  late UserModel? user;
+  final VoidCallback onSuccess;
   AddUserDialog({
     super.key,
-    this.user,
+    this.user, required this.onSuccess,
   });
 
+  @override
+  State<AddUserDialog> createState() => _AddUserDialogState();
+}
+
+class _AddUserDialogState extends State<AddUserDialog> {
   final _formKey = GlobalKey<FormState>();
+
   final _infoFormKey = GlobalKey<InfoFormState>();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  UserRole? _selectedRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedRole = widget.user?.role;
+    _emailController.text = widget.user!.email??"" ;
+
+  }
 
   @override
   Widget build(BuildContext context) {
     String? selectedImagePath;
 
-    bool isUpdate = user != null;
-    user ??= UserModel();
+    bool isUpdate = widget.user != null;
+    widget.user ??= UserModel();
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Container(
@@ -55,7 +73,7 @@ class AddUserDialog extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    isUpdate ? 'تعديل ملف ${user!.name}' : 'إضافة عضو جديد',
+                    isUpdate ? 'تعديل ملف ${widget.user!.name}' : 'إضافة عضو جديد',
                     style: const TextStyle(
                       color: AppColors.accentWhite,
                       fontSize: 18,
@@ -79,10 +97,39 @@ class AddUserDialog extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 child: Form(
                   key: _formKey,
-                  child: InfoForm(
-                    key: _infoFormKey, // Add this key
-                    user: user!,
-                    selectedImagePath: selectedImagePath,
+                  child: Column(
+                    children: [
+                      InfoForm(
+                        key: _infoFormKey, // Add this key
+                        user: widget.user!,
+                        selectedImagePath: selectedImagePath,
+                      ),
+                      const SizedBox(height: 16),
+                      CustomTextField(
+                        controller: _emailController,
+                        labelText: "الايميل",
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'يرجى إدخال الايميل';
+                          }
+                          return null;
+                        },
+                      ),
+                      if(!isUpdate)...[const SizedBox(height: 16),
+                      CustomTextField(
+                        controller: _passwordController,
+                        labelText: 'الرقم السري',
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'يرجى إدخال الرقم السري';
+                          }
+                          return null;
+                        },
+                      ),
+
+                      const SizedBox(height: 16),
+                      _buildRoleSelector()]
+                    ],
                   ),
                 ),
               ),
@@ -100,8 +147,8 @@ class AddUserDialog extends StatelessWidget {
                 child: BlocConsumer<AddMemberCubit, AddMemberState>(
                   listener: (context, state) {
                     if (state is AddMemberSuccess) {
+                      widget.onSuccess();
                       Navigator.pop(context);
-                      context.read<GetMembersCubit>().refreshMembers();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(isUpdate
@@ -142,12 +189,15 @@ class AddUserDialog extends StatelessWidget {
                               if (_infoFormKey.currentState
                                       ?.saveFormToModel() ??
                                   false) {
+                                widget.user!.password = _passwordController.text;
+                                widget.user!.email = _emailController.text;
+
                                 if (_formKey.currentState?.validate() ??
                                     false) {
                                   if (isUpdate) {
-                                    addMemberCubit.updateMemberProfile(user!);
+                                    addMemberCubit.updateMemberProfile(widget.user!);
                                   } else {
-                                    addMemberCubit.addMember(user!);
+                                    addMemberCubit.addMember(widget.user!);
                                   }
                                 }
                               }
@@ -171,5 +221,56 @@ class AddUserDialog extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildRoleSelector() {
+    return StatefulBuilder(
+      builder: (context, setDropdownState) {
+        return Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.borderLight),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: DropdownButtonFormField<UserRole>(
+            value: _selectedRole,
+            decoration: const InputDecoration(
+              labelText: 'الدور',
+              border: InputBorder.none,
+              icon: Icon(Icons.person_outline, color: AppColors.primaryMaroon),
+            ),
+            items: UserRole.values.map((UserRole role) {
+              return DropdownMenuItem<UserRole>(
+                value: role,
+                child: Text(_getRoleDisplayName(role)),
+              );
+            }).toList(),
+            onChanged: (UserRole? newValue) {
+              setDropdownState(() {
+                _selectedRole = newValue;
+                widget.user!.role = newValue;
+              });
+            },
+            validator: (value) {
+              if (value == null) {
+                return 'يرجى اختيار الدور';
+              }
+              return null;
+            },
+          ),
+        );
+      }
+    );
+  }
+
+  String _getRoleDisplayName(UserRole role) {
+    switch (role) {
+      case UserRole.khadem:
+        return 'خادم';
+      case UserRole.makhdoum:
+        return 'مخدوم';
+      case UserRole.superAdmin:
+        return 'مدير عام';
+    }
   }
 }

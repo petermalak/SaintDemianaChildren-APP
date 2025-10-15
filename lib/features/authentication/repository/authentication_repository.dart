@@ -5,13 +5,15 @@ import 'package:saint_demiana_children/core/services/interface/i_api_service.dar
 
 import 'package:saint_demiana_children/features/authentication/model/user_model.dart';
 import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/repository/i_members_repository.dart';
 
 import 'i_authentication_repository.dart';
 
 class AuthenticationRepository implements IAuthenticationRepository {
   final IApiService _apiService;
   final IProfileRepository _profileRepository;
-  AuthenticationRepository(this._apiService, this._profileRepository);
+  final IMembersRepository _membersRepository;
+  AuthenticationRepository(this._apiService, this._profileRepository, this._membersRepository);
 
   @override
   void logout() {
@@ -22,38 +24,38 @@ class AuthenticationRepository implements IAuthenticationRepository {
   @override
   Future<Either<String, UserModel>> login(
       {required String email, required String password}) async {
-    UserModel user;
-    if (email == "superAdmin@test.com" && password == "superAdmin123") {
-      user = UserModel(
-          phoneNumber: "+201000000000",
-          id: "1",
-          name: "Super Admin",
-          email: email,
-          role: UserRole.superAdmin,
-          token: "token");
-      _profileRepository.user = user;
-      return right(user);
-    } else if (email == "khadem@test.com" && password == "khadem123") {
-      user = UserModel(
-          phoneNumber: "+201000000001",
-          id: "2",
-          name: "Khadem",
-          email: email,
-          role: UserRole.khadem,
-          token: "token");
-      _profileRepository.user = user;
-      return right(user);
-    } else if (email == "makhdoum@test.com" && password == "makhdoum123") {
-      user = UserModel(
-          phoneNumber: "+201000000002",
-          id: "3",
-          name: "Makhdoum",
-          email: email,
-          role: UserRole.makhdoum,
-          token: "token");
-      _profileRepository.user = user;
-      return right(user);
-    }
+    // UserModel user;
+    // if (email == "superAdmin@test.com" && password == "superAdmin123") {
+    //   user = UserModel(
+    //       phoneNumber: "+201000000000",
+    //       id: "1",
+    //       name: "Super Admin",
+    //       email: email,
+    //       role: UserRole.superAdmin,
+    //       token: "token");
+    //   _profileRepository.user = user;
+    //   return right(user);
+    // } else if (email == "khadem@test.com" && password == "khadem123") {
+    //   user = UserModel(
+    //       phoneNumber: "+201000000001",
+    //       id: "2",
+    //       name: "Khadem",
+    //       email: email,
+    //       role: UserRole.khadem,
+    //       token: "token");
+    //   _profileRepository.user = user;
+    //   return right(user);
+    // } else if (email == "makhdoum@test.com" && password == "makhdoum123") {
+    //   user = UserModel(
+    //       phoneNumber: "+201000000002",
+    //       id: "3",
+    //       name: "Makhdoum",
+    //       email: email,
+    //       role: UserRole.makhdoum,
+    //       token: "token");
+    //   _profileRepository.user = user;
+    //   return right(user);
+    // }
 
     try {
       final response = await _apiService.post(path: ApiEndpoints.login, body: {
@@ -62,11 +64,18 @@ class AuthenticationRepository implements IAuthenticationRepository {
       });
       _profileRepository.user = UserModel.fromJson(response.data['user'],
           token: response.data['token']);
+      if(_profileRepository.user?.role!=UserRole.makhdoum){
+        print("=============================================");
+        print('fetching members');
+       (await _membersRepository.fetchMembers(_profileRepository.user?.role==UserRole.superAdmin)).fold((error){throw error;}, (_){});
+        print("=============================================");
+        print('members fetched');
+      }
       return right(_profileRepository.user!);
     } on DioException catch (e) {
       return left(_apiService.handleError(e));
     } catch (e) {
-      return left("An unexpected error occurred");
+      return left(e.toString());
     }
   }
 

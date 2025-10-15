@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:saint_demiana_children/features/authentication/repository/i_authentication_repository.dart';
@@ -6,7 +7,9 @@ import 'package:saint_demiana_children/features/feed/view/screen/feed_screen.dar
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/aftekad/view/screen/aftekad_screen.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/attendance/view/screen/attendance_screen.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/home/view/screen/home_screen.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/repository/i_members_repository.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/view/screen/members_screen.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/viewmodel/get_members/get_members_cubit.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../authentication/model/user_model.dart';
@@ -126,7 +129,7 @@ class _KhademMainScreenState extends State<KhademMainScreen>
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color:
-                  AppColors.accentWhite.withValues(alpha: 0.2.clamp(0.0, 1.0)),
+              AppColors.accentWhite.withValues(alpha: 0.2.clamp(0.0, 1.0)),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
@@ -192,7 +195,8 @@ class _KhademMainScreenState extends State<KhademMainScreen>
           context.push('/profile');
         }
       },
-      itemBuilder: (context) => [
+      itemBuilder: (context) =>
+      [
         const PopupMenuItem(
           value: 'profile',
           child: Row(
@@ -282,7 +286,7 @@ class _KhademMainScreenState extends State<KhademMainScreen>
                   color: isSelected
                       ? AppColors.accentWhite
                       : AppColors.primaryMaroon
-                          .withValues(alpha: 0.1.clamp(0.0, 1.0)),
+                      .withValues(alpha: 0.1.clamp(0.0, 1.0)),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
@@ -383,24 +387,24 @@ class _KhademMainScreenState extends State<KhademMainScreen>
       },
       child: shouldShowFAB
           ? FloatingActionButton.extended(
-              key: const ValueKey('fab'),
-              onPressed: isMemberSelected
-                  ? () => _showAddAttendanceDialog()
-                  : () => _showAddUserDialog(),
-              backgroundColor:
-                  isMemberSelected ? Colors.green : AppColors.primaryMaroon,
-              icon: Icon(
-                isMemberSelected ? Icons.check : Icons.person_add,
-                color: AppColors.accentWhite,
-              ),
-              label: Text(
-                isMemberSelected ? 'تسجيل حضور' : 'إضافة عضو',
-                style: const TextStyle(
-                  color: AppColors.accentWhite,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            )
+        key: const ValueKey('fab'),
+        onPressed: isMemberSelected
+            ? () => _showAddAttendanceDialog()
+            : () => _showAddUserDialog(),
+        backgroundColor:
+        isMemberSelected ? Colors.green : AppColors.primaryMaroon,
+        icon: Icon(
+          isMemberSelected ? Icons.check : Icons.person_add,
+          color: AppColors.accentWhite,
+        ),
+        label: Text(
+          isMemberSelected ? 'تسجيل حضور' : 'إضافة عضو',
+          style: const TextStyle(
+            color: AppColors.accentWhite,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      )
           : const SizedBox.shrink(key: ValueKey('empty')),
     );
   }
@@ -408,7 +412,18 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   void _showAddUserDialog() {
     showDialog(
       context: context,
-      builder: (context) => AddUserDialog(),
+      builder: (dialogContext) {
+        return AddUserDialog(
+          onSuccess: () {
+            // Force the members screen to refresh by switching tabs
+            if (_selectedTab == 2) {
+              setState(() {
+                _cachedTabs.remove(2); // Clear cached members screen
+              });
+            }
+          },
+        );
+      },
     );
   }
 
@@ -422,35 +437,36 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   void _handleLogout(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تسجيل الخروج'),
-        content: const Text('هل أنت متأكد من تسجيل الخروج؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
+      builder: (context) =>
+          AlertDialog(
+            title: const Text('تسجيل الخروج'),
+            content: const Text('هل أنت متأكد من تسجيل الخروج؟'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('إلغاء'),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  try {
+                    sl<IAuthenticationRepository>().logout();
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      context.go('/login');
+                    });
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('حدث خطأ أثناء تسجيل الخروج'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+                child: const Text('تسجيل الخروج'),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              try {
-                sl<IAuthenticationRepository>().logout();
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  context.go('/login');
-                });
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('حدث خطأ أثناء تسجيل الخروج'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            },
-            child: const Text('تسجيل الخروج'),
-          ),
-        ],
-      ),
     );
   }
 }

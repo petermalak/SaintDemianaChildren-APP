@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:saint_demiana_children/core/services/interface/i_storage_service.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/repository/i_members_repository.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/di/service_locator.dart';
@@ -27,6 +30,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
+
     _logoController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
@@ -97,18 +101,131 @@ class _SplashScreenState extends State<SplashScreen>
     //     token:
     //         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjA0OTBlOTk3LWQ5N2QtNDhlNC04NzFlLTQyYjhmM2FhNGU0ZSIsIm5hbWUiOiJTdXBlciBBZG1pbiIsImVtYWlsIjoic3VwZXJhZG1pbkB0ZXN0LmNvbSIsInBob25lTnVtYmVyIjoiKzEyMzQ1Njc4OTAiLCJyb2xlIjoic3VwZXJfYWRtaW4iLCJwcm9maWxlSW1hZ2UiOm51bGwsInBhc3N3b3JkSGFzaCI6IiQyYiQxMCRTdWZEdy51cjVHM0dXVEtleGVPR1JPaXY1aUouODZmRmQ5aGguRC50S3VoQUZabEQ4U0NycSIsImZhdGhlcnNQaG9uZU51bWJlciI6bnVsbCwibW90aGVyc1Bob25lTnVtYmVyIjpudWxsLCJiaXJ0aGRhdGUiOm51bGwsImFkZHJlc3MiOiIxMjMgU3VwZXIgQWRtaW4gU3QiLCJhZGRyZXNzTG9jYXRpb25MaW5rIjpudWxsLCJmYXRoZXJPZkNvbmZlc3Npb24iOm51bGwsImNyZWF0ZWRBdCI6IjIwMjUtMTAtMDFUMTE6NTE6MjAuMDAwWiIsInVwZGF0ZWRBdCI6IjIwMjUtMTAtMDFUMTE6NTE6MjAuMDAwWiIsImlhdCI6MTc1OTg0MzMyMSwiZXhwIjoxNzYwNDQ4MTIxfQ.S3HoTHbZ8HhsPgFNmz_UZJJP8vcPR2MHeW8iS0LD-KM",
     //     email: "superAdmin@test.com");
-    final user = sl<IProfileRepository>().user;
-    if (user != null) {
-      if (user.role == UserRole.khadem || user.role == UserRole.superAdmin) {
-        context.go('/khadem');
-      } else if (user.role == UserRole.makhdoum) {
-        context.go('/makhdoum');
+    sl<IStorageService>().init();
+    await sl<IProfileRepository>().loadUser().then((user) async {
+      if (user != null) {
+        if (user.role == UserRole.khadem || user.role == UserRole.superAdmin) {
+          final result = await sl<IMembersRepository>().fetchMembers(
+            user.role == UserRole.superAdmin,
+          );
+
+          result.fold(
+            (failure) {
+              _showErrorDialog(failure);
+            },
+            (_) {
+              context.go('/khadem');
+            },
+          );
+        } else if (user.role == UserRole.makhdoum) {
+          context.go('/makhdoum');
+        } else {
+          context.go('/login');
+        }
       } else {
         context.go('/login');
       }
-    } else {
-      context.go('/login');
-    }
+    });
+  }
+
+  void _showErrorDialog(String errorMessage) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.1.clamp(0.0, 1.0)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.error_outline,
+                  color: AppColors.error,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'خطأ في التحميل',
+                  style: TextStyle(
+                    color: AppColors.error,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'حدث خطأ أثناء تحميل البيانات:',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.05.clamp(0.0, 1.0)),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppColors.error.withValues(alpha: 0.2.clamp(0.0, 1.0)),
+                  ),
+                ),
+                child: Text(
+                  errorMessage,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                context.go('/login');
+              },
+              child: const Text('إعادة تسجيل الدخول'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (Theme.of(context).platform == TargetPlatform.android) {
+                    SystemNavigator.pop();
+                  }
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: AppColors.accentWhite,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+              ),
+              icon: const Icon(Icons.exit_to_app, size: 18),
+              label: const Text('إغلاق التطبيق'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override

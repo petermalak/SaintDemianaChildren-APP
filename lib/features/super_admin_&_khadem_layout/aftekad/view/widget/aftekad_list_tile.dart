@@ -72,7 +72,7 @@ class AftekadListTile extends StatelessWidget {
                 // Makhdoum name
                 Expanded(
                   child: Text(
-                    aftekad.makhdoumName ?? 'غير محدد',
+                    aftekad.makhdoum?.name ?? 'غير محدد',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -102,7 +102,6 @@ class AftekadListTile extends StatelessWidget {
               ],
             ),
 
-            // Conditional details when status is true
             if (aftekad.status == true) ...[
               const SizedBox(height: 16),
               Container(
@@ -123,28 +122,28 @@ class AftekadListTile extends StatelessWidget {
                       ),
 
                     // Separator
-                    if (aftekad.type != null && aftekad.khademName != null)
+                    if (aftekad.type != null && aftekad.khadem?.name != null)
                       const Divider(height: 16),
 
                     // Khadem name
-                    if (aftekad.khademName != null)
+                    if (aftekad.khadem?.name != null)
                       _buildDetailRow(
                         icon: Icons.person,
                         label: 'اسم الخادم',
-                        value: aftekad.khademName!,
+                        value: aftekad.khadem!.name!,
                       ),
 
                     // Separator
-                    if (aftekad.khademName != null &&
-                        aftekad.actualDate != null)
+                    if (aftekad.khadem?.name != null &&
+                        aftekad.completedDate != null)
                       const Divider(height: 16),
 
                     // Date
-                    if (aftekad.actualDate != null)
+                    if (aftekad.completedDate != null)
                       _buildDetailRow(
                         icon: Icons.calendar_today,
                         label: 'تاريخ الافتقاد',
-                        value: _formatDate(aftekad.actualDate!),
+                        value: _formatDate(aftekad.completedDate!),
                       ),
                   ],
                 ),

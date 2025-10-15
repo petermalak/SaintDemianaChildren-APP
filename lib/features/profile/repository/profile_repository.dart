@@ -17,6 +17,7 @@ class ProfileRepository implements IProfileRepository {
 
   @override
   Future<UserModel?> loadUser() async {
+    if (_user != null) return _user;
     _user = await _storageService.getProfile();
     return _user;
   }

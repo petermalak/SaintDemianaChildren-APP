@@ -30,81 +30,80 @@ class _AddAftekadDialogState extends State<AddAftekadDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: 500,
-          maxHeight: MediaQuery.of(context).size.height * 0.9,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
+    return BlocProvider(
+      create: (context) => AddAftekadCubit(sl<IAftekadRepository>()),
+      child: Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: 500,
+            maxHeight: MediaQuery.of(context).size.height * 0.9,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.people,
+                      color: AppColors.accentWhite,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'افتقاد ${widget.user.makhdoum?.name}',
+                      style: const TextStyle(
+                        color: AppColors.accentWhite,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(
+                        Icons.close,
+                        color: AppColors.accentWhite,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.people,
-                    color: AppColors.accentWhite,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'افتقاد ${widget.user.makhdoumName}',
-                    style: const TextStyle(
-                      color: AppColors.accentWhite,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+              Flexible(
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildTypeSelector(),
+                        const SizedBox(height: 12),
+                        _buildDateSelector(),
+                        const SizedBox(height: 16),
+                        CustomTextField(
+                            controller: _outcomeController, labelText: 'Outcome'),
+                      ],
                     ),
                   ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(
-                      Icons.close,
-                      color: AppColors.accentWhite,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Flexible(
-              child: Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildTypeSelector(),
-                      const SizedBox(height: 12),
-                      _buildDateSelector(),
-                      const SizedBox(height: 16),
-                      CustomTextField(
-                          controller: _outcomeController, labelText: 'Outcome'),
-                    ],
-                  ),
                 ),
               ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: AppColors.borderLight),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: AppColors.borderLight),
+                  ),
                 ),
-              ),
-              child: BlocProvider(
-                create: (context) => AddAftekadCubit(sl<IAftekadRepository>()),
                 child: BlocConsumer<AddAftekadCubit, AddAftekadState>(
                   listener: (context, state) {
                     if (state is AddAftekadSuccess) {
@@ -138,7 +137,7 @@ class _AddAftekadDialogState extends State<AddAftekadDialog> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton(
-                            onPressed: _handleAddAftekad,
+                            onPressed: () => _handleAddAftekad(context),
                             style: ElevatedButton.styleFrom(
                               foregroundColor: AppColors.accentWhite,
                               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -151,22 +150,55 @@ class _AddAftekadDialogState extends State<AddAftekadDialog> {
                   },
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Future<void> _handleAddAftekad() async {
+  Future<void> _handleAddAftekad(BuildContext context) async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Check if type is selected
+    if (_selectedType == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى اختيار طريقة الافتقاد'),
+        ),
+      );
+      return;
+    }
+
+    // Check if user ID is available
+    if (widget.user.makhdoum?.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('خطأ: معرف المخدوم غير متوفر'),
+        ),
+      );
+      return;
+    }
+
+    // Check if current user (khadem) is available
+    final currentUser = sl<IProfileRepository>().user;
+    if (currentUser == null || currentUser.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('خطأ: معرف الخادم غير متوفر'),
+        ),
+      );
+      return;
+    }
+
     context.read<AddAftekadCubit>().addAftekad(
-          type: _selectedType!,
-          date: _selectedDate,
-          outcome: _outcomeController.text.trim(),
-          makhdoumId: widget.user.id!,
-          khademId: sl<IProfileRepository>().user!.id!,
-        );
+      type: _selectedType!,
+      date: _selectedDate,
+      classId: widget.user.classId!,
+      outcome: _outcomeController.text.trim(),
+      makhdoumId: widget.user.makhdoum!.id!,
+      khademId: currentUser.id!,
+    );
   }
 
   Widget _buildTypeSelector() {
@@ -182,34 +214,32 @@ class _AddAftekadDialogState extends State<AddAftekadDialog> {
           ),
         ),
         const SizedBox(height: 8),
-        Builder(builder: (context) {
-          return DropdownButtonFormField<AftekadType>(
-            initialValue: _selectedType,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide:
-                    const BorderSide(color: AppColors.primaryMaroon, width: 2),
-              ),
+        DropdownButtonFormField<AftekadType>(
+          initialValue: _selectedType,
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-            items: AftekadType.values.map((event) {
-              return DropdownMenuItem(
-                value: event,
-                child: Text(event.name),
-              );
-            }).toList(),
-            onChanged: (value) => setState(() => _selectedType = value),
-            validator: (value) {
-              if (value == null) {
-                return 'يرجى اختيار الطريقة';
-              }
-              return null;
-            },
-          );
-        }),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide:
+                  const BorderSide(color: AppColors.primaryMaroon, width: 2),
+            ),
+          ),
+          items: AftekadType.values.map((event) {
+            return DropdownMenuItem(
+              value: event,
+              child: Text(event.name),
+            );
+          }).toList(),
+          onChanged: (value) => setState(() => _selectedType = value),
+          validator: (value) {
+            if (value == null) {
+              return 'يرجى اختيار الطريقة';
+            }
+            return null;
+          },
+        ),
       ],
     );
   }
@@ -227,32 +257,30 @@ class _AddAftekadDialogState extends State<AddAftekadDialog> {
           ),
         ),
         const SizedBox(height: 8),
-        Builder(builder: (context) {
-          return InkWell(
-            onTap: _selectDate,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.accentWhite,
-                border: Border.all(color: AppColors.borderLight),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.calendar_today,
-                      color: AppColors.primaryMaroon),
-                  const SizedBox(width: 12),
-                  Text(
-                    _formatDate(_selectedDate),
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const Spacer(),
-                  const Icon(Icons.arrow_drop_down),
-                ],
-              ),
+        InkWell(
+          onTap: _selectDate,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.accentWhite,
+              border: Border.all(color: AppColors.borderLight),
+              borderRadius: BorderRadius.circular(12),
             ),
-          );
-        }),
+            child: Row(
+              children: [
+                const Icon(Icons.calendar_today,
+                    color: AppColors.primaryMaroon),
+                const SizedBox(width: 12),
+                Text(
+                  _formatDate(_selectedDate),
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const Spacer(),
+                const Icon(Icons.arrow_drop_down),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }

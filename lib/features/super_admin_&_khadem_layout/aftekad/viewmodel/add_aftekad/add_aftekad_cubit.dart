@@ -15,14 +15,16 @@ class AddAftekadCubit extends Cubit<AddAftekadState> {
     required DateTime date,
     required String khademId,
     required String makhdoumId,
+    required String classId,
   }) async {
     emit(AddAftekadLoading());
     final result = await _aftekadRepository.addAftekad(
       type: type,
+      classId: classId,
       khademId: khademId,
       makhdoumId: makhdoumId,
       date: date,
-      outcome: outcome,
+      notes: outcome,
     );
     result.fold(
       (failure) => emit(AddAftekadFailure(failure)),

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/home/model/stats_model.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/home/viewmodel/stats_cubit.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/repository/i_members_repository.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/view/widget/add_user_dialog.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/viewmodel/get_members/get_members_cubit.dart';
 
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
@@ -10,6 +12,7 @@ import '../../repository/i_home_repository.dart';
 
 class HomeScreen extends StatelessWidget {
   final Animation<double> cardAnimation;
+
   const HomeScreen({super.key, required this.cardAnimation});
 
   @override
@@ -21,27 +24,28 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(height: 24),
           BlocProvider(
               create: (context) =>
-                  StatsCubit(sl<IHomeRepository>())..fetchStats(),
+              StatsCubit(sl<IHomeRepository>())
+                ..fetchStats(),
               child: BlocBuilder<StatsCubit, StatsState>(
                   builder: (context, state) {
-                if (state is StatsLoading) {
-                  return const SizedBox(
-                      height: 250,
-                      child: Center(child: CircularProgressIndicator()));
-                } else if (state is StatsFailure) {
-                  return SizedBox(
-                      height: 250,
-                      child: Center(
-                          child: Text(state.errorMessage,
-                              style: const TextStyle(
-                                  color: AppColors.error,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold))));
-                } else if (state is StatsSuccess) {
-                  return _buildStatsGrid(state.stats);
-                }
-                return const SizedBox.shrink();
-              })),
+                    if (state is StatsLoading) {
+                      return const SizedBox(
+                          height: 250,
+                          child: Center(child: CircularProgressIndicator()));
+                    } else if (state is StatsFailure) {
+                      return SizedBox(
+                          height: 250,
+                          child: Center(
+                              child: Text(state.errorMessage,
+                                  style: const TextStyle(
+                                      color: AppColors.error,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold))));
+                    } else if (state is StatsSuccess) {
+                      return _buildStatsGrid(state.stats);
+                    }
+                    return const SizedBox.shrink();
+                  })),
           const SizedBox(height: 24),
           _buildQuickActions(context)
         ]));
@@ -74,18 +78,18 @@ class HomeScreen extends StatelessWidget {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                const Text('مرحباً بك في لوحة التحكم',
-                    style: TextStyle(
-                        color: AppColors.accentWhite,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Text('إدارة فعالة للأعضاء والحضور',
-                    style: TextStyle(
-                        color: AppColors.accentWhite
-                            .withValues(alpha: 0.9.clamp(0.0, 1.0)),
-                        fontSize: 14))
-              ]))
+                    const Text('مرحباً بك في لوحة التحكم',
+                        style: TextStyle(
+                            color: AppColors.accentWhite,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Text('إدارة فعالة للأعضاء والحضور',
+                        style: TextStyle(
+                            color: AppColors.accentWhite
+                                .withValues(alpha: 0.9.clamp(0.0, 1.0)),
+                            fontSize: 14))
+                  ]))
         ]));
   }
 
@@ -120,8 +124,8 @@ class HomeScreen extends StatelessWidget {
     ]);
   }
 
-  Widget _buildStatCard(
-      String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(String title, String value, IconData icon,
+      Color color) {
     return AnimatedBuilder(
         animation: cardAnimation,
         builder: (context, child) {
@@ -185,32 +189,37 @@ class HomeScreen extends StatelessWidget {
       Row(children: [
         Expanded(
             child: _buildQuickActionCard(
-          title: 'إضافة عضو',
-          icon: Icons.person_add,
-          color: AppColors.primaryMaroon,
-          onTap: () => showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return AddUserDialog();
-              }),
-        )),
+              title: 'إضافة عضو',
+              icon: Icons.person_add,
+              color: AppColors.primaryMaroon,
+              onTap: () async {
+                await showDialog(
+                    context: context,
+                    builder: (BuildContext dialogContext) {
+                      return AddUserDialog(
+                        onSuccess: () {
+                          // Members screen will auto-refresh
+                        },
+                      );
+                    });
+              },
+            )),
         const SizedBox(width: 16),
         Expanded(
             child: _buildQuickActionCard(
-          title: 'تسجيل حضور',
-          icon: Icons.event_available,
-          color: AppColors.primaryBrown,
-          onTap: () => context.read<void Function(int)>().call(2),
-        ))
+              title: 'تسجيل حضور',
+              icon: Icons.event_available,
+              color: AppColors.primaryBrown,
+              onTap: () => context.read<void Function(int)>().call(2),
+            ))
       ])
     ]);
   }
 
-  Widget _buildQuickActionCard(
-      {required String title,
-      required IconData icon,
-      required Color color,
-      VoidCallback? onTap}) {
+  Widget _buildQuickActionCard({required String title,
+    required IconData icon,
+    required Color color,
+    VoidCallback? onTap}) {
     return GestureDetector(
         onTap: onTap,
         child: Container(
@@ -224,7 +233,7 @@ class HomeScreen extends StatelessWidget {
                 boxShadow: [
                   BoxShadow(
                       color:
-                          Colors.black.withValues(alpha: 0.05.clamp(0.0, 1.0)),
+                      Colors.black.withValues(alpha: 0.05.clamp(0.0, 1.0)),
                       blurRadius: 10,
                       offset: const Offset(0, 2))
                 ]),
@@ -237,7 +246,7 @@ class HomeScreen extends StatelessWidget {
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                               color:
-                                  color.withValues(alpha: 0.1.clamp(0.0, 1.0)),
+                              color.withValues(alpha: 0.1.clamp(0.0, 1.0)),
                               borderRadius: BorderRadius.circular(10)),
                           child: Icon(icon, color: color, size: 20)),
                       const SizedBox(height: 8),

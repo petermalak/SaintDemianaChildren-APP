@@ -5,16 +5,18 @@ import '../../../../authentication/model/user_model.dart';
 import 'add_user_dialog.dart';
 
 class MemberCard extends StatefulWidget {
-  const MemberCard(
-      {super.key,
-      required this.cardAnimation,
-      required this.user,
-      required this.selectedList,
-      this.onSelectionChanged});
+  const MemberCard({super.key,
+    required this.cardAnimation,
+    required this.user,
+    required this.selectedList,
+    this.onSelectionChanged,required this.onUpdate});
+
   final Animation<double> cardAnimation;
   final UserModel user;
   final List<UserModel> selectedList;
   final ValueChanged<bool>? onSelectionChanged;
+  final VoidCallback onUpdate;
+
   @override
   State<MemberCard> createState() => _MemberCardState();
 }
@@ -35,7 +37,7 @@ class _MemberCardState extends State<MemberCard> {
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeOut,
           padding:
-              const EdgeInsets.only(right: 18, left: 18, top: 12, bottom: 24),
+          const EdgeInsets.only(right: 18, left: 18, top: 12, bottom: 24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -54,22 +56,26 @@ class _MemberCardState extends State<MemberCard> {
                   Navigator.pop(context);
                   showDialog(
                     context: context,
-                    builder: (context) => AddUserDialog(
-                      user: widget.user,
-                    ),
+                    builder: (dialogContext) =>
+                        AddUserDialog(
+                          onSuccess: () {
+                            widget.onUpdate();
+                          },
+                          user: widget.user,
+                        ),
                   );
                 },
               ),
               ListTile(
                 leading:
-                    const Icon(Icons.phone, color: AppColors.primaryMaroon),
+                const Icon(Icons.phone, color: AppColors.primaryMaroon),
                 title: const Text('Call the number'),
                 onTap: () async {
                   final response = await communicationService.makePhoneCall(
                     widget.user.phoneNumber!,
                   );
                   response.fold(
-                    (failure) {
+                        (failure) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(failure),
@@ -77,7 +83,7 @@ class _MemberCardState extends State<MemberCard> {
                         ),
                       );
                     },
-                    (success) {
+                        (success) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
@@ -109,7 +115,8 @@ class _MemberCardState extends State<MemberCard> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
-                              'جاري فتح واتساب للتواصل مع ${widget.user.phoneNumber!}'),
+                              'جاري فتح واتساب للتواصل مع ${widget.user
+                                  .phoneNumber!}'),
                           backgroundColor: Colors.green,
                         ),
                       );
@@ -168,7 +175,7 @@ class _MemberCardState extends State<MemberCard> {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? AppColors.primaryMaroon
-                            .withValues(alpha: 0.3.clamp(0.0, 1.0))
+                        .withValues(alpha: 0.3.clamp(0.0, 1.0))
                         : AppColors.backgroundCard,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [

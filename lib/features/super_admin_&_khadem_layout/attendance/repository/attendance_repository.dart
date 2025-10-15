@@ -13,23 +13,21 @@ class AttendanceRepository implements IAttendanceRepository {
   @override
   Future<Either<String, AttendanceModel>> fetchAttendance() async {
     try {
-      return right(const AttendanceModel(attendance: {
-        "John Doe": {
-          "12-10-2025": {"tsb7a": true, "odas": true}
-        },
-        "Jane Smith": {
-          "5-10-2025": {"general": true, "private": true}
-        }
-      }, attendanceDates: [
-        "12-10-2025",
-        "5-10-2025"
-      ]));
-      // final response = await _apiService.get(path: ApiEndpoints.attendance);
-      // return right(AttendanceModel.fromJson(response.data));
+      final response = await _apiService.get(path: ApiEndpoints.attendance,queryParameters: {
+        "type":"present"
+      });
+
+      // Debug: Print the response to see what we're getting
+      print('Attendance API Response: ${response.data}');
+
+      return right(AttendanceModel.fromJson(response.data));
     } on DioException catch (e) {
+      print('DioException in fetchAttendance: ${e.message}');
+      print('Response data: ${e.response?.data}');
       return left(_apiService.handleError(e));
     } catch (e) {
-      return left("An unexpected error occurred");
+      print('Unexpected error in fetchAttendance: $e');
+      return left("An unexpected error occurred: $e");
     }
   }
 

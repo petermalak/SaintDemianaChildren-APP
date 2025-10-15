@@ -10,6 +10,9 @@
 .svn/
 migrate_working_dir/
 
+# Node.js related
+node_modules/
+
 # IntelliJ related
 *.iml
 *.ipr
@@ -233,3 +236,4 @@ Desktop.ini
 **/android/app/build/intermediates/symbols/
 **/android/app/build/intermediates/transforms/
 **/android/app/build/intermediates/validate_signing_config/
+/node_modules/

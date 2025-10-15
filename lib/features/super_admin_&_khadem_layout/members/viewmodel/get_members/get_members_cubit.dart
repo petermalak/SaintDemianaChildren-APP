@@ -8,14 +8,11 @@ part 'get_members_state.dart';
 class GetMembersCubit extends Cubit<GetMembersState> {
   GetMembersCubit(this._membersRepository) : super(GetMembersInitial());
   final IMembersRepository _membersRepository;
-  Future<void> fetchMembers(bool isSuperAdmin) async {
+  Future<void> getMembers() async {
     emit(GetMembersLoading());
-    final response = await _membersRepository.fetchMembers(isSuperAdmin);
-    response.fold((error) => emit(GetMembersFailure(error)),
-        (success) => emit(GetMembersSuccess(success)));
+    final response =  _membersRepository.members;
+   emit(GetMembersSuccess(response));
   }
 
-  void refreshMembers() {
-    emit(GetMembersSuccess(_membersRepository.members));
-  }
+
 }

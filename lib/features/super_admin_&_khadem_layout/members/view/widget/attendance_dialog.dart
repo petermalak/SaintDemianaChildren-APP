@@ -188,7 +188,7 @@ class _AddAttendanceDialogState extends State<AddAttendanceDialog> {
                     const BorderSide(color: AppColors.primaryMaroon, width: 2),
               ),
             ),
-            items: ['تسبحة', 'اجتماع عام', 'اجتماع خاص', 'قداس'].map((event) {
+            items: ['praise', 'mass', 'generalMeeting', 'specialMeeting'].map((event) {
               return DropdownMenuItem(
                 value: event,
                 child: Text(event),

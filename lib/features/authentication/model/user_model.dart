@@ -23,7 +23,7 @@ class UserModel extends Equatable {
   String? address;
   String? addressLocationLink;
   String? fatherOfConfession;
-
+  String? classId;
   UserModel({
     this.id,
     this.name,
@@ -32,6 +32,7 @@ class UserModel extends Equatable {
     this.password,
     this.role,
     this.profileImage,
+    this.classId,
     this.createdAt,
     this.lastLogin,
     this.fathersPhoneNumber,
@@ -47,9 +48,16 @@ class UserModel extends Equatable {
     return UserModel(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
-      email: json['email'] ?? '',
+      email: json['email'] ,
       token: token,
-      phoneNumber: json['phoneNumber'] ?? '',
+      classId: json['classId'] ??
+          (json['classes'] != null &&
+           json['classes'] is List &&
+           (json['classes'] as List).isNotEmpty &&
+           json['classes'][0] != null
+              ? json['classes'][0]['classId']
+              : null),
+      phoneNumber: json['phoneNumber'] ,
       password: json['password'],
       role: parseRole(json['role']),
       profileImage: json['profileImage'],
@@ -74,7 +82,7 @@ class UserModel extends Equatable {
       'email': email,
       'phoneNumber': phoneNumber,
       'password': password,
-      'role': role.toString().split('.').last,
+      'role': role?.name,
       'profileImage': profileImage,
       'createdAt': createdAt?.toIso8601String(),
       'lastLogin': lastLogin?.toIso8601String(),

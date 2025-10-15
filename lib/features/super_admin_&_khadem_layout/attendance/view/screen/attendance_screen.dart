@@ -34,39 +34,49 @@ class AttendanceScreen extends StatelessWidget {
                               fontWeight: FontWeight.bold)))),
             );
           } else if (state is GetAttendanceSuccess) {
-            // Mocked static data for demonstration
-            final dates = ['12/10/2025', '5/10/2025'];
-            final members = ['John Doe', 'Jane Smith'];
-            final attendance = {
-              'John Doe': {
-                '12/10/2025': {
-                  'tsb7a': true,
-                  'odas': false,
-                  'general': true,
-                  'private': false,
-                },
-                '5/10/2025': {
-                  'tsb7a': true,
-                  'odas': true,
-                  'general': false,
-                  'private': true,
-                },
-              },
-              'Jane Smith': {
-                '12/10/2025': {
-                  'tsb7a': false,
-                  'odas': true,
-                  'general': false,
-                  'private': true,
-                },
-                '5/10/2025': {
-                  'tsb7a': true,
-                  'odas': false,
-                  'general': true,
-                  'private': false,
-                },
-              },
-            };
+            // Transform attendance data
+            final attendanceData = state.attendance;
+            final records = attendanceData.attendanceRecords ?? [];
+            final dates = attendanceData.attendanceDates ?? [];
+
+            // Handle empty data
+            if (records.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.all(8.0),
+                child: Center(
+                  child: Text(
+                    'No attendance records found',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ),
+              );
+            }
+
+            // Get unique member names
+            final members = records
+                .where((record) => record.userName != null)
+                .map((record) => record.userName!)
+                .toSet()
+                .toList();
+
+            // Build attendance map: userName -> date -> type -> bool
+            final Map<String, Map<String, Map<String, bool>>> attendance = {};
+
+            for (final record in records) {
+              if (record.userName == null || record.date == null || record.type == null) {
+                continue;
+              }
+
+              final userName = record.userName!;
+              final date = record.date!;
+              final type = record.type!;
+
+              // Initialize nested maps if they don't exist
+              attendance.putIfAbsent(userName, () => {});
+              attendance[userName]!.putIfAbsent(date, () => {});
+              attendance[userName]![date]![type] = true;
+            }
+
             return Padding(
               padding: const EdgeInsets.all(8.0),
               child: Column(
@@ -89,7 +99,7 @@ class AttendanceScreen extends StatelessWidget {
 
 class AttendanceTable extends StatefulWidget {
   final List<String> dates;
-  final List<String> categories = ['tsb7a', 'odas', 'general', 'private'];
+  final List<String> categories = ['praise', 'mass', 'generalMeeting', 'specialMeeting'];
   final List<String> members;
   final Map<String, Map<String, Map<String, bool>>> attendance;
 

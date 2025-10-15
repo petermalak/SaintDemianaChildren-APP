@@ -241,8 +241,10 @@ class _CountryPhoneFieldState extends State<CountryPhoneField> {
               // Phone number input
               Expanded(
                 child: TextFormField(
+                  textDirection: TextDirection.ltr,
                   controller: widget.controller,
                   enabled: widget.enabled,
+
                   readOnly: !widget.enabled, // Make read-only when disabled
                   keyboardType: widget.keyboardType ?? TextInputType.phone,
                   maxLines: widget.maxLines,

@@ -8,9 +8,9 @@ part 'get_aftekad_state.dart';
 class GetAftekadCubit extends Cubit<GetAftekadState> {
   GetAftekadCubit(this._aftekadRepository) : super(GetAftekadInitial());
   final IAftekadRepository _aftekadRepository;
-  Future<void> getAftekad() async {
+  Future<void> getAftekad(String fridayDate,String khademId) async {
     emit(GetAftekadLoading());
-    final result = await _aftekadRepository.getAftekad();
+    final result = await _aftekadRepository.getAftekadByWeek(fridayDate,khademId);
     result.fold(
       (failure) => emit(GetAftekadFailure(failure)),
       (aftekad) => emit(GetAftekadSuccess(aftekad)),

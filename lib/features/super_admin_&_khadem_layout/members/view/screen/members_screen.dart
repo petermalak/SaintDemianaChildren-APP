@@ -17,22 +17,34 @@ class MembersScreen extends StatefulWidget {
   State<MembersScreen> createState() => _MembersScreenState();
 }
 
-class _MembersScreenState extends State<MembersScreen> {
+class _MembersScreenState extends State<MembersScreen>
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   List<UserModel> _searchMembers = [];
   final List<UserModel> _selectedMembers = [];
+  late GetMembersCubit _membersCubit;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _membersCubit = GetMembersCubit(sl<IMembersRepository>())..getMembers();
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _membersCubit.close();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) =>
-          GetMembersCubit(sl<IMembersRepository>())..fetchMembers(sl<IProfileRepository>().user!.role==UserRole.superAdmin),
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    return BlocProvider.value(
+      value: _membersCubit,
       child: BlocBuilder<GetMembersCubit, GetMembersState>(
         builder: (context, state) {
           if (state is GetMembersLoading) {
@@ -45,67 +57,77 @@ class _MembersScreenState extends State<MembersScreen> {
               ),
             );
           } else if (state is GetMembersSuccess) {
-            return Column(
-              children: [
-                _buildSearchSection(state.members),
-                Expanded(
-                  child: state.members.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.search_off,
-                                size: 64,
-                                color: AppColors.primaryMaroon
-                                    .withValues(alpha: 0.3.clamp(0.0, 1.0)),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                _searchController.text.isEmpty
-                                    ? 'لا يوجد أعضاء'
-                                    : 'لا توجد نتائج للبحث',
-                                style: TextStyle(
-                                  fontSize: 16,
+            return RefreshIndicator(
+              onRefresh: () async {
+                _membersCubit.getMembers();
+              },
+              child: Column(
+                children: [
+                  _buildSearchSection(state.members),
+                  Expanded(
+                    child: state.members.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.search_off,
+                                  size: 64,
                                   color: AppColors.primaryMaroon
-                                      .withValues(alpha: 0.7.clamp(0.0, 1.0)),
+                                      .withValues(alpha: 0.3.clamp(0.0, 1.0)),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(height: 16),
+                                Text(
+                                  _searchController.text.isEmpty
+                                      ? 'لا يوجد أعضاء'
+                                      : 'لا توجد نتائج للبحث',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: AppColors.primaryMaroon
+                                        .withValues(alpha: 0.7.clamp(0.0, 1.0)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : GridView.builder(
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount:
+                                  MediaQuery.of(context).size.width ~/ 180,
+                              mainAxisSpacing: 12,
+                              crossAxisSpacing: 12,
+                              childAspectRatio: 1.2,
+                            ),
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _searchController.text.isEmpty
+                                ? state.members.length
+                                : _searchMembers.length,
+                            itemBuilder: (context, index) {
+                              final user = _searchController.text.isEmpty
+                                  ? state.members[index]
+                                  : _searchMembers[index];
+                              return StatefulBuilder(
+                                builder: (context,set) {
+                                  return MemberCard(
+                                      selectedList: _selectedMembers,
+                                      user: user,
+                                      onUpdate:()=>set((){}),
+                                      cardAnimation: widget.cardAnimation,
+                                      onSelectionChanged: (isSelected) =>
+                                          _selectedMembers.length > 1
+                                              ? null
+                                              : setState(() {
+                                                  widget.onSelectionChanged
+                                                      ?.call(_selectedMembers);
+                                                }));
+                                }
+                              );
+                            },
                           ),
-                        )
-                      : GridView.builder(
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount:
-                                MediaQuery.of(context).size.width ~/ 180,
-                            mainAxisSpacing: 12,
-                            crossAxisSpacing: 12,
-                            childAspectRatio: 1.2,
-                          ),
-                          padding: const EdgeInsets.all(16),
-                          itemCount: _searchController.text.isEmpty
-                              ? state.members.length
-                              : _searchMembers.length,
-                          itemBuilder: (context, index) {
-                            final user = _searchController.text.isEmpty
-                                ? state.members[index]
-                                : _searchMembers[index];
-                            return MemberCard(
-                                selectedList: _selectedMembers,
-                                user: user,
-                                cardAnimation: widget.cardAnimation,
-                                onSelectionChanged: (isSelected) =>
-                                    _selectedMembers.length > 1
-                                        ? null
-                                        : setState(() {
-                                            widget.onSelectionChanged
-                                                ?.call(_selectedMembers);
-                                          }));
-                          },
-                        ),
-                ),
-              ],
+                  ),
+                ],
+              )
             );
           }
           return const SizedBox.shrink();
