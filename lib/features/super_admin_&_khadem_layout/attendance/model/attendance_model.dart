@@ -1,0 +1,63 @@
+import 'package:equatable/equatable.dart';
+
+class AttendanceModel extends Equatable {
+  const AttendanceModel({this.attendanceRecords, this.attendanceDates});
+  final List<String>? attendanceDates;
+  final List<AttendanceRecord>? attendanceRecords;
+  @override
+  List<Object?> get props => [attendanceDates, attendanceRecords];
+
+  factory AttendanceModel.fromJson(dynamic json) {
+    // Handle if json is directly a list (array)
+    List<AttendanceRecord> records;
+
+    if (json is List) {
+      // If the response is directly an array of records
+      records = json
+          .map((x) => AttendanceRecord.fromJson(x as Map<String, dynamic>))
+          .toList();
+    } else if (json is Map<String, dynamic>) {
+      // If the response is an object with attendance_records key
+      final recordsData = json["attendance_records"];
+      if (recordsData == null) {
+        records = [];
+      } else {
+        records = (recordsData as List)
+            .map((x) => AttendanceRecord.fromJson(x as Map<String, dynamic>))
+            .toList();
+      }
+    } else {
+      // Fallback for unexpected format
+      records = [];
+    }
+
+    // Extract unique dates from attendance records
+    final dates = records
+        .where((record) => record.date != null && record.date!.isNotEmpty)
+        .map((record) => record.date!)
+        .toSet()
+        .toList();
+
+    return AttendanceModel(
+      attendanceDates: dates,
+      attendanceRecords: records,
+    );
+  }
+}
+
+class AttendanceRecord {
+  final String? userId;
+  final String? userName;
+  final String? date;
+  final String? type;
+  AttendanceRecord({this.userId, this.userName, this.date, this.type});
+  factory AttendanceRecord.fromJson(Map<String, dynamic> json) {
+    return AttendanceRecord(
+      userId: json["userId"],
+      userName: json["userName"],
+      date: json["date"],
+      type: json["type"],
+    );
+  }
+
+}

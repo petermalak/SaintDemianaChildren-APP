@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Notification color - matches your app's primary maroon color -->
+    <color name="notification_color">#8B1538</color>
+    <color name="notification_accent">#C41E3A</color>
+</resources>
+

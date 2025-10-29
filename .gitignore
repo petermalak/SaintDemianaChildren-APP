@@ -1,0 +1,239 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# Node.js related
+node_modules/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Web related
+/web/build/
+
+# Exceptions to above rules.
+!/web/favicon.png
+!/web/icons/
+!/web/manifest.json
+
+# iOS related
+**/ios/**/*.mode1v3
+**/ios/**/*.mode2v3
+**/ios/**/*.moved-aside
+**/ios/**/*.pbxuser
+**/ios/**/*.perspectivev3
+**/ios/**/UserInterfaceState.xcuserstate
+**/ios/.generated/
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/app.flx
+**/ios/Flutter/app.zip
+**/ios/Flutter/flutter_assets/
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*
+
+# macOS
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+
+# Coverage
+coverage/
+
+# Test related
+test_driver/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+
+# Android specific
+**/android/**/gradle-wrapper.jar
+**/android/.gradle
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/key.properties
+*.jks
+
+# Android build files - more comprehensive
+**/android/**/build/
+**/android/**/.gradle/
+**/android/**/gradle/
+**/android/**/gradlew
+**/android/**/gradlew.bat
+**/android/**/local.properties
+**/android/**/key.properties
+**/android/**/captures/
+**/android/**/GeneratedPluginRegistrant.java
+*.jks
+
+# Flutter build files - more comprehensive
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/.pub-cache/
+**/.pub/
+
+# iOS build files
+**/ios/Pods/
+**/ios/build/
+**/ios/.symlinks/
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral/
+**/ios/Flutter/app.flx
+**/ios/Flutter/app.zip
+**/ios/Flutter/flutter_assets/
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*
+
+# Web build files
+**/web/build/
+
+# macOS build files
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+**/macos/build/
+
+# Windows build files
+**/windows/build/
+**/windows/flutter/generated_plugin_registrant.cc
+**/windows/flutter/generated_plugin_registrant.h
+
+# Linux build files
+**/linux/build/
+**/linux/flutter/generated_plugin_registrant.cc
+**/linux/flutter/generated_plugin_registrant.h
+
+# Specific problematic files
+**/android/app/build/intermediates/
+**/android/app/build/outputs/
+**/android/app/build/tmp/
+**/android/app/build/kotlin/
+**/android/app/build/tmp/
+**/android/app/build/generated/
+**/android/app/build/intermediates/assets/
+**/android/app/build/intermediates/merged_native_libs/
+**/android/app/build/intermediates/merged_manifests/
+**/android/app/build/intermediates/merged_res/
+**/android/app/build/intermediates/processed_res/
+**/android/app/build/intermediates/res/
+**/android/app/build/intermediates/symbols/
+**/android/app/build/intermediates/transforms/
+**/android/app/build/intermediates/incremental/
+**/android/app/build/intermediates/javac/
+**/android/app/build/intermediates/annotation_processor/
+**/android/app/build/intermediates/annotation_processor_list/
+**/android/app/build/intermediates/compile_and_runtime_not_namespaced_r_class_jar/
+**/android/app/build/intermediates/compile_library_classes_jar/
+**/android/app/build/intermediates/compile_r_class_jar/
+**/android/app/build/intermediates/compile_symbol_list/
+**/android/app/build/intermediates/compiled_local_resources/
+**/android/app/build/intermediates/data_binding_base_class_log_artifact/
+**/android/app/build/intermediates/data_binding_layout_info_type_merge/
+**/android/app/build/intermediates/data_binding_layout_info_type_package/
+**/android/app/build/intermediates/data_binding_view_binding/
+**/android/app/build/intermediates/debug_java_res/
+**/android/app/build/intermediates/dex/
+**/android/app/build/intermediates/duplicate_classes_check/
+**/android/app/build/intermediates/external_libs_dex_archive/
+**/android/app/build/intermediates/incremental_annotation_processor/
+**/android/app/build/intermediates/incremental_class_dex/
+**/android/app/build/intermediates/incremental_merge_dex_archive/
+**/android/app/build/intermediates/incremental_merge_native_libs/
+**/android/app/build/intermediates/incremental_merge_shaders/
+**/android/app/build/intermediates/incremental_merge_java_res/
+**/android/app/build/intermediates/incremental_merge_manifest/
+**/android/app/build/intermediates/incremental_merge_native_libs/
+**/android/app/build/intermediates/incremental_merge_resources/
+**/android/app/build/intermediates/incremental_merge_shaders/
+**/android/app/build/intermediates/incremental_package_debug/
+**/android/app/build/intermediates/incremental_package_release/
+**/android/app/build/intermediates/incremental_java_compile/
+**/android/app/build/intermediates/javac/
+**/android/app/build/intermediates/merge_assets/
+**/android/app/build/intermediates/merge_debug_java_res/
+**/android/app/build/intermediates/merge_debug_jni_libs/
+**/android/app/build/intermediates/merge_debug_native_libs/
+**/android/app/build/intermediates/merge_debug_shaders/
+**/android/app/build/intermediates/merge_java_res/
+**/android/app/build/intermediates/merge_jni_libs/
+**/android/app/build/intermediates/merge_manifest/
+**/android/app/build/intermediates/merge_native_libs/
+**/android/app/build/intermediates/merge_resources/
+**/android/app/build/intermediates/merge_shaders/
+**/android/app/build/intermediates/package_debug/
+**/android/app/build/intermediates/package_release/
+**/android/app/build/intermediates/process_debug_java_res/
+**/android/app/build/intermediates/process_debug_manifest/
+**/android/app/build/intermediates/process_debug_resources/
+**/android/app/build/intermediates/process_java_res/
+**/android/app/build/intermediates/process_manifest/
+**/android/app/build/intermediates/process_resources/
+**/android/app/build/intermediates/symbols/
+**/android/app/build/intermediates/transforms/
+**/android/app/build/intermediates/validate_signing_config/
+/node_modules/

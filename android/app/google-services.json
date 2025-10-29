@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "818445763272",
+    "firebase_url": "https://scoretest-2961a-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "scoretest-2961a",
+    "storage_bucket": "scoretest-2961a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:818445763272:android:3800a3c4d24586f2a3dbfd",
+        "android_client_info": {
+          "package_name": "com.saint_demiana.services"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1QztunI7g_vHQ7s-GAZArJVK2kFyR__w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
