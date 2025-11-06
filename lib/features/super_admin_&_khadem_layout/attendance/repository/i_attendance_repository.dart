@@ -4,7 +4,7 @@ import 'package:saint_demiana_children/features/authentication/model/user_model.
 import '../model/attendance_model.dart';
 
 abstract class IAttendanceRepository {
-  Future<Either<String, AttendanceModel>> fetchAttendance();
+  Future<Either<String, AttendanceModel>> fetchAttendance({String? classId});
 
   Future<Either<String, Unit>> bulkAddAttendance(
       {required List<UserModel> members,

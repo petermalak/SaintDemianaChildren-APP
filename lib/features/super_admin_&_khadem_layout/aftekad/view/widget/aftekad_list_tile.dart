@@ -102,6 +102,28 @@ class AftekadListTile extends StatelessWidget {
               ],
             ),
 
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildInfoChip(
+                  icon: Icons.church,
+                  label: 'عدد حضور القداسات',
+                  value: (aftekad.fridayAttendanceCount ?? 0).toString(),
+                  background: AppColors.primaryMaroon.withValues(alpha: 0.1),
+                  foreground: AppColors.primaryMaroon,
+                ),
+                _buildInfoChip(
+                  icon: Icons.warning_amber_rounded,
+                  label: 'عدد الجمع المتتالية بدون حضور',
+                  value: (aftekad.consecutiveMissedFridays ?? 0).toString(),
+                  background: AppColors.warning.withValues(alpha: 0.12),
+                  foreground: AppColors.warning,
+                ),
+              ],
+            ),
+
             if (aftekad.status == true) ...[
               const SizedBox(height: 16),
               Container(
@@ -151,6 +173,46 @@ class AftekadListTile extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildInfoChip({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color background,
+    required Color foreground,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: foreground.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: foreground),
+          const SizedBox(width: 6),
+          Text(
+            '$label: ',
+            style: TextStyle(
+              color: foreground,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: foreground,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
+        ],
       ),
     );
   }

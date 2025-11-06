@@ -8,20 +8,48 @@ import '../../../../core/services/interface/i_api_service.dart';
 
 class AftekadRepository implements IAftekadRepository {
   final IApiService _apiService;
+  Map<String, int>? _lastMakhdoumsMissedFridays;
 
   AftekadRepository(this._apiService);
 
+  Map<String, int>? get lastMakhdoumsMissedFridays =>
+      _lastMakhdoumsMissedFridays;
+
   @override
   Future<Either<String, List<AftekadModel>>> getAftekadByWeek(
-      String fridayDate, String khademId) async {
+      String fridayDate, String khademId,
+      {String? classId}) async {
     try {
+      final queryParameters = {
+        "status": "completed",
+        "khademId": khademId,
+      };
+
+      if (classId != null && classId.isNotEmpty) {
+        queryParameters["classId"] = classId;
+      }
+
       final response = await _apiService.get(
           path: ApiEndpoints.aftekadByWeek(fridayDate),
-          queryParameters: {"status": "completed", "khademId": khademId});
+          queryParameters: queryParameters);
 
-      return right((response.data['eftekads'] as List)
+      // Parse makhdoumsMissedFridays map from response if available
+      final makhdoumsMissedFridaysData =
+          response.data['makhdoumsMissedFridays'];
+      if (makhdoumsMissedFridaysData != null &&
+          makhdoumsMissedFridaysData is Map) {
+        _lastMakhdoumsMissedFridays = Map<String, int>.from(
+            makhdoumsMissedFridaysData.map((key, value) =>
+                MapEntry(key.toString(), (value as num).toInt())));
+      } else {
+        _lastMakhdoumsMissedFridays = null;
+      }
+
+      final aftekads = (response.data['eftekads'] as List)
           .map((e) => AftekadModel.fromJson(e))
-          .toList());
+          .toList();
+
+      return right(aftekads);
       // return right([
       //   AftekadModel(
       //     id: "1",

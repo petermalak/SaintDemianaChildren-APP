@@ -11,11 +11,11 @@ class ApiEndpoints {
   static const String changePassword = 'auth/change-password/';
 
   // PRODUCTION - Your domain configuration
-  static const String baseUrl = "https://www.saint-demiana.com/api/";
+  // static const String baseUrl = "https://www.saint-demiana.com/api/";
 
   // DEVELOPMENT - Keep these commented for reference
   // static const String baseUrl = "http://localhost:7000/";
-  // static const String baseUrl = "http://192.168.1.8:7000/";
+  static const String baseUrl = "http://192.168.1.11:7000/";
 
   static const String feeds = "feeds/";
   static const String myFeeds = "feeds/my-feeds/";
@@ -33,6 +33,7 @@ class ApiEndpoints {
   static const String aftekad = "eftekad/";
 
   static const String classes = "classes/";
+  static const String myClasses = "classes/my-classes/";
 
   static String aftekadByWeek(String fridayDate) {
     return "eftekad/history/friday/$fridayDate";

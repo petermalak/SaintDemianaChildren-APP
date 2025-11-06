@@ -7,7 +7,7 @@ import '../../../../../../core/di/service_locator.dart';
 import '../../repository/i_class_repository.dart';
 
 class AddClassDialog extends StatelessWidget {
-  const AddClassDialog({super.key, this.classModel,  this.onSuccess});
+  const AddClassDialog({super.key, this.classModel, this.onSuccess});
   final ClassModel? classModel;
   final VoidCallback? onSuccess;
 
@@ -59,7 +59,9 @@ class AddClassDialog extends StatelessWidget {
                     onSuccess?.call();
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(isUpdate ? 'تم تعديل الفصل بنجاح' : 'تم حفظ الفصل بنجاح'),
+                        content: Text(isUpdate
+                            ? 'تم تعديل الفصل بنجاح'
+                            : 'تم حفظ الفصل بنجاح'),
                         backgroundColor: Colors.green,
                       ),
                     );
@@ -81,14 +83,13 @@ class AddClassDialog extends StatelessWidget {
                         onPressed: () async {
                           if (nameController.text.trim().isEmpty) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('يرجى إدخال اسم الفصل')),
+                              const SnackBar(
+                                  content: Text('يرجى إدخال اسم الفصل')),
                             );
                             return;
                           }
                           isUpdate
-                              ?  await context
-                                  .read<AddClassCubit>()
-                                  .updateClass(
+                              ? await context.read<AddClassCubit>().updateClass(
                                     classModel!.id,
                                     nameController.text.trim(),
                                     locationController.text.trim(),

@@ -5,34 +5,37 @@ enum AftekadType {
 }
 
 class AftekadModel {
-
   AftekadModel({
-      this.id, 
-      this.khademId, 
-      this.makhdoumId, 
-      this.classId, 
-      this.type, 
-      this.status, 
-      this.duration, 
-      this.notes, 
-      this.scheduledDate, 
-      this.completedDate, 
-      this.priority, 
-      this.followUpRequired, 
-      this.followUpDate, 
-      this.createdAt, 
-      this.updatedAt, 
-      this.khadem, 
-      this.makhdoum, 
-     });
+    this.id,
+    this.khademId,
+    this.makhdoumId,
+    this.classId,
+    this.type,
+    this.status,
+    this.duration,
+    this.notes,
+    this.scheduledDate,
+    this.completedDate,
+    this.priority,
+    this.followUpRequired,
+    this.followUpDate,
+    this.createdAt,
+    this.updatedAt,
+    this.khadem,
+    this.makhdoum,
+    this.consecutiveMissedFridays,
+    this.fridayAttendanceCount,
+  });
 
   AftekadModel.fromJson(dynamic json) {
     id = json['id'];
     khademId = json['khademId'];
     makhdoumId = json['makhdoumId'];
     classId = json['classId'];
-    type = AftekadType.values.firstWhere((e) => e.name == json['type']);
-    status = json['status']=="completed"?true:false;
+    type = json['type'] != null
+        ? AftekadType.values.firstWhere((e) => e.name == json['type'])
+        : null;
+    status = json['status'] == "completed" ? true : false;
     duration = json['duration'];
     notes = json['notes'];
     scheduledDate = json['scheduledDate'];
@@ -43,7 +46,10 @@ class AftekadModel {
     createdAt = json['createdAt'];
     updatedAt = json['updatedAt'];
     khadem = json['khadem'] != null ? Khadem.fromJson(json['khadem']) : null;
-    makhdoum = json['makhdoum'] != null ? Makhdoum.fromJson(json['makhdoum']) : null;
+    makhdoum =
+        json['makhdoum'] != null ? Makhdoum.fromJson(json['makhdoum']) : null;
+    consecutiveMissedFridays = json['consecutiveMissedFridays'] ?? 0;
+    fridayAttendanceCount = json['fridayAttendanceCount'] ?? 0;
   }
   String? id;
   String? khademId;
@@ -62,6 +68,8 @@ class AftekadModel {
   String? updatedAt;
   Khadem? khadem;
   Makhdoum? makhdoum;
+  int? consecutiveMissedFridays;
+  int? fridayAttendanceCount;
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
@@ -86,18 +94,20 @@ class AftekadModel {
     if (makhdoum != null) {
       map['makhdoum'] = makhdoum?.toJson();
     }
+    map['consecutiveMissedFridays'] = consecutiveMissedFridays;
+    map['fridayAttendanceCount'] = fridayAttendanceCount;
     return map;
   }
-
 }
 
 class Makhdoum {
   Makhdoum({
-      this.id,
-      this.name,
-      this.email,
-      this.phoneNumber,
-      this.role,});
+    this.id,
+    this.name,
+    this.email,
+    this.phoneNumber,
+    this.role,
+  });
 
   Makhdoum.fromJson(dynamic json) {
     id = json['id'];
@@ -121,16 +131,16 @@ class Makhdoum {
     map['role'] = role;
     return map;
   }
-
 }
 
 class Khadem {
   Khadem({
-      this.id, 
-      this.name, 
-      this.email, 
-      this.phoneNumber, 
-      this.role,});
+    this.id,
+    this.name,
+    this.email,
+    this.phoneNumber,
+    this.role,
+  });
 
   Khadem.fromJson(dynamic json) {
     id = json['id'];
@@ -154,5 +164,4 @@ class Khadem {
     map['role'] = role;
     return map;
   }
-
 }

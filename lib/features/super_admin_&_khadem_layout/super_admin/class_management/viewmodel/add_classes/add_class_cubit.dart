@@ -25,5 +25,4 @@ class AddClassCubit extends Cubit<AddClassState> {
       (_) => emit(AddClassSuccess()),
     );
   }
-
 }

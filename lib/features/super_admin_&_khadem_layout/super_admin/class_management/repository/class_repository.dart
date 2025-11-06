@@ -12,6 +12,7 @@ class ClassRepository implements IClassRepository {
   ClassRepository(this._apiService);
 
   List<ClassModel> _classes = [];
+  List<ClassModel> _myClasses = [];
   @override
   Future<Either<String, List<ClassModel>>> loadClasses() async {
     try {
@@ -46,16 +47,35 @@ class ClassRepository implements IClassRepository {
   List<ClassModel> get classes => _classes;
 
   @override
+  List<ClassModel> get myClasses => _myClasses;
+
+  @override
+  Future<Either<String, List<ClassModel>>> loadMyClasses() async {
+    try {
+      final response = await _apiService.get(path: ApiEndpoints.myClasses);
+      _myClasses = (response.data as List)
+          .map<ClassModel>((json) => ClassModel.fromJson(json))
+          .toList();
+      return Right(_myClasses);
+    } on DioException catch (e) {
+      return Left(_apiService.handleError(e));
+    } catch (e) {
+      return const Left('An unexpected error occurred');
+    }
+  }
+
+  @override
   void deleteClass(String classId) {
     _classes.removeWhere((c) => c.id == classId);
     _apiService.delete(path: ApiEndpoints.classes + classId);
   }
 
   @override
-  Future<Either<String, Unit>> updateClass(String id, String name, String location) async{
+  Future<Either<String, Unit>> updateClass(
+      String id, String name, String location) async {
     try {
-       await _apiService.put(
-          path: ApiEndpoints.classes+id,
+      await _apiService.put(
+          path: ApiEndpoints.classes + id,
           body: {"name": name, "location": location});
       final index = _classes.indexWhere((c) => c.id == id);
       _classes[index].name = name;

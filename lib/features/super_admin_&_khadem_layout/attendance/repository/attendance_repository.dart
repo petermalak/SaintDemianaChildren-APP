@@ -11,10 +11,19 @@ class AttendanceRepository implements IAttendanceRepository {
   AttendanceRepository(this._apiService);
   final IApiService _apiService;
   @override
-  Future<Either<String, AttendanceModel>> fetchAttendance() async {
+  Future<Either<String, AttendanceModel>> fetchAttendance(
+      {String? classId}) async {
     try {
+      final queryParameters = <String, dynamic>{};
+      if (classId != null && classId.isNotEmpty) {
+        queryParameters['classId'] = classId;
+      }
+
       // Fetch all attendance records (removed type filter)
-      final response = await _apiService.get(path: ApiEndpoints.attendance);
+      final response = await _apiService.get(
+        path: ApiEndpoints.attendance,
+        queryParameters: queryParameters.isEmpty ? null : queryParameters,
+      );
 
       // Debug: Print the response to see what we're getting
       print('Attendance API Response: ${response.data}');

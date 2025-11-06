@@ -59,5 +59,4 @@ class AttendanceRecord {
       type: json["type"],
     );
   }
-
 }

@@ -29,7 +29,8 @@ class _MainClassManagementScreenContent extends StatefulWidget {
       _MainClassManagementScreenContentState();
 }
 
-class _MainClassManagementScreenContentState extends State<_MainClassManagementScreenContent>
+class _MainClassManagementScreenContentState
+    extends State<_MainClassManagementScreenContent>
     with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   late AnimationController _fabAnimationController;
@@ -123,10 +124,15 @@ class _MainClassManagementScreenContentState extends State<_MainClassManagementS
           );
         },
         backgroundColor: AppColors.primaryMaroon,
-        icon: const Icon(Icons.add,color:AppColors.accentWhite ,),
-        label:  const Text('إضافة فصل جديد', style: TextStyle(color: AppColors.accentWhite),
+        icon: const Icon(
+          Icons.add,
+          color: AppColors.accentWhite,
+        ),
+        label: const Text(
+          'إضافة فصل جديد',
+          style: TextStyle(color: AppColors.accentWhite),
+        ),
       ),
-    ),
     );
   }
 
@@ -215,8 +221,9 @@ class _ClassesScreenState extends State<ClassesScreen> {
             itemCount: widget.classes.length,
             itemBuilder: (context, index) {
               return ClassCard(
-                  classItem: widget.classes[index],
-                  cardAnimation: widget.cardAnimation, );
+                classItem: widget.classes[index],
+                cardAnimation: widget.cardAnimation,
+              );
             },
           );
   }

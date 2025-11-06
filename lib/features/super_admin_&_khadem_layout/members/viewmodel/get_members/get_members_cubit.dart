@@ -10,9 +10,7 @@ class GetMembersCubit extends Cubit<GetMembersState> {
   final IMembersRepository _membersRepository;
   Future<void> getMembers() async {
     emit(GetMembersLoading());
-    final response =  _membersRepository.members;
-   emit(GetMembersSuccess(response));
+    final response = _membersRepository.members;
+    emit(GetMembersSuccess(response));
   }
-
-
 }

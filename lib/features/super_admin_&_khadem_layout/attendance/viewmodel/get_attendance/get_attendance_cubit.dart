@@ -12,6 +12,7 @@ class GetAttendanceCubit extends Cubit<GetAttendanceState> {
   final IAttendanceRepository _attendanceRepository;
   final DataRefreshCubit? _refreshCubit;
   StreamSubscription? _refreshSubscription;
+  String? _lastClassId;
 
   GetAttendanceCubit(this._attendanceRepository, [this._refreshCubit])
       : super(GetAttendanceInitial()) {
@@ -20,17 +21,25 @@ class GetAttendanceCubit extends Cubit<GetAttendanceState> {
       if (refreshState.shouldRefresh(RefreshType.attendance) ||
           refreshState.shouldRefresh(RefreshType.all)) {
         print('📋 [GetAttendanceCubit] Refresh triggered');
-        fetchAttendance();
+        fetchAttendance(classId: _lastClassId);
       }
     });
   }
 
-  Future<void> fetchAttendance() async {
+  Future<void> fetchAttendance({String? classId}) async {
+    _lastClassId = classId;
+    if (isClosed) return;
     emit(GetAttendanceLoading());
-    final result = await _attendanceRepository.fetchAttendance();
+    final result =
+        await _attendanceRepository.fetchAttendance(classId: classId);
+    if (isClosed) return;
     result.fold(
-      (failure) => emit(GetAttendanceFailure(failure)),
-      (attendance) => emit(GetAttendanceSuccess(attendance)),
+      (failure) {
+        if (!isClosed) emit(GetAttendanceFailure(failure));
+      },
+      (attendance) {
+        if (!isClosed) emit(GetAttendanceSuccess(attendance));
+      },
     );
   }
 

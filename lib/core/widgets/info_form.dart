@@ -47,7 +47,7 @@ class InfoFormState extends State<InfoForm> {
     _addressLinkController =
         TextEditingController(text: widget.user.addressLocationLink);
     _fatherOfConfessionController =
-        TextEditingController(text: widget.user.fatherOfConfession );
+        TextEditingController(text: widget.user.fatherOfConfession);
   }
 
   @override
@@ -69,11 +69,16 @@ class InfoFormState extends State<InfoForm> {
     if (_formKey.currentState?.validate() ?? false) {
       widget.user.name = _nameController.text;
       widget.user.phoneNumber = _phoneController.text;
-      if(_fatherPhoneController.text.length>7)widget.user.fathersPhoneNumber = _fatherPhoneController.text;
-      if(_motherPhoneController.text.length>7)widget.user.mothersPhoneNumber = _motherPhoneController.text;
-      if(_addressController.text.isNotEmpty)widget.user.address = _addressController.text;
-      if(_addressLinkController.text.isNotEmpty)widget.user.addressLocationLink = _addressLinkController.text;
-      if(_fatherOfConfessionController.text.isNotEmpty)widget.user.fatherOfConfession = _fatherOfConfessionController.text;
+      if (_fatherPhoneController.text.length > 7)
+        widget.user.fathersPhoneNumber = _fatherPhoneController.text;
+      if (_motherPhoneController.text.length > 7)
+        widget.user.mothersPhoneNumber = _motherPhoneController.text;
+      if (_addressController.text.isNotEmpty)
+        widget.user.address = _addressController.text;
+      if (_addressLinkController.text.isNotEmpty)
+        widget.user.addressLocationLink = _addressLinkController.text;
+      if (_fatherOfConfessionController.text.isNotEmpty)
+        widget.user.fatherOfConfession = _fatherOfConfessionController.text;
       // Add more fields if needed
       return true;
     }

@@ -6,6 +6,8 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/memb
 import 'package:saint_demiana_children/features/authentication/model/user_model.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/aftekad/model/aftekad_model.dart';
 import 'package:intl/intl.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/model/class_model.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
 
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
@@ -28,6 +30,15 @@ class _AftekadScreenState extends State<AftekadScreen> {
   late GetAftekadCubit _aftekadCubit;
   List<DateTime> _fridayDates = [];
   String? _currentSelectedDate;
+  UserModel? _currentUser;
+  List<UserClassInfo> _assignedClasses = const [];
+  List<UserClassInfo> _classOptions = const [];
+  String? _selectedClassId;
+  bool _isLoadingClasses = false;
+  AftekadSortOption _selectedSortOption = AftekadSortOption.consecutiveMissed;
+  bool _isSortDescending = true;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -36,14 +47,24 @@ class _AftekadScreenState extends State<AftekadScreen> {
     _aftekadCubit =
         GetAftekadCubit(sl<IAftekadRepository>(), sl<DataRefreshCubit>());
 
+    _currentUser = sl<IProfileRepository>().user;
+    _assignedClasses = (_currentUser?.classes ?? const [])
+        .where((info) => info.classId.isNotEmpty)
+        .toList();
+    _classOptions = _assignedClasses;
+    _loadClassOptions();
+
+    _searchController.addListener(_onSearchChanged);
+
     // Load initial data
-    if (_fridayDates.isNotEmpty) {
+    if (_fridayDates.isNotEmpty && _currentUser?.id != null) {
       final mostRecentFriday = _fridayDates.first;
       final formattedDate = DateFormat('yyyy-MM-dd').format(mostRecentFriday);
       _currentSelectedDate = formattedDate;
       _aftekadCubit.getAftekad(
         formattedDate,
-        sl<IProfileRepository>().user!.id!,
+        _currentUser!.id!,
+        classId: _selectedClassId,
       );
     }
   }
@@ -51,6 +72,8 @@ class _AftekadScreenState extends State<AftekadScreen> {
   @override
   void dispose() {
     _aftekadCubit.close();
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -75,14 +98,70 @@ class _AftekadScreenState extends State<AftekadScreen> {
     _fridayDates.sort((a, b) => b.compareTo(a));
   }
 
+  Future<void> _loadClassOptions() async {
+    if (_currentUser?.role != UserRole.khadem) return;
+
+    setState(() {
+      _isLoadingClasses = true;
+    });
+
+    final classRepository = sl<IClassRepository>();
+    final result = await classRepository.loadMyClasses();
+
+    if (!mounted) return;
+
+    result.fold(
+      (_) {
+        setState(() {
+          _isLoadingClasses = false;
+        });
+      },
+      (classList) {
+        final mapped = classList
+            .map(
+              (ClassModel classModel) => UserClassInfo(
+                classId: classModel.id,
+                className: classModel.name,
+                classDescription: classModel.description,
+                membershipRole: 'khadem',
+                isActive: classModel.isActive,
+                joinedAt: classModel.createdAt,
+              ),
+            )
+            .toList();
+
+        final combined = {
+          for (final info in [..._assignedClasses, ...mapped])
+            info.classId: info,
+        };
+
+        setState(() {
+          _classOptions = combined.values.toList();
+          _isLoadingClasses = false;
+        });
+      },
+    );
+  }
+
+  void _onSearchChanged() {
+    final query = _searchController.text.trim().toLowerCase();
+    if (_searchQuery != query) {
+      setState(() {
+        _searchQuery = query;
+      });
+    }
+  }
+
   void _onDateSelected(String dateIso) {
+    if (_currentUser?.id == null) return;
     // Only fetch if date actually changed
     if (_currentSelectedDate != dateIso) {
       _currentSelectedDate = dateIso;
       // Fetch aftekad data for selected date
       _aftekadCubit.getAftekad(
         dateIso,
-        sl<IProfileRepository>().user!.id!,
+        _currentUser!.id!,
+        classId: _selectedClassId,
       );
     }
   }
@@ -173,9 +252,227 @@ class _AftekadScreenState extends State<AftekadScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          _buildSearchField(),
+          const SizedBox(height: 12),
+          if (_isLoadingClasses) ...[
+            const LinearProgressIndicator(minHeight: 2),
+            const SizedBox(height: 12),
+          ],
+          _buildFilterRow(),
         ],
       ),
     );
+  }
+
+  bool get _canFilterByClass =>
+      _currentUser?.role == UserRole.khadem && _classOptions.isNotEmpty;
+
+  Widget _buildSearchField() {
+    return TextField(
+      controller: _searchController,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: 'ابحث بالاسم',
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: _searchQuery.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  _searchController.clear();
+                },
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: true,
+        fillColor: AppColors.backgroundSecondary,
+      ),
+    );
+  }
+
+  Widget _buildFilterRow() {
+    final widgets = <Widget>[];
+
+    if (_canFilterByClass) {
+      widgets.add(
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: _buildClassFilterDropdown(),
+          ),
+        ),
+      );
+    }
+
+    widgets.add(
+      Expanded(
+        child: Padding(
+          padding: EdgeInsets.only(left: _canFilterByClass ? 8.0 : 0.0),
+          child: _buildSortDropdown(),
+        ),
+      ),
+    );
+
+    widgets.add(
+      Padding(
+        padding: const EdgeInsets.only(left: 8.0),
+        child: SizedBox(
+          height: 48,
+          width: 48,
+          child: OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              padding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () {
+              setState(() {
+                _isSortDescending = !_isSortDescending;
+              });
+            },
+            child: Icon(
+              _isSortDescending ? Icons.arrow_downward : Icons.arrow_upward,
+              color: AppColors.primaryMaroon,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    return Row(
+      children: widgets,
+    );
+  }
+
+  Widget _buildClassFilterDropdown() {
+    final options = _classOptions;
+    if (options.isEmpty) return const SizedBox.shrink();
+
+    return DropdownButtonFormField<String?>(
+      value: _selectedClassId,
+      decoration: const InputDecoration(
+        labelText: 'اختر الفصل',
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      items: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('كل الفصول'),
+        ),
+        ...options.map(
+          (option) => DropdownMenuItem<String?>(
+            value: option.classId,
+            child: Text(option.className ?? 'فصل بدون اسم'),
+          ),
+        ),
+      ],
+      onChanged: (value) {
+        setState(() {
+          _selectedClassId = value;
+        });
+
+        if (_currentSelectedDate != null && _currentUser?.id != null) {
+          _aftekadCubit.getAftekad(
+            _currentSelectedDate!,
+            _currentUser!.id!,
+            classId: value,
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildSortDropdown() {
+    return DropdownButtonFormField<AftekadSortOption>(
+      value: _selectedSortOption,
+      decoration: const InputDecoration(
+        labelText: 'ترتيب حسب',
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      items: AftekadSortOption.values
+          .map(
+            (option) => DropdownMenuItem<AftekadSortOption>(
+              value: option,
+              child: Text(option.label),
+            ),
+          )
+          .toList(),
+      onChanged: (value) {
+        if (value == null) return;
+        setState(() {
+          _selectedSortOption = value;
+        });
+      },
+    );
+  }
+
+  List<UserModel> _filterMembersByClass(List<UserModel> members) {
+    Iterable<UserModel> filtered = members;
+
+    if (_selectedClassId != null) {
+      filtered = filtered.where((member) {
+        if (member.classes.isNotEmpty) {
+          return member.classes.any((info) => info.classId == _selectedClassId);
+        }
+        return member.classId == _selectedClassId;
+      });
+    }
+
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((member) {
+        final name = member.name?.toLowerCase() ?? '';
+        return name.contains(_searchQuery);
+      });
+    }
+
+    return filtered.toList();
+  }
+
+  int _compareAftekads(AftekadModel a, AftekadModel b) {
+    int result;
+    switch (_selectedSortOption) {
+      case AftekadSortOption.consecutiveMissed:
+        result = (b.consecutiveMissedFridays ?? 0) -
+            (a.consecutiveMissedFridays ?? 0);
+        if (result != 0) {
+          return _isSortDescending ? result : -result;
+        }
+        result =
+            (b.fridayAttendanceCount ?? 0) - (a.fridayAttendanceCount ?? 0);
+        if (result != 0) {
+          return _isSortDescending ? result : -result;
+        }
+        result = _compareByName(a, b);
+        break;
+      case AftekadSortOption.attendance:
+        result =
+            (b.fridayAttendanceCount ?? 0) - (a.fridayAttendanceCount ?? 0);
+        if (result != 0) {
+          return _isSortDescending ? result : -result;
+        }
+        result = (b.consecutiveMissedFridays ?? 0) -
+            (a.consecutiveMissedFridays ?? 0);
+        if (result != 0) {
+          return _isSortDescending ? result : -result;
+        }
+        result = _compareByName(a, b);
+        break;
+      case AftekadSortOption.nameAZ:
+        result = _compareByName(a, b);
+        break;
+    }
+    return _isSortDescending ? result : -result;
+  }
+
+  int _compareByName(AftekadModel a, AftekadModel b) {
+    final nameA = (a.makhdoum?.name ?? '').toLowerCase();
+    final nameB = (b.makhdoum?.name ?? '').toLowerCase();
+    return nameA.compareTo(nameB);
   }
 
   void _showDatePicker(BuildContext context) {
@@ -329,6 +626,10 @@ class _AftekadScreenState extends State<AftekadScreen> {
 
           print('📋 [AftekadScreen] All members count: ${allMembers.length}');
 
+          final filteredMembers = _filterMembersByClass(allMembers);
+          print(
+              '📋 [AftekadScreen] Filtered members count: ${filteredMembers.length}');
+
           // Get completed aftekad data
           final completedAftekad =
               state.aftekad.where((aftekad) => aftekad.status == true).toList();
@@ -336,24 +637,42 @@ class _AftekadScreenState extends State<AftekadScreen> {
           print(
               '📋 [AftekadScreen] Completed aftekad count: ${completedAftekad.length}');
 
+          // Get makhdoumsMissedFridays from state
+          final makhdoumsMissedFridays = state.makhdoumsMissedFridays ?? {};
+
           // Create a combined list showing completion status for each member
-          final displayList = allMembers.map((member) {
+          final displayList = filteredMembers.map((member) {
             // Check if this member has completed aftekad
             final memberAftekad = completedAftekad.firstWhere(
               (aftekad) => aftekad.makhdoum?.id == member.id,
-              orElse: () => AftekadModel(
-                makhdoumId: member.id,
-                status: false,
-                classId: member.classId,
-                makhdoum: Makhdoum(
-                  id: member.id,
-                  name: member.name,
-                ),
-              ),
+              orElse: () {
+                // Use consecutive missed Fridays from backend if available, otherwise 0
+                final missedFridays = makhdoumsMissedFridays[member.id] ?? 0;
+                return AftekadModel(
+                  makhdoumId: member.id,
+                  status: false,
+                  classId: member.classId,
+                  consecutiveMissedFridays: missedFridays,
+                  makhdoum: Makhdoum(
+                    id: member.id,
+                    name: member.name,
+                  ),
+                );
+              },
             );
+
+            // If member has aftekad but consecutiveMissedFridays is not set, use from map
+            if (memberAftekad.consecutiveMissedFridays == null &&
+                makhdoumsMissedFridays.containsKey(member.id)) {
+              memberAftekad.consecutiveMissedFridays =
+                  makhdoumsMissedFridays[member.id];
+            }
 
             return memberAftekad;
           }).toList();
+
+          // Apply the selected sorting strategy
+          displayList.sort(_compareAftekads);
 
           print('📋 [AftekadScreen] Display list count: ${displayList.length}');
           print(
@@ -392,10 +711,11 @@ class _AftekadScreenState extends State<AftekadScreen> {
 
           return RefreshIndicator(
             onRefresh: () async {
-              if (_currentSelectedDate != null) {
+              if (_currentSelectedDate != null && _currentUser?.id != null) {
                 await _aftekadCubit.getAftekad(
                   _currentSelectedDate!,
-                  sl<IProfileRepository>().user!.id!,
+                  _currentUser!.id!,
+                  classId: _selectedClassId,
                 );
               }
             },
@@ -442,5 +762,24 @@ class _AftekadScreenState extends State<AftekadScreen> {
         );
       },
     );
+  }
+}
+
+enum AftekadSortOption {
+  consecutiveMissed,
+  attendance,
+  nameAZ,
+}
+
+extension AftekadSortOptionLabel on AftekadSortOption {
+  String get label {
+    switch (this) {
+      case AftekadSortOption.consecutiveMissed:
+        return 'أكثر غيابًا متتاليًا';
+      case AftekadSortOption.attendance:
+        return 'أعلى حضور قداسات';
+      case AftekadSortOption.nameAZ:
+        return 'الاسم (أ-ي)';
+    }
   }
 }

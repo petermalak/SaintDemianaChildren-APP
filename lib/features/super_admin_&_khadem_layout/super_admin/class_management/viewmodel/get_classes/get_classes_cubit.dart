@@ -17,7 +17,7 @@ class GetClassesCubit extends Cubit<GetClassesState> {
     );
   }
 
-  void refreshClasses(){
+  void refreshClasses() {
     emit(GetClassesSuccess(_classRepository.classes));
   }
 }

@@ -24,6 +24,7 @@ class UserModel extends Equatable {
   String? addressLocationLink;
   String? fatherOfConfession;
   String? classId;
+  final List<UserClassInfo> classes;
   UserModel({
     this.id,
     this.name,
@@ -42,42 +43,53 @@ class UserModel extends Equatable {
     this.address,
     this.addressLocationLink,
     this.fatherOfConfession,
-  });
+    List<UserClassInfo>? classes,
+  }) : classes = classes ?? const [];
 
   factory UserModel.fromJson(Map<String, dynamic> json, {String? token}) {
+    final List<UserClassInfo> parsedClasses = (json['classes'] is List)
+        ? (json['classes'] as List)
+            .whereType<Map<String, dynamic>>()
+            .map(UserClassInfo.fromJson)
+            .toList()
+        : <UserClassInfo>[];
+
     // Try to extract classId from multiple possible sources
     String? extractedClassId = json['classId'];
 
-    // If not found, try from classes array
-    if (extractedClassId == null &&
-        json['classes'] != null &&
-        json['classes'] is List) {
-      final classes = json['classes'] as List;
-      if (classes.isNotEmpty && classes[0] != null) {
-        extractedClassId = classes[0]['classId'];
+    if (extractedClassId == null && parsedClasses.isNotEmpty) {
+      extractedClassId = parsedClasses.first.classId;
+    }
+
+    List<Map<String, dynamic>> memberships = [];
+    if (json['classMemberships'] != null && json['classMemberships'] is List) {
+      memberships = (json['classMemberships'] as List)
+          .whereType<Map<String, dynamic>>()
+          .toList();
+    }
+
+    if (extractedClassId == null && memberships.isNotEmpty) {
+      final userRole = json['role'];
+      if (userRole == 'khadem') {
+        final khademMembership = memberships.firstWhere(
+          (m) => m['role'] == 'khadem',
+          orElse: () => memberships.first,
+        );
+        extractedClassId = khademMembership['classId'];
+      } else {
+        extractedClassId = memberships.first['classId'];
       }
     }
 
-    // If still not found, try from classMemberships array (JWT token format)
-    if (extractedClassId == null &&
-        json['classMemberships'] != null &&
-        json['classMemberships'] is List) {
-      final memberships = json['classMemberships'] as List;
+    final List<UserClassInfo> combinedClasses = parsedClasses.isNotEmpty
+        ? parsedClasses
+        : memberships
+            .map(UserClassInfo.fromMembershipJson)
+            .where((info) => info.classId.isNotEmpty)
+            .toList();
 
-      // For khadems, prioritize their khadem class membership
-      final userRole = json['role'];
-      if (userRole == 'khadem') {
-        // Find the first khadem membership
-        final khademMembership = memberships.firstWhere(
-          (m) => m != null && m['role'] == 'khadem',
-          orElse: () => memberships.isNotEmpty ? memberships[0] : null,
-        );
-        if (khademMembership != null) {
-          extractedClassId = khademMembership['classId'];
-        }
-      } else if (memberships.isNotEmpty && memberships[0] != null) {
-        extractedClassId = memberships[0]['classId'];
-      }
+    if (extractedClassId == null && combinedClasses.isNotEmpty) {
+      extractedClassId = combinedClasses.first.classId;
     }
 
     print('🔍 [UserModel] Extracted classId: $extractedClassId from JSON');
@@ -104,6 +116,7 @@ class UserModel extends Equatable {
       address: json['address'],
       addressLocationLink: json['addressLocationLink'],
       fatherOfConfession: json['fatherOfConfession'],
+      classes: combinedClasses,
     );
   }
 
@@ -127,6 +140,7 @@ class UserModel extends Equatable {
       'address': address,
       'addressLocationLink': addressLocationLink,
       'fatherOfConfession': fatherOfConfession,
+      'classes': classes.map((c) => c.toJson()).toList(),
     };
   }
 
@@ -161,6 +175,7 @@ class UserModel extends Equatable {
     String? address,
     String? addressLocationLink,
     String? fatherOfConfession,
+    List<UserClassInfo>? classes,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -180,6 +195,7 @@ class UserModel extends Equatable {
       address: address ?? this.address,
       addressLocationLink: addressLocationLink ?? this.addressLocationLink,
       fatherOfConfession: fatherOfConfession ?? this.fatherOfConfession,
+      classes: classes ?? this.classes,
     );
   }
 
@@ -229,5 +245,76 @@ class UserModel extends Equatable {
         address,
         addressLocationLink,
         fatherOfConfession,
+        classes,
+      ];
+}
+
+class UserClassInfo extends Equatable {
+  final String classId;
+  final String? className;
+  final String? classDescription;
+  final String? membershipRole;
+  final bool? isActive;
+  final DateTime? joinedAt;
+
+  const UserClassInfo({
+    required this.classId,
+    this.className,
+    this.classDescription,
+    this.membershipRole,
+    this.isActive,
+    this.joinedAt,
+  });
+
+  factory UserClassInfo.fromJson(Map<String, dynamic> json) {
+    return UserClassInfo(
+      classId: (json['classId'] ?? '').toString(),
+      className: json['className'] as String?,
+      classDescription: json['classDescription'] as String?,
+      membershipRole: json['membershipRole'] as String?,
+      isActive: json['isActive'] is bool ? json['isActive'] as bool : null,
+      joinedAt: json['joinedAt'] != null
+          ? DateTime.tryParse(json['joinedAt'].toString())
+          : null,
+    );
+  }
+
+  factory UserClassInfo.fromMembershipJson(Map<String, dynamic> json) {
+    final classData = json['class'] is Map<String, dynamic>
+        ? json['class'] as Map<String, dynamic>
+        : null;
+
+    return UserClassInfo(
+      classId: (json['classId'] ?? '').toString(),
+      className: classData != null ? classData['name'] as String? : null,
+      classDescription:
+          classData != null ? classData['description'] as String? : null,
+      membershipRole: json['role'] as String?,
+      isActive: json['isActive'] is bool ? json['isActive'] as bool : null,
+      joinedAt: json['joinedAt'] != null
+          ? DateTime.tryParse(json['joinedAt'].toString())
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'classId': classId,
+      'className': className,
+      'classDescription': classDescription,
+      'membershipRole': membershipRole,
+      'isActive': isActive,
+      'joinedAt': joinedAt?.toIso8601String(),
+    };
+  }
+
+  @override
+  List<Object?> get props => [
+        classId,
+        className,
+        classDescription,
+        membershipRole,
+        isActive,
+        joinedAt,
       ];
 }

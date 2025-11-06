@@ -14,6 +14,8 @@ class GetAftekadCubit extends Cubit<GetAftekadState> {
   StreamSubscription? _refreshSubscription;
   String? _lastFridayDate;
   String? _lastKhademId;
+  String? _lastClassId;
+  Map<String, int>? _makhdoumsMissedFridays;
 
   GetAftekadCubit(this._aftekadRepository, [this._refreshCubit])
       : super(GetAftekadInitial()) {
@@ -29,8 +31,8 @@ class GetAftekadCubit extends Cubit<GetAftekadState> {
         // Re-fetch with last parameters
         if (_lastFridayDate != null && _lastKhademId != null) {
           print(
-              '🔄 [GetAftekadCubit] Reloading data: date=$_lastFridayDate, khadem=$_lastKhademId');
-          getAftekad(_lastFridayDate!, _lastKhademId!);
+              '🔄 [GetAftekadCubit] Reloading data: date=$_lastFridayDate, khadem=$_lastKhademId, class=$_lastClassId');
+          getAftekad(_lastFridayDate!, _lastKhademId!, classId: _lastClassId);
         } else {
           print(
               '⚠️ [GetAftekadCubit] Cannot refresh - missing date or khademId');
@@ -39,26 +41,37 @@ class GetAftekadCubit extends Cubit<GetAftekadState> {
     });
   }
 
-  Future<void> getAftekad(String fridayDate, String khademId) async {
+  Future<void> getAftekad(String fridayDate, String khademId,
+      {String? classId}) async {
     print(
-        '📥 [GetAftekadCubit] Fetching aftekad: date=$fridayDate, khadem=$khademId');
+        '📥 [GetAftekadCubit] Fetching aftekad: date=$fridayDate, khadem=$khademId, class=$classId');
     _lastFridayDate = fridayDate;
     _lastKhademId = khademId;
+    _lastClassId = classId;
 
     emit(GetAftekadLoading());
-    final result =
-        await _aftekadRepository.getAftekadByWeek(fridayDate, khademId);
+    final result = await _aftekadRepository
+        .getAftekadByWeek(fridayDate, khademId, classId: classId);
     result.fold(
       (failure) {
         print('❌ [GetAftekadCubit] Fetch failed: $failure');
+        _makhdoumsMissedFridays = null;
         emit(GetAftekadFailure(failure));
       },
       (aftekad) {
+        // Get makhdoumsMissedFridays from repository
+        _makhdoumsMissedFridays = _aftekadRepository.lastMakhdoumsMissedFridays;
         print('✅ [GetAftekadCubit] Fetch successful: ${aftekad.length} items');
-        emit(GetAftekadSuccess(aftekad));
+        print(
+            '📊 [GetAftekadCubit] Makhdoums missed Fridays: $_makhdoumsMissedFridays');
+        emit(GetAftekadSuccess(aftekad,
+            makhdoumsMissedFridays: _makhdoumsMissedFridays));
       },
     );
   }
+
+  // Getter for makhdoumsMissedFridays
+  Map<String, int>? get makhdoumsMissedFridays => _makhdoumsMissedFridays;
 
   @override
   Future<void> close() {
