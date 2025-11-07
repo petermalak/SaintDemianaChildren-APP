@@ -16,6 +16,7 @@ class ApiEndpoints {
   // DEVELOPMENT - Keep these commented for reference
   // static const String baseUrl = "http://localhost:7000/";
   static const String baseUrl = "http://192.168.1.11:7000/";
+  // static const String baseUrl = "http://172.20.10.5:7000/";
 
   static const String feeds = "feeds/";
   static const String myFeeds = "feeds/my-feeds/";
@@ -29,6 +30,8 @@ class ApiEndpoints {
   static const String myProfile = "users/me/";
 
   static const String bulkAddAttendance = "attendance/bulk/";
+  static const String bulkUpdateAttendance = "attendance/bulk/";
+  static const String bulkDeleteAttendance = "attendance/bulk/";
 
   static const String aftekad = "eftekad/";
 

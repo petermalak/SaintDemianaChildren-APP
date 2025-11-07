@@ -36,4 +36,60 @@ class AddAttendanceCubit extends Cubit<AddAttendanceState> {
       },
     );
   }
+
+  Future<void> bulkUpdateAttendance({
+    required List<String> attendanceIds,
+    String? event,
+    DateTime? date,
+    String? notes,
+  }) async {
+    print('🔵 [AddAttendanceCubit] Starting bulk update attendance...'); // Debug
+    print('🔵 Attendance IDs count: ${attendanceIds.length}'); // Debug
+    print('🔵 Event: $event'); // Debug
+    print('🔵 Date: $date'); // Debug
+
+    emit(AddAttendanceLoading());
+
+    final result = await _attendanceRepository.bulkUpdateAttendance(
+      attendanceIds: attendanceIds,
+      event: event,
+      date: date,
+      notes: notes,
+    );
+
+    result.fold(
+      (error) {
+        print('❌ [AddAttendanceCubit] Update failed: $error'); // Debug
+        emit(AddAttendanceFailure(error));
+      },
+      (_) {
+        print('✅ [AddAttendanceCubit] Update success!'); // Debug
+        emit(AddAttendanceSuccess());
+      },
+    );
+  }
+
+  Future<void> bulkDeleteAttendance({
+    required List<String> attendanceIds,
+  }) async {
+    print('🔵 [AddAttendanceCubit] Starting bulk delete attendance...'); // Debug
+    print('🔵 Attendance IDs count: ${attendanceIds.length}'); // Debug
+
+    emit(AddAttendanceLoading());
+
+    final result = await _attendanceRepository.bulkDeleteAttendance(
+      attendanceIds: attendanceIds,
+    );
+
+    result.fold(
+      (error) {
+        print('❌ [AddAttendanceCubit] Delete failed: $error'); // Debug
+        emit(AddAttendanceFailure(error));
+      },
+      (_) {
+        print('✅ [AddAttendanceCubit] Delete success!'); // Debug
+        emit(AddAttendanceSuccess());
+      },
+    );
+  }
 }

@@ -136,8 +136,13 @@ class ApiService implements IApiService {
   Future<Response> delete({
     required String path,
     Map<String, dynamic>? queryParameters,
+    dynamic body,
   }) async {
-    final response = await _dio.delete(path, queryParameters: queryParameters);
+    final response = await _dio.delete(
+      path,
+      queryParameters: queryParameters,
+      data: body,
+    );
     if (kDebugMode) {
       print(response.data);
     }

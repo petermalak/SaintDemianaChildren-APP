@@ -11,4 +11,13 @@ abstract class IAttendanceRepository {
       required String event,
       required DateTime date,
       String? notes});
+
+  Future<Either<String, Unit>> bulkUpdateAttendance(
+      {required List<String> attendanceIds,
+      String? event,
+      DateTime? date,
+      String? notes});
+
+  Future<Either<String, Unit>> bulkDeleteAttendance(
+      {required List<String> attendanceIds});
 }

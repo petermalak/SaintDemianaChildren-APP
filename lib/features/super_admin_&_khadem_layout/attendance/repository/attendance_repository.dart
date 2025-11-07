@@ -76,4 +76,82 @@ class AttendanceRepository implements IAttendanceRepository {
       return left("An unexpected error occurred: $e");
     }
   }
+
+  @override
+  Future<Either<String, Unit>> bulkUpdateAttendance(
+      {required List<String> attendanceIds,
+      String? event,
+      DateTime? date,
+      String? notes}) async {
+    try {
+      final requestBody = <String, dynamic>{
+        "attendance_ids": attendanceIds,
+      };
+
+      if (event != null) {
+        requestBody["type"] = event;
+      }
+
+      if (date != null) {
+        requestBody["date"] =
+            "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+      }
+
+      if (notes != null) {
+        requestBody["notes"] = notes;
+      }
+
+      print(
+          '🌐 [AttendanceRepository] Calling API: ${ApiEndpoints.bulkUpdateAttendance}');
+      print('🌐 Request body: $requestBody');
+
+      final response = await _apiService.put(
+          path: ApiEndpoints.bulkUpdateAttendance, body: requestBody);
+
+      print('✅ [AttendanceRepository] Bulk update successful');
+      print('✅ Response: ${response.data}');
+
+      return right(unit);
+    } on DioException catch (e) {
+      print('❌ [AttendanceRepository] DioException: ${e.message}');
+      print('❌ Response: ${e.response?.data}');
+      return left(_apiService.handleError(e));
+    } catch (e) {
+      print('❌ [AttendanceRepository] Unexpected error: $e');
+      return left("An unexpected error occurred: $e");
+    }
+  }
+
+  @override
+  Future<Either<String, Unit>> bulkDeleteAttendance(
+      {required List<String> attendanceIds}) async {
+    try {
+      final requestBody = {
+        "attendance_ids": attendanceIds,
+      };
+
+      print(
+          '🌐 [AttendanceRepository] Calling API: ${ApiEndpoints.bulkDeleteAttendance}');
+      print('🌐 Request body: $requestBody');
+
+      // Note: Using POST for bulk delete as DELETE with body is not standard in all HTTP clients
+      // The backend route handles this as DELETE /bulk with body
+      final response = await _apiService.delete(
+        path: ApiEndpoints.bulkDeleteAttendance,
+        body: requestBody,
+      );
+
+      print('✅ [AttendanceRepository] Bulk delete successful');
+      print('✅ Response: ${response.data}');
+
+      return right(unit);
+    } on DioException catch (e) {
+      print('❌ [AttendanceRepository] DioException: ${e.message}');
+      print('❌ Response: ${e.response?.data}');
+      return left(_apiService.handleError(e));
+    } catch (e) {
+      print('❌ [AttendanceRepository] Unexpected error: $e');
+      return left("An unexpected error occurred: $e");
+    }
+  }
 }

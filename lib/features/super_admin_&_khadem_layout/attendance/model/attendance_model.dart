@@ -46,17 +46,30 @@ class AttendanceModel extends Equatable {
 }
 
 class AttendanceRecord {
+  final String? id;
   final String? userId;
   final String? userName;
   final String? date;
   final String? type;
-  AttendanceRecord({this.userId, this.userName, this.date, this.type});
+  final String? notes;
+  
+  AttendanceRecord({
+    this.id,
+    this.userId,
+    this.userName,
+    this.date,
+    this.type,
+    this.notes,
+  });
+  
   factory AttendanceRecord.fromJson(Map<String, dynamic> json) {
     return AttendanceRecord(
+      id: json["id"],
       userId: json["userId"],
       userName: json["userName"],
       date: json["date"],
       type: json["type"],
+      notes: json["notes"],
     );
   }
 }

@@ -235,6 +235,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                             dates: dates,
                             members: members,
                             attendance: attendance,
+                            attendanceRecords: records,
                             onRefresh: () => _attendanceCubit.fetchAttendance(
                                 classId: _selectedClassId),
                           ),

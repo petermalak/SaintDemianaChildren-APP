@@ -23,6 +23,7 @@ abstract class IApiService {
   Future<Response> delete({
     required String path,
     Map<String, dynamic>? queryParameters,
+    dynamic body,
   });
 
   Future<Response> patch({
