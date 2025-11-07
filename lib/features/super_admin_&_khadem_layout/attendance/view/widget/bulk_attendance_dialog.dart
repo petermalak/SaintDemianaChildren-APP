@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/data_refresh_cubit.dart';
+import '../../../../../core/utils/responsive_dialog_utils.dart';
 import '../../../../authentication/model/user_model.dart';
 import '../../../members/repository/i_members_repository.dart';
 import '../../repository/i_attendance_repository.dart';
@@ -40,6 +41,7 @@ class _BulkAttendanceDialogContentState
   List<UserModel> _filteredMembers = [];
   bool _selectAll = false;
   bool _isLoadingMembers = true;
+  _BulkDialogStep _currentStep = _BulkDialogStep.details;
 
   @override
   void initState() {
@@ -117,43 +119,176 @@ class _BulkAttendanceDialogContentState
 
   @override
   Widget build(BuildContext context) {
+    final mediaSize = MediaQuery.of(context).size;
+    final sizing = ResponsiveDialogUtils.buildSizing(
+      mediaSize,
+      minWidth: 480,
+      maxWidth: 1320,
+      compactHeightFactor: 0.58,
+      regularHeightFactor: 0.74,
+    );
+    final isWideLayout = sizing.width >= 900;
+    final sidePanelWidth =
+        (sizing.width * 0.34).clamp(260.0, sizing.width < 1100 ? 360.0 : 420.0);
+
     return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: 600,
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _buildHeader(context),
-            Flexible(
-              child: Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildEventSelector(),
-                      const SizedBox(height: 16),
-                      _buildDateSelector(),
-                      const SizedBox(height: 20),
-                      _buildMembersSelection(),
-                    ],
+      child: ConstrainedBox(
+        constraints: sizing.toConstraints(lockWidth: true),
+        child: SizedBox(
+          width: sizing.width,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildHeader(context),
+              Flexible(
+                child: Form(
+                  key: _formKey,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    switchInCurve: Curves.easeOut,
+                    switchOutCurve: Curves.easeIn,
+                    child: _buildResponsiveContent(
+                      key: ValueKey(_currentStep),
+                      isWideLayout: isWideLayout,
+                      sidePanelWidth: sidePanelWidth,
+                      mediaSize: mediaSize,
+                    ),
                   ),
                 ),
               ),
-            ),
-            _buildActionButtons(),
-          ],
+              _buildActionButtons(),
+            ],
+          ),
         ),
       ),
     );
   }
 
+  Widget _buildResponsiveContent({
+    Key? key,
+    required bool isWideLayout,
+    required double sidePanelWidth,
+    required Size mediaSize,
+  }) {
+    final isMembersStep = _currentStep == _BulkDialogStep.members;
+
+    if (!isMembersStep) {
+      return SingleChildScrollView(
+        key: key,
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildStepIndicator(),
+            const SizedBox(height: 16),
+            _buildEventSelector(),
+            const SizedBox(height: 20),
+            _buildDateSelector(),
+            const SizedBox(height: 20),
+            _buildSelectionSummary(),
+          ],
+        ),
+      );
+    }
+
+    if (!isWideLayout) {
+      return LayoutBuilder(
+        key: key,
+        builder: (context, constraints) {
+          final maxHeight = (mediaSize.height * 0.7).clamp(480.0, 620.0);
+
+          return Container(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildStepIndicator(),
+                const SizedBox(height: 8),
+                _buildCompactSelectionSummary(),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                    physics: const BouncingScrollPhysics(),
+                    child: _buildMembersSelection(
+                      maxListHeight:
+                          (mediaSize.height * 0.55).clamp(320.0, 460.0),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    if (isWideLayout) {
+      return Padding(
+        key: key,
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: sidePanelWidth,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildStepIndicator(),
+                  const SizedBox(height: 16),
+                  _buildEventSelector(),
+                  const SizedBox(height: 16),
+                  _buildDateSelector(),
+                  const SizedBox(height: 20),
+                  _buildSelectionSummary(
+                    showEventDetails: true,
+                    maxHeight: mediaSize.height / 5,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: _buildMembersSelection(
+                maxListHeight: (mediaSize.height * 0.6).clamp(360.0, 520.0),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildStepIndicator() {
+    final isDetails = _currentStep == _BulkDialogStep.details;
+
+    return Row(
+      children: [
+        _StepChip(
+          index: 1,
+          label: 'تفاصيل الحضور',
+          isActive: isDetails,
+        ),
+        _StepDivider(isActive: !isDetails),
+        _StepChip(
+          index: 2,
+          label: 'اختيار الأعضاء',
+          isActive: !isDetails,
+        ),
+      ],
+    );
+  }
+
   Widget _buildHeader(BuildContext context) {
+    final typography = ResponsiveDialogTypography.resolve(
+      MediaQuery.of(context).size,
+    );
+    final textTheme = Theme.of(context).textTheme;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
@@ -171,11 +306,12 @@ class _BulkAttendanceDialogContentState
             size: 28,
           ),
           const SizedBox(width: 12),
-          const Text(
+          Text(
             'تسجيل حضور جماعي',
-            style: TextStyle(
+            style: ResponsiveDialogTypography.merge(
+              textTheme.titleLarge,
+              typography.headline,
               color: AppColors.accentWhite,
-              fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -194,20 +330,37 @@ class _BulkAttendanceDialogContentState
   }
 
   Widget _buildEventSelector() {
+    final typography = ResponsiveDialogTypography.resolve(
+      MediaQuery.of(context).size,
+    );
+    final textTheme = Theme.of(context).textTheme;
+    const eventOptions = [
+      ['praise', 'تسبحة'],
+      ['mass', 'قداس'],
+      ['generalMeeting', 'اجتماع عام'],
+      ['specialMeeting', 'اجتماع خاص'],
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "نوع الاجتماع",
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+          style: ResponsiveDialogTypography.merge(
+            textTheme.titleMedium,
+            typography.title,
             color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           value: _selectedEvent,
+          style: ResponsiveDialogTypography.merge(
+            textTheme.bodyMedium,
+            typography.body,
+            color: AppColors.textPrimary,
+          ),
           decoration: InputDecoration(
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -220,14 +373,21 @@ class _BulkAttendanceDialogContentState
             filled: true,
             fillColor: AppColors.accentWhite,
           ),
-          items: const [
-            DropdownMenuItem(value: 'praise', child: Text('تسبحة')),
-            DropdownMenuItem(value: 'mass', child: Text('قداس')),
-            DropdownMenuItem(
-                value: 'generalMeeting', child: Text('اجتماع عام')),
-            DropdownMenuItem(
-                value: 'specialMeeting', child: Text('اجتماع خاص')),
-          ],
+          items: eventOptions
+              .map(
+                (option) => DropdownMenuItem(
+                  value: option.first,
+                  child: Text(
+                    option.last,
+                    style: ResponsiveDialogTypography.merge(
+                      textTheme.bodyMedium,
+                      typography.body,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ),
+              )
+              .toList(),
           onChanged: (value) => setState(() => _selectedEvent = value),
           validator: (value) {
             if (value == null || value.isEmpty) {
@@ -241,15 +401,21 @@ class _BulkAttendanceDialogContentState
   }
 
   Widget _buildDateSelector() {
+    final typography = ResponsiveDialogTypography.resolve(
+      MediaQuery.of(context).size,
+    );
+    final textTheme = Theme.of(context).textTheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'التاريخ',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+          style: ResponsiveDialogTypography.merge(
+            textTheme.titleMedium,
+            typography.title,
             color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
@@ -269,7 +435,11 @@ class _BulkAttendanceDialogContentState
                 const SizedBox(width: 12),
                 Text(
                   _formatDate(_selectedDate),
-                  style: const TextStyle(fontSize: 16),
+                  style: ResponsiveDialogTypography.merge(
+                    textTheme.bodyMedium,
+                    typography.subtitle,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 const Spacer(),
                 const Icon(Icons.arrow_drop_down),
@@ -281,7 +451,245 @@ class _BulkAttendanceDialogContentState
     );
   }
 
-  Widget _buildMembersSelection() {
+  Widget _buildSelectionSummary({
+    bool showEventDetails = false,
+    double? maxHeight,
+  }) {
+    final typography = ResponsiveDialogTypography.resolve(
+      MediaQuery.of(context).size,
+    );
+    final textTheme = Theme.of(context).textTheme;
+    final selectedCount = _selectedMembers.length;
+    final totalCount = _allMembers.length;
+    final eventLabel = _selectedEvent != null
+        ? _eventDisplayName(_selectedEvent!)
+        : 'لم يتم اختيار الاجتماع';
+    final dateLabel = _formatDate(_selectedDate);
+
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (showEventDetails) ...[
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryMaroon.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child:
+                    Icon(Icons.event, size: 16, color: AppColors.primaryMaroon),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  eventLabel,
+                  style: ResponsiveDialogTypography.merge(
+                    textTheme.bodyMedium,
+                    typography.body,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryMaroon.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.calendar_today,
+                    size: 16, color: AppColors.primaryMaroon),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                dateLabel,
+                style: ResponsiveDialogTypography.merge(
+                  textTheme.bodyMedium,
+                  typography.body,
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Divider(height: 1, color: AppColors.borderLight),
+          const SizedBox(height: 12),
+        ],
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primaryMaroon,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(Icons.people, size: 18, color: AppColors.accentWhite),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$selectedCount عضو محدد',
+                    style: ResponsiveDialogTypography.merge(
+                      textTheme.titleMedium,
+                      typography.subtitle,
+                      color: AppColors.primaryMaroon,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  if (totalCount > 0)
+                    Text(
+                      'من أصل $totalCount عضو متاح',
+                      style: ResponsiveDialogTypography.merge(
+                        textTheme.bodySmall,
+                        typography.label,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final container = Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primaryMaroon.withValues(alpha: 0.06),
+            AppColors.primaryMaroon.withValues(alpha: 0.02),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.primaryMaroon.withValues(alpha: 0.15),
+          width: 1.5,
+        ),
+      ),
+      child: content,
+    );
+
+    if (maxHeight != null) {
+      return ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: maxHeight,
+        ),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: container,
+        ),
+      );
+    }
+
+    return container;
+  }
+
+  Widget _buildCompactSelectionSummary() {
+    final typography = ResponsiveDialogTypography.resolve(
+      MediaQuery.of(context).size,
+    );
+    final textTheme = Theme.of(context).textTheme;
+    final selectedCount = _selectedMembers.length;
+    final eventLabel = _selectedEvent != null
+        ? _eventDisplayName(_selectedEvent!)
+        : 'لم يتم اختيار الاجتماع';
+    final dateLabel = _formatDate(_selectedDate);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.primaryMaroon.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppColors.primaryMaroon.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, size: 16, color: AppColors.primaryMaroon),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$eventLabel • $dateLabel',
+              style: ResponsiveDialogTypography.merge(
+                textTheme.bodySmall,
+                typography.label,
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.primaryMaroon,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.check_circle,
+                    size: 12, color: AppColors.accentWhite),
+                const SizedBox(width: 4),
+                Text(
+                  '$selectedCount',
+                  style: ResponsiveDialogTypography.merge(
+                    textTheme.labelSmall,
+                    typography.label * 0.9,
+                    color: AppColors.accentWhite,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _eventDisplayName(String eventKey) {
+    switch (eventKey) {
+      case 'praise':
+        return 'تسبحة';
+      case 'mass':
+        return 'قداس';
+      case 'generalMeeting':
+        return 'اجتماع عام';
+      case 'specialMeeting':
+        return 'اجتماع خاص';
+      default:
+        return eventKey;
+    }
+  }
+
+  Widget _buildMembersSelection({double? maxListHeight}) {
+    final typography = ResponsiveDialogTypography.resolve(
+      MediaQuery.of(context).size,
+    );
+    final textTheme = Theme.of(context).textTheme;
+    final listMaxHeight = maxListHeight ?? 320.0;
+
     if (_isLoadingMembers) {
       return const Center(
         child: Padding(
@@ -299,14 +707,23 @@ class _BulkAttendanceDialogContentState
           children: [
             Text(
               "اختر الأعضاء (${_selectedMembers.length}/${_allMembers.length})",
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+              style: ResponsiveDialogTypography.merge(
+                textTheme.titleMedium,
+                typography.title,
                 color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
               ),
             ),
             if (_filteredMembers.isNotEmpty)
               TextButton.icon(
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.primaryMaroon,
+                  textStyle: ResponsiveDialogTypography.merge(
+                    textTheme.bodyMedium,
+                    typography.body,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
                 onPressed: _toggleSelectAll,
                 icon: Icon(
                   _selectAll ? Icons.check_box : Icons.check_box_outline_blank,
@@ -314,7 +731,6 @@ class _BulkAttendanceDialogContentState
                 ),
                 label: Text(
                   _selectAll ? 'إلغاء المعروض' : 'اختيار المعروض',
-                  style: const TextStyle(color: AppColors.primaryMaroon),
                 ),
               ),
           ],
@@ -324,9 +740,18 @@ class _BulkAttendanceDialogContentState
         // Search bar
         TextField(
           controller: _searchController,
+          style: ResponsiveDialogTypography.merge(
+            textTheme.bodyMedium,
+            typography.body,
+            color: AppColors.textPrimary,
+          ),
           decoration: InputDecoration(
             hintText: 'ابحث عن عضو...',
-            hintStyle: TextStyle(color: AppColors.textSecondary),
+            hintStyle: ResponsiveDialogTypography.merge(
+              textTheme.bodyMedium,
+              typography.body,
+              color: AppColors.textSecondary,
+            ),
             prefixIcon:
                 const Icon(Icons.search, color: AppColors.primaryMaroon),
             suffixIcon: _searchController.text.isNotEmpty
@@ -359,8 +784,9 @@ class _BulkAttendanceDialogContentState
             child: Center(
               child: Text(
                 'لا يوجد أعضاء',
-                style: TextStyle(
-                  fontSize: 16,
+                style: ResponsiveDialogTypography.merge(
+                  textTheme.bodyMedium,
+                  typography.body,
                   color: AppColors.textSecondary,
                 ),
               ),
@@ -377,8 +803,9 @@ class _BulkAttendanceDialogContentState
                   const SizedBox(height: 8),
                   Text(
                     'لا توجد نتائج للبحث',
-                    style: TextStyle(
-                      fontSize: 16,
+                    style: ResponsiveDialogTypography.merge(
+                      textTheme.bodyMedium,
+                      typography.body,
                       color: AppColors.textSecondary,
                     ),
                   ),
@@ -388,13 +815,14 @@ class _BulkAttendanceDialogContentState
           )
         else
           Container(
-            constraints: const BoxConstraints(maxHeight: 300),
+            constraints: BoxConstraints(maxHeight: listMaxHeight),
             decoration: BoxDecoration(
               border: Border.all(color: AppColors.borderLight),
               borderRadius: BorderRadius.circular(12),
             ),
             child: ListView.separated(
               shrinkWrap: true,
+              padding: EdgeInsets.zero,
               itemCount: _filteredMembers.length,
               separatorBuilder: (context, index) => const Divider(height: 1),
               itemBuilder: (context, index) {
@@ -403,18 +831,24 @@ class _BulkAttendanceDialogContentState
                 return CheckboxListTile(
                   value: isSelected,
                   onChanged: (value) => _toggleMember(member),
+                  visualDensity: VisualDensity.compact,
+                  contentPadding:
+                      const EdgeInsetsDirectional.only(start: 16, end: 8),
                   title: Text(
                     member.name ?? 'Unknown',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
+                    style: ResponsiveDialogTypography.merge(
+                      textTheme.titleSmall,
+                      typography.body,
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   subtitle: member.email != null
                       ? Text(
                           member.email!,
-                          style: TextStyle(
-                            fontSize: 13,
+                          style: ResponsiveDialogTypography.merge(
+                            textTheme.bodySmall,
+                            typography.label,
                             color: AppColors.textSecondary,
                           ),
                         )
@@ -430,6 +864,13 @@ class _BulkAttendanceDialogContentState
   }
 
   Widget _buildActionButtons() {
+    final typography = ResponsiveDialogTypography.resolve(
+      MediaQuery.of(context).size,
+    );
+    final textTheme = Theme.of(context).textTheme;
+    final isDetailsStep = _currentStep == _BulkDialogStep.details;
+    final canProceed = (_selectedEvent != null);
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -481,7 +922,15 @@ class _BulkAttendanceDialogContentState
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () {
+                    if (isDetailsStep) {
+                      Navigator.pop(context);
+                    } else {
+                      setState(() {
+                        _currentStep = _BulkDialogStep.details;
+                      });
+                    }
+                  },
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     side: const BorderSide(color: AppColors.primaryMaroon),
@@ -489,11 +938,13 @@ class _BulkAttendanceDialogContentState
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'إلغاء',
-                    style: TextStyle(
-                      fontSize: 16,
+                  child: Text(
+                    isDetailsStep ? 'إلغاء' : 'رجوع',
+                    style: ResponsiveDialogTypography.merge(
+                      textTheme.titleMedium,
+                      typography.button,
                       color: AppColors.primaryMaroon,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -501,7 +952,15 @@ class _BulkAttendanceDialogContentState
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton(
-                  onPressed: _handleAddAttendance,
+                  onPressed: isDetailsStep
+                      ? (canProceed
+                          ? () {
+                              setState(() {
+                                _currentStep = _BulkDialogStep.members;
+                              });
+                            }
+                          : null)
+                      : _handleAddAttendance,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryMaroon,
                     foregroundColor: AppColors.accentWhite,
@@ -510,9 +969,14 @@ class _BulkAttendanceDialogContentState
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text(
-                    'تسجيل الحضور',
-                    style: TextStyle(fontSize: 16),
+                  child: Text(
+                    isDetailsStep ? 'التالي' : 'تسجيل الحضور',
+                    style: ResponsiveDialogTypography.merge(
+                      textTheme.titleMedium,
+                      typography.button,
+                      color: AppColors.accentWhite,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -568,5 +1032,94 @@ class _BulkAttendanceDialogContentState
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+}
+
+enum _BulkDialogStep {
+  details,
+  members,
+}
+
+class _StepChip extends StatelessWidget {
+  const _StepChip({
+    required this.index,
+    required this.label,
+    required this.isActive,
+  });
+
+  final int index;
+  final String label;
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    final typography =
+        ResponsiveDialogTypography.resolve(MediaQuery.of(context).size);
+    final textTheme = Theme.of(context).textTheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: isActive
+            ? AppColors.primaryMaroon.withValues(alpha: 0.12)
+            : AppColors.backgroundSecondary,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: isActive
+              ? AppColors.primaryMaroon
+              : AppColors.borderLight.withValues(alpha: 0.8),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 12,
+            backgroundColor: isActive
+                ? AppColors.primaryMaroon
+                : AppColors.borderLight.withValues(alpha: 0.7),
+            child: Text(
+              '$index',
+              style: const TextStyle(
+                color: AppColors.accentWhite,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: ResponsiveDialogTypography.merge(
+              textTheme.labelLarge,
+              typography.label,
+              color:
+                  isActive ? AppColors.primaryMaroon : AppColors.textSecondary,
+              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StepDivider extends StatelessWidget {
+  const _StepDivider({required this.isActive});
+
+  final bool isActive;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12),
+        height: 2,
+        decoration: BoxDecoration(
+          color: isActive
+              ? AppColors.primaryMaroon.withValues(alpha: 0.4)
+              : AppColors.borderLight.withValues(alpha: 0.6),
+        ),
+      ),
+    );
   }
 }

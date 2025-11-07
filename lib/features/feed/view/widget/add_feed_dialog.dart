@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:saint_demiana_children/core/di/service_locator.dart';
 import 'package:saint_demiana_children/core/constants/app_colors.dart';
 import 'package:saint_demiana_children/core/constants/spacing.dart';
+import 'package:saint_demiana_children/core/di/service_locator.dart';
+import 'package:saint_demiana_children/core/utils/responsive_dialog_utils.dart';
 import 'package:saint_demiana_children/features/feed/model/feed_model.dart';
 import 'package:saint_demiana_children/features/feed/viewmodel/add_feed/add_feed_cubit.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/model/class_model.dart';
@@ -189,6 +190,17 @@ class _AddFeedDialogState extends State<AddFeedDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final mediaSize = MediaQuery.of(context).size;
+    final sizing = ResponsiveDialogUtils.buildSizing(
+      mediaSize,
+      minWidth: 420,
+      maxWidth: 1180,
+      compactHeightFactor: 0.6,
+      regularHeightFactor: 0.82,
+    );
+    final typography = ResponsiveDialogTypography.resolve(mediaSize);
+    final textTheme = Theme.of(context).textTheme;
+
     return BlocListener<AddFeedCubit, AddFeedState>(
       listener: (context, state) {
         if (state is AddFeedSuccess) {
@@ -214,334 +226,409 @@ class _AddFeedDialogState extends State<AddFeedDialog> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Header
-                Row(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: ConstrainedBox(
+          constraints: sizing.toConstraints(lockWidth: true),
+          child: SizedBox(
+            width: sizing.width,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(
-                      widget.existingFeed != null ? Icons.edit : Icons.add,
-                      color: AppColors.primaryMaroon,
+                    // Header
+                    Row(
+                      children: [
+                        Icon(
+                          widget.existingFeed != null ? Icons.edit : Icons.add,
+                          color: AppColors.primaryMaroon,
+                        ),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            widget.existingFeed != null
+                                ? 'تعديل الإعلان'
+                                : 'إضافة إعلان جديد',
+                        style: ResponsiveDialogTypography.merge(
+                          textTheme.titleLarge,
+                          typography.headline,
+                          color: AppColors.primaryMaroon,
+                          fontWeight: FontWeight.bold,
+                        ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        widget.existingFeed != null
-                            ? 'تعديل الإعلان'
-                            : 'إضافة إعلان جديد',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primaryMaroon,
-                            ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.lg),
+                    const SizedBox(height: AppSpacing.lg),
 
-                // Class selector (only for new feeds)
-                if (widget.existingFeed == null)
-                  Builder(
-                    builder: (context) {
-                      final currentUser = sl<IProfileRepository>().user;
-                      final isKhadem = currentUser?.role == UserRole.khadem;
+                    // Class selector (only for new feeds)
+                    if (widget.existingFeed == null)
+                      Builder(
+                        builder: (context) {
+                          final currentUser = sl<IProfileRepository>().user;
+                          final isKhadem = currentUser?.role == UserRole.khadem;
 
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'الفصل',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'الفصل',
+                                style: ResponsiveDialogTypography.merge(
+                                  textTheme.titleMedium,
+                                  typography.title,
+                                  color: AppColors.textPrimary,
                                   fontWeight: FontWeight.w600,
                                 ),
-                          ),
-                          const SizedBox(height: AppSpacing.sm),
-                          _isLoading
-                              ? const Center(child: CircularProgressIndicator())
-                              : isKhadem
-                                  // For Khadem: Show read-only field with their class
-                                  ? Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: AppSpacing.md,
-                                        vertical: AppSpacing.md,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        border: Border.all(
-                                            color: Colors.grey.shade300),
-                                        borderRadius: BorderRadius.circular(
-                                            AppSpacing.radiusMd),
-                                        color: Colors.grey.shade50,
-                                      ),
-                                      width: double.infinity,
-                                      child: Row(
-                                        children: [
-                                          const Icon(Icons.class_,
-                                              color: AppColors.primaryMaroon),
-                                          const SizedBox(width: AppSpacing.sm),
-                                          Expanded(
-                                            child: Text(
-                                              _selectedClass?.name ??
-                                                  'لم يتم تعيين فصل',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyLarge,
+                              ),
+                              const SizedBox(height: AppSpacing.sm),
+                              _isLoading
+                                  ? const Center(
+                                      child: CircularProgressIndicator())
+                                  : isKhadem
+                                      // For Khadem: Show read-only field with their class
+                                      ? Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: AppSpacing.md,
+                                            vertical: AppSpacing.md,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            border: Border.all(
+                                                color: Colors.grey.shade300),
+                                            borderRadius: BorderRadius.circular(
+                                                AppSpacing.radiusMd),
+                                            color: Colors.grey.shade50,
+                                          ),
+                                          width: double.infinity,
+                                          child: Row(
+                                            children: [
+                                              const Icon(Icons.class_,
+                                                  color:
+                                                      AppColors.primaryMaroon),
+                                              const SizedBox(
+                                                  width: AppSpacing.sm),
+                                              Expanded(
+                                                child: Text(
+                                                  _selectedClass?.name ??
+                                                      'لم يتم تعيين فصل',
+                                        style: ResponsiveDialogTypography.merge(
+                                          textTheme.bodyLarge,
+                                          typography.subtitle,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      // For Super Admin: Show dropdown with all classes
+                                      : DropdownButtonFormField<ClassModel>(
+                                          value: _selectedClass,
+                                          style:
+                                              ResponsiveDialogTypography.merge(
+                                            textTheme.bodyMedium,
+                                            typography.body,
+                                            color: AppColors.textPrimary,
+                                          ),
+                                          decoration: InputDecoration(
+                                            border: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                      AppSpacing.radiusMd),
+                                            ),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                              horizontal: AppSpacing.md,
+                                              vertical: AppSpacing.sm,
                                             ),
                                           ),
-                                        ],
-                                      ),
-                                    )
-                                  // For Super Admin: Show dropdown with all classes
-                                  : DropdownButtonFormField<ClassModel>(
-                                      value: _selectedClass,
-                                      decoration: InputDecoration(
-                                        border: OutlineInputBorder(
-                                          borderRadius: BorderRadius.circular(
-                                              AppSpacing.radiusMd),
+                                          items: _classes.map((classModel) {
+                                            return DropdownMenuItem(
+                                              value: classModel,
+                                              child: Text(
+                                                classModel.name,
+                                                style: ResponsiveDialogTypography
+                                                    .merge(
+                                                  textTheme.bodyMedium,
+                                                  typography.body,
+                                                  color: AppColors.textPrimary,
+                                                ),
+                                              ),
+                                            );
+                                          }).toList(),
+                                          onChanged: (value) {
+                                            setState(() {
+                                              _selectedClass = value;
+                                            });
+                                          },
+                                          validator: (value) {
+                                            if (value == null) {
+                                              return 'الرجاء اختيار فصل';
+                                            }
+                                            return null;
+                                          },
                                         ),
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                          horizontal: AppSpacing.md,
-                                          vertical: AppSpacing.sm,
-                                        ),
-                                      ),
-                                      items: _classes.map((classModel) {
-                                        return DropdownMenuItem(
-                                          value: classModel,
-                                          child: Text(classModel.name),
-                                        );
-                                      }).toList(),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          _selectedClass = value;
-                                        });
-                                      },
-                                      validator: (value) {
-                                        if (value == null) {
-                                          return 'الرجاء اختيار فصل';
-                                        }
-                                        return null;
-                                      },
-                                    ),
-                          const SizedBox(height: AppSpacing.md),
-                        ],
-                      );
-                    },
-                  ),
-
-                // Type selector
-                Text(
-                  'نوع الإعلان',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                DropdownButtonFormField<String>(
-                  value: _selectedType,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.sm,
-                    ),
-                  ),
-                  items: const [
-                    DropdownMenuItem(
-                        value: 'announcement', child: Text('إعلان')),
-                    DropdownMenuItem(value: 'reminder', child: Text('تذكير')),
-                    DropdownMenuItem(value: 'post', child: Text('منشور')),
-                    DropdownMenuItem(value: 'link', child: Text('رابط')),
-                  ],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedType = value!;
-                    });
-                  },
-                ),
-                const SizedBox(height: AppSpacing.md),
-
-                // Title
-                Text(
-                  'العنوان',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                TextFormField(
-                  controller: _titleController,
-                  decoration: InputDecoration(
-                    hintText: 'أدخل عنوان الإعلان',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
-                      vertical: AppSpacing.sm,
-                    ),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'الرجاء إدخال العنوان';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: AppSpacing.md),
-
-                // Content
-                Text(
-                  'المحتوى',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                TextFormField(
-                  controller: _contentController,
-                  maxLines: 5,
-                  decoration: InputDecoration(
-                    hintText: 'أدخل محتوى الإعلان',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    ),
-                    contentPadding: const EdgeInsets.all(AppSpacing.md),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'الرجاء إدخال المحتوى';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: AppSpacing.md),
-
-                // Link (if type is link)
-                if (_selectedType == 'link')
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'الرابط',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      TextFormField(
-                        controller: _linkController,
-                        decoration: InputDecoration(
-                          hintText: 'https://example.com',
-                          border: OutlineInputBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppSpacing.radiusMd),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.sm,
-                          ),
-                          prefixIcon: const Icon(Icons.link),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                    ],
-                  ),
-
-                // Event date (if type is reminder)
-                if (_selectedType == 'reminder')
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'تاريخ الحدث',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      InkWell(
-                        onTap: _selectDate,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.md,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey),
-                            borderRadius:
-                                BorderRadius.circular(AppSpacing.radiusMd),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.calendar_today),
-                              const SizedBox(width: AppSpacing.sm),
-                              Text(
-                                _eventDate != null
-                                    ? '${_eventDate!.day}/${_eventDate!.month}/${_eventDate!.year}'
-                                    : 'اختر تاريخ الحدث',
-                              ),
+                              const SizedBox(height: AppSpacing.md),
                             ],
-                          ),
-                        ),
+                          );
+                        },
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                    ],
-                  ),
 
-                const SizedBox(height: AppSpacing.md),
-
-                // Submit button
-                BlocBuilder<AddFeedCubit, AddFeedState>(
-                  builder: (context, state) {
-                    final isLoading = state is AddFeedLoading;
-                    return ElevatedButton(
-                      onPressed: isLoading ? null : _submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryMaroon,
-                        foregroundColor: Colors.white,
-                        padding:
-                            const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                        shape: RoundedRectangleBorder(
+                    // Type selector
+                    Text(
+                      'نوع الإعلان',
+                      style: ResponsiveDialogTypography.merge(
+                        textTheme.titleMedium,
+                        typography.title,
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    DropdownButtonFormField<String>(
+                      value: _selectedType,
+                      style: ResponsiveDialogTypography.merge(
+                        textTheme.bodyMedium,
+                        typography.body,
+                        color: AppColors.textPrimary,
+                      ),
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
                           borderRadius:
                               BorderRadius.circular(AppSpacing.radiusMd),
                         ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.sm,
+                        ),
                       ),
-                      child: isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(Colors.white),
-                              ),
-                            )
-                          : Text(
-                              widget.existingFeed != null ? 'تحديث' : 'إضافة',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                      items: const [
+                        ['announcement', 'إعلان'],
+                        ['reminder', 'تذكير'],
+                        ['post', 'منشور'],
+                        ['link', 'رابط'],
+                      ]
+                          .map(
+                            (option) => DropdownMenuItem<String>(
+                              value: option.first,
+                              child: Text(
+                                option.last,
+                                style: ResponsiveDialogTypography.merge(
+                                  textTheme.bodyMedium,
+                                  typography.body,
+                                  color: AppColors.textPrimary,
+                                ),
                               ),
                             ),
-                    );
-                  },
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          _selectedType = value!;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+
+                    // Title
+                    Text(
+                      'العنوان',
+                      style: ResponsiveDialogTypography.merge(
+                        textTheme.titleMedium,
+                        typography.title,
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    TextFormField(
+                      controller: _titleController,
+                      decoration: InputDecoration(
+                        hintText: 'أدخل عنوان الإعلان',
+                        border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusMd),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.sm,
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'الرجاء إدخال العنوان';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+
+                    // Content
+                    Text(
+                      'المحتوى',
+                      style: ResponsiveDialogTypography.merge(
+                        textTheme.titleMedium,
+                        typography.title,
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    TextFormField(
+                      controller: _contentController,
+                      maxLines: 5,
+                      decoration: InputDecoration(
+                        hintText: 'أدخل محتوى الإعلان',
+                        border: OutlineInputBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusMd),
+                        ),
+                        contentPadding: const EdgeInsets.all(AppSpacing.md),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'الرجاء إدخال المحتوى';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+
+                    // Link (if type is link)
+                    if (_selectedType == 'link')
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'الرابط',
+                        style: ResponsiveDialogTypography.merge(
+                          textTheme.titleMedium,
+                          typography.title,
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          TextFormField(
+                            controller: _linkController,
+                            decoration: InputDecoration(
+                              hintText: 'https://example.com',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(
+                                    AppSpacing.radiusMd),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.md,
+                                vertical: AppSpacing.sm,
+                              ),
+                              prefixIcon: const Icon(Icons.link),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                        ],
+                      ),
+
+                    // Event date (if type is reminder)
+                    if (_selectedType == 'reminder')
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'تاريخ الحدث',
+                            style: ResponsiveDialogTypography.merge(
+                              textTheme.titleMedium,
+                              typography.title,
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          InkWell(
+                            onTap: _selectDate,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppSpacing.md,
+                                vertical: AppSpacing.md,
+                              ),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                                borderRadius: BorderRadius.circular(
+                                    AppSpacing.radiusMd),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.calendar_today),
+                                  const SizedBox(width: AppSpacing.sm),
+                                  Text(
+                                    _eventDate != null
+                                        ? '${_eventDate!.day}/${_eventDate!.month}/${_eventDate!.year}'
+                                        : 'اختر تاريخ الحدث',
+                                    style: ResponsiveDialogTypography.merge(
+                                      textTheme.bodyMedium,
+                                      typography.subtitle,
+                                      color: AppColors.textPrimary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                        ],
+                      ),
+
+                    const SizedBox(height: AppSpacing.md),
+
+                    // Submit button
+                    BlocBuilder<AddFeedCubit, AddFeedState>(
+                      builder: (context, state) {
+                        final isLoading = state is AddFeedLoading;
+                        return ElevatedButton(
+                          onPressed: isLoading ? null : _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryMaroon,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                vertical: AppSpacing.md),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(
+                                  AppSpacing.radiusMd),
+                            ),
+                          ),
+                          child: isLoading
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor:
+                                        AlwaysStoppedAnimation<Color>(
+                                            Colors.white),
+                                  ),
+                                )
+                              : Text(
+                                  widget.existingFeed != null
+                                      ? 'تحديث'
+                                      : 'إضافة',
+                                  style: ResponsiveDialogTypography.merge(
+                                    textTheme.titleMedium,
+                                    typography.button,
+                                    color: AppColors.accentWhite,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),

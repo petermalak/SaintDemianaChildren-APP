@@ -5,6 +5,7 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/atte
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/data_refresh_cubit.dart';
+import '../../../../../core/utils/responsive_dialog_utils.dart';
 import '../../../../../core/widgets/custom_text_field.dart';
 import '../../../../authentication/model/user_model.dart';
 import '../../../../super_admin_&_khadem_layout/attendance/repository/i_attendance_repository.dart';
@@ -48,18 +49,28 @@ class _AddAttendanceDialogContentState
 
   @override
   Widget build(BuildContext context) {
+    final mediaSize = MediaQuery.of(context).size;
+    final sizing = ResponsiveDialogUtils.buildSizing(
+      mediaSize,
+      minWidth: 420,
+      maxWidth: 1280,
+      compactHeightFactor: 0.64,
+      regularHeightFactor: 0.78,
+    );
+    final typography = ResponsiveDialogTypography.resolve(mediaSize);
+    final textTheme = Theme.of(context).textTheme;
+
     return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        constraints: BoxConstraints(
-          minHeight: MediaQuery.of(context).size.height * 0.8,
-          maxWidth: 500,
-          maxHeight: MediaQuery.of(context).size.height * 0.9,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
+      child: ConstrainedBox(
+        constraints: sizing.toConstraints(lockWidth: true),
+        child: SizedBox(
+          width: sizing.width,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
                 gradient: AppColors.primaryGradient,
@@ -76,11 +87,12 @@ class _AddAttendanceDialogContentState
                     size: 24,
                   ),
                   const SizedBox(width: 12),
-                  const Text(
+                  Text(
                     'تسجيل حضور',
-                    style: TextStyle(
+                    style: ResponsiveDialogTypography.merge(
+                      textTheme.titleLarge,
+                      typography.headline,
                       color: AppColors.accentWhite,
-                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -166,7 +178,15 @@ class _AddAttendanceDialogContentState
                       Expanded(
                         child: TextButton(
                           onPressed: () => Navigator.pop(context),
-                          child: const Text('إلغاء'),
+                          child: Text(
+                            'إلغاء',
+                            style: ResponsiveDialogTypography.merge(
+                              textTheme.titleMedium,
+                              typography.button,
+                              color: AppColors.primaryMaroon,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -177,7 +197,15 @@ class _AddAttendanceDialogContentState
                             foregroundColor: AppColors.accentWhite,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          child: const Text('تسجيل الحضور'),
+                          child: Text(
+                            'تسجيل الحضور',
+                            style: ResponsiveDialogTypography.merge(
+                              textTheme.titleMedium,
+                              typography.button,
+                              color: AppColors.accentWhite,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
                       ),
                     ],
@@ -188,19 +216,26 @@ class _AddAttendanceDialogContentState
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildEventSelector() {
+    final typography = ResponsiveDialogTypography.resolve(
+      MediaQuery.of(context).size,
+    );
+    final textTheme = Theme.of(context).textTheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "اختار الاجتماع",
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+          style: ResponsiveDialogTypography.merge(
+            textTheme.titleMedium,
+            typography.title,
             color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
@@ -238,15 +273,21 @@ class _AddAttendanceDialogContentState
   }
 
   Widget _buildDateSelector() {
+    final typography = ResponsiveDialogTypography.resolve(
+      MediaQuery.of(context).size,
+    );
+    final textTheme = Theme.of(context).textTheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'تاريخ الحضور',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+          style: ResponsiveDialogTypography.merge(
+            textTheme.titleMedium,
+            typography.title,
             color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
@@ -267,7 +308,11 @@ class _AddAttendanceDialogContentState
                   const SizedBox(width: 12),
                   Text(
                     _formatDate(_selectedDate),
-                    style: const TextStyle(fontSize: 16),
+                    style: ResponsiveDialogTypography.merge(
+                      textTheme.bodyMedium,
+                      typography.subtitle,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                   const Spacer(),
                   const Icon(Icons.arrow_drop_down),
@@ -281,15 +326,21 @@ class _AddAttendanceDialogContentState
   }
 
   Widget _buildMembersField() {
+    final typography = ResponsiveDialogTypography.resolve(
+      MediaQuery.of(context).size,
+    );
+    final textTheme = Theme.of(context).textTheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "الحاضرين",
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+          style: ResponsiveDialogTypography.merge(
+            textTheme.titleMedium,
+            typography.title,
             color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
@@ -308,9 +359,11 @@ class _AddAttendanceDialogContentState
             itemBuilder: (BuildContext context, int index) {
               return Text(
                 widget.members[index].name!,
-                style: const TextStyle(
-                  fontSize: 16,
+                style: ResponsiveDialogTypography.merge(
+                  textTheme.bodyMedium,
+                  typography.body,
                   color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w500,
                 ),
               );
             },
@@ -362,4 +415,5 @@ class _AddAttendanceDialogContentState
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
   }
+
 }

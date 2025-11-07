@@ -5,6 +5,7 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/memb
 
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
+import '../../../../../core/utils/responsive_dialog_utils.dart';
 import '../../../../../core/widgets/info_form.dart';
 import '../../../../authentication/model/user_model.dart';
 import '../../repository/i_members_repository.dart';
@@ -43,16 +44,27 @@ class _AddUserDialogState extends State<AddUserDialog> {
 
     bool isUpdate = widget.user != null;
     final currentUser = widget.user ?? UserModel();
+    final mediaSize = MediaQuery.of(context).size;
+    final sizing = ResponsiveDialogUtils.buildSizing(
+      mediaSize,
+      minWidth: 440,
+      maxWidth: 1280,
+      compactHeightFactor: 0.62,
+      regularHeightFactor: 0.78,
+    );
+    final typography = ResponsiveDialogTypography.resolve(mediaSize);
+    final textTheme = Theme.of(context).textTheme;
+
     return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: 500,
-          maxHeight: MediaQuery.of(context).size.height * 0.9,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
+      child: ConstrainedBox(
+        constraints: sizing.toConstraints(lockWidth: true),
+        child: SizedBox(
+          width: sizing.width,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
             // Header
             Container(
               padding: const EdgeInsets.all(20),
@@ -75,9 +87,10 @@ class _AddUserDialogState extends State<AddUserDialog> {
                     isUpdate
                         ? 'تعديل ملف ${currentUser.name}'
                         : 'إضافة عضو جديد',
-                    style: const TextStyle(
+                    style: ResponsiveDialogTypography.merge(
+                      textTheme.titleLarge,
+                      typography.headline,
                       color: AppColors.accentWhite,
-                      fontSize: 18,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -179,7 +192,15 @@ class _AddUserDialogState extends State<AddUserDialog> {
                         Expanded(
                           child: TextButton(
                             onPressed: () => Navigator.pop(context),
-                            child: const Text('إلغاء'),
+                            child: Text(
+                              'إلغاء',
+                              style: ResponsiveDialogTypography.merge(
+                                textTheme.titleMedium,
+                                typography.button,
+                                color: AppColors.primaryMaroon,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -212,7 +233,14 @@ class _AddUserDialogState extends State<AddUserDialog> {
                               padding: const EdgeInsets.symmetric(vertical: 12),
                             ),
                             child: Text(
-                                isUpdate ? 'حفظ التغييرات' : 'إضافة العضو'),
+                              isUpdate ? 'حفظ التغييرات' : 'إضافة العضو',
+                              style: ResponsiveDialogTypography.merge(
+                                textTheme.titleMedium,
+                                typography.button,
+                                color: AppColors.accentWhite,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -224,10 +252,16 @@ class _AddUserDialogState extends State<AddUserDialog> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildRoleSelector() {
+    final typography = ResponsiveDialogTypography.resolve(
+      MediaQuery.of(context).size,
+    );
+    final textTheme = Theme.of(context).textTheme;
+
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: AppColors.borderLight),
@@ -236,6 +270,11 @@ class _AddUserDialogState extends State<AddUserDialog> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: DropdownButtonFormField<UserRole>(
         value: _selectedRole,
+        style: ResponsiveDialogTypography.merge(
+          textTheme.bodyMedium,
+          typography.body,
+          color: AppColors.textPrimary,
+        ),
         decoration: const InputDecoration(
           labelText: 'الدور',
           border: InputBorder.none,
@@ -244,7 +283,14 @@ class _AddUserDialogState extends State<AddUserDialog> {
         items: UserRole.values.map((UserRole role) {
           return DropdownMenuItem<UserRole>(
             value: role,
-            child: Text(_getRoleDisplayName(role)),
+            child: Text(
+              _getRoleDisplayName(role),
+              style: ResponsiveDialogTypography.merge(
+                textTheme.bodyMedium,
+                typography.body,
+                color: AppColors.textPrimary,
+              ),
+            ),
           );
         }).toList(),
         onChanged: (UserRole? newValue) {

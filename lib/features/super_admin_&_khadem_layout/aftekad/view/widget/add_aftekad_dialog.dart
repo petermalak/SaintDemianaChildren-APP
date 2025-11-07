@@ -7,6 +7,7 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/afte
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/data_refresh_cubit.dart';
+import '../../../../../core/utils/responsive_dialog_utils.dart';
 import '../../../../../core/widgets/custom_text_field.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
 
@@ -31,149 +32,179 @@ class _AddAftekadDialogState extends State<AddAftekadDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final mediaSize = MediaQuery.of(context).size;
+    final sizing = ResponsiveDialogUtils.buildSizing(
+      mediaSize,
+      minWidth: 420,
+      maxWidth: 1180,
+      compactHeightFactor: 0.62,
+      regularHeightFactor: 0.76,
+    );
+    final typography = ResponsiveDialogTypography.resolve(mediaSize);
+    final textTheme = Theme.of(context).textTheme;
+
     return BlocProvider(
       create: (context) => AddAftekadCubit(sl<IAftekadRepository>()),
       child: Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
-          constraints: BoxConstraints(
-            maxWidth: 500,
-            maxHeight: MediaQuery.of(context).size.height * 0.9,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: const BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(20),
-                    topRight: Radius.circular(20),
+        child: ConstrainedBox(
+          constraints: sizing.toConstraints(lockWidth: true),
+          child: SizedBox(
+            width: sizing.width,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: const BoxDecoration(
+                    gradient: AppColors.primaryGradient,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(20),
+                      topRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.people,
+                        color: AppColors.accentWhite,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'افتقاد ${widget.user.makhdoum?.name}',
+                        style: ResponsiveDialogTypography.merge(
+                          textTheme.titleLarge,
+                          typography.headline,
+                          color: AppColors.accentWhite,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(
+                          Icons.close,
+                          color: AppColors.accentWhite,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.people,
-                      color: AppColors.accentWhite,
-                      size: 24,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      'افتقاد ${widget.user.makhdoum?.name}',
-                      style: const TextStyle(
-                        color: AppColors.accentWhite,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                Flexible(
+                  child: Form(
+                    key: _formKey,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 8,
                       ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(
-                        Icons.close,
-                        color: AppColors.accentWhite,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Flexible(
-                child: Form(
-                  key: _formKey,
-                  child: SingleChildScrollView(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildTypeSelector(),
-                        const SizedBox(height: 12),
-                        _buildDateSelector(),
-                        const SizedBox(height: 16),
-                        CustomTextField(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildTypeSelector(),
+                          const SizedBox(height: 12),
+                          _buildDateSelector(),
+                          const SizedBox(height: 16),
+                          CustomTextField(
                             controller: _outcomeController,
-                            labelText: 'ملاحظات'),
-                      ],
+                            labelText: 'ملاحظات',
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  border: Border(
-                    top: BorderSide(color: AppColors.borderLight),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(color: AppColors.borderLight),
+                    ),
+                  ),
+                  child: BlocConsumer<AddAftekadCubit, AddAftekadState>(
+                    listener: (context, state) {
+                      if (state is AddAftekadSuccess) {
+                        print(
+                          '✅ [AddAftekadDialog] Success! Closing dialog and triggering refresh...',
+                        );
+
+                        Navigator.pop(context);
+
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('تم تسجيل الافتقاد بنجاح'),
+                            backgroundColor: Colors.green,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+
+                        Future.delayed(const Duration(milliseconds: 300), () {
+                          print(
+                            '🔄 [AddAftekadDialog] Triggering DataRefreshCubit NOW...',
+                          );
+                          sl<DataRefreshCubit>().refreshMultiple({
+                            RefreshType.eftekad,
+                            RefreshType.stats,
+                          });
+                        });
+                      } else if (state is AddAftekadFailure) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(state.errorMessage),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                      }
+                    },
+                    builder: (context, state) {
+                      if (state is AddAftekadLoading) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => Navigator.pop(context),
+                          child: Text(
+                            'إلغاء',
+                            style: ResponsiveDialogTypography.merge(
+                              textTheme.titleMedium,
+                              typography.button,
+                              color: AppColors.primaryMaroon,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () => _handleAddAftekad(context),
+                              style: ElevatedButton.styleFrom(
+                                foregroundColor: AppColors.accentWhite,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                              ),
+                          child: Text(
+                            'تسجيل الافتقاد',
+                            style: ResponsiveDialogTypography.merge(
+                              textTheme.titleMedium,
+                              typography.button,
+                              color: AppColors.accentWhite,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
-                child: BlocConsumer<AddAftekadCubit, AddAftekadState>(
-                  listener: (context, state) {
-                    if (state is AddAftekadSuccess) {
-                      print(
-                          '✅ [AddAftekadDialog] Success! Closing dialog and triggering refresh...');
-
-                      // DON'T modify widget.user.status - let refresh handle it
-                      // widget.user.status = true; // REMOVED
-
-                      Navigator.pop(context);
-
-                      // Show success message
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('تم تسجيل الافتقاد بنجاح'),
-                          backgroundColor: Colors.green,
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-
-                      // Trigger refresh AFTER dialog closes
-                      Future.delayed(const Duration(milliseconds: 300), () {
-                        print(
-                            '🔄 [AddAftekadDialog] Triggering DataRefreshCubit NOW...');
-                        sl<DataRefreshCubit>().refreshMultiple({
-                          RefreshType.eftekad,
-                          RefreshType.stats,
-                        });
-                      });
-                    } else if (state is AddAftekadFailure) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(state.errorMessage),
-                          backgroundColor: AppColors.error,
-                        ),
-                      );
-                    }
-                  },
-                  builder: (context, state) {
-                    if (state is AddAftekadLoading) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    return Row(
-                      children: [
-                        Expanded(
-                          child: TextButton(
-                            onPressed: () => Navigator.pop(context),
-                            child: const Text('إلغاء'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: () => _handleAddAftekad(context),
-                            style: ElevatedButton.styleFrom(
-                              foregroundColor: AppColors.accentWhite,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            child: const Text('تسجيل الافتقاد'),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -225,20 +256,31 @@ class _AddAftekadDialogState extends State<AddAftekadDialog> {
   }
 
   Widget _buildTypeSelector() {
+    final typography = ResponsiveDialogTypography.resolve(
+      MediaQuery.of(context).size,
+    );
+    final textTheme = Theme.of(context).textTheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           "اختار طريقة الافتقاد",
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+          style: ResponsiveDialogTypography.merge(
+            textTheme.titleMedium,
+            typography.title,
             color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<AftekadType>(
           value: _selectedType,
+          style: ResponsiveDialogTypography.merge(
+            textTheme.bodyMedium,
+            typography.body,
+            color: AppColors.textPrimary,
+          ),
           decoration: InputDecoration(
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -252,7 +294,14 @@ class _AddAftekadDialogState extends State<AddAftekadDialog> {
           items: AftekadType.values.map((event) {
             return DropdownMenuItem(
               value: event,
-              child: Text(_getAftekadTypeArabicName(event)),
+              child: Text(
+                _getAftekadTypeArabicName(event),
+                style: ResponsiveDialogTypography.merge(
+                  textTheme.bodyMedium,
+                  typography.body,
+                  color: AppColors.textPrimary,
+                ),
+              ),
             );
           }).toList(),
           onChanged: (value) => setState(() => _selectedType = value),
@@ -279,15 +328,21 @@ class _AddAftekadDialogState extends State<AddAftekadDialog> {
   }
 
   Widget _buildDateSelector() {
+    final typography = ResponsiveDialogTypography.resolve(
+      MediaQuery.of(context).size,
+    );
+    final textTheme = Theme.of(context).textTheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'تاريخ الحضور',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+          style: ResponsiveDialogTypography.merge(
+            textTheme.titleMedium,
+            typography.title,
             color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
@@ -307,7 +362,11 @@ class _AddAftekadDialogState extends State<AddAftekadDialog> {
                 const SizedBox(width: 12),
                 Text(
                   _formatDate(_selectedDate),
-                  style: const TextStyle(fontSize: 16),
+                  style: ResponsiveDialogTypography.merge(
+                    textTheme.bodyMedium,
+                    typography.subtitle,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 const Spacer(),
                 const Icon(Icons.arrow_drop_down),

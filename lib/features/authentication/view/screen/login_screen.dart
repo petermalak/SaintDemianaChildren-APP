@@ -495,43 +495,6 @@ class _LoginScreenState extends State<LoginScreen>
                       // Login Button
                       SizedBox(
                           height: isMobile ? AppSpacing.lg : AppSpacing.xl),
-
-                      // Help Text
-                      Container(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentGold
-                              .withValues(alpha: 0.1.clamp(0.0, 1.0)),
-                          borderRadius:
-                              BorderRadius.circular(AppSpacing.radiusMd),
-                          border: Border.all(
-                            color: AppColors.accentGold
-                                .withValues(alpha: 0.3.clamp(0.0, 1.0)),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.info_outline,
-                              color: AppColors.primaryMaroon,
-                              size: 20,
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: Text(
-                                'Need help? Contact your church administrator',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: AppColors.textSecondary,
-                                      fontSize: AppSpacing.sm,
-                                    ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),
