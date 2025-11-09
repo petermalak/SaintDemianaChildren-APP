@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/view/widget/member_card.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/viewmodel/get_members/get_members_cubit.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/model/class_model.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../authentication/model/user_model.dart';
@@ -30,6 +32,10 @@ class _MembersScreenState extends State<MembersScreen>
   final List<UserModel> _selectedMembers = [];
   late GetMembersCubit _membersCubit;
   bool _isGridView = true; // true for grid, false for list
+  UserModel? _currentUser;
+  String? _selectedClassId;
+  bool _isLoadingClasses = false;
+  List<ClassModel> _availableClasses = const [];
 
   @override
   bool get wantKeepAlive => true;
@@ -37,7 +43,76 @@ class _MembersScreenState extends State<MembersScreen>
   @override
   void initState() {
     super.initState();
+    _currentUser = sl<IProfileRepository>().user;
     _membersCubit = GetMembersCubit(sl<IMembersRepository>())..getMembers();
+    _loadClassesIfNeeded();
+  }
+
+  Future<void> _loadClassesIfNeeded() async {
+    final user = _currentUser;
+    if (user == null) return;
+    final userRole = user.role;
+    final isKhadem = userRole == UserRole.khadem;
+    final isSuperAdmin = userRole == UserRole.superAdmin;
+
+    if (!isKhadem && !isSuperAdmin) return;
+
+    setState(() {
+      _isLoadingClasses = true;
+    });
+
+    final classRepository = sl<IClassRepository>();
+    final result = isSuperAdmin
+        ? await classRepository.loadClasses()
+        : await classRepository.loadMyClasses();
+
+    result.fold(
+      (error) {
+        print('⚠️ [MembersScreen] Failed to load classes: $error');
+        if (!mounted) return;
+        setState(() {
+          _availableClasses = const [];
+        });
+      },
+      (classes) {
+        if (!mounted) return;
+        setState(() {
+          _availableClasses = classes;
+          if (_selectedClassId != null &&
+              !_availableClasses.any((c) => c.id == _selectedClassId)) {
+            _selectedClassId = null;
+          }
+        });
+      },
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _isLoadingClasses = false;
+    });
+  }
+
+  bool get _shouldShowClassFilter {
+    final user = _currentUser;
+    if (user == null) return false;
+    if (user.role == UserRole.superAdmin) {
+      return _availableClasses.isNotEmpty;
+    }
+    if (user.role == UserRole.khadem) {
+      return _availableClasses.length > 1;
+    }
+    return false;
+  }
+
+  List<UserModel> _filterMembersByClass(List<UserModel> members) {
+    if (_selectedClassId == null) return members;
+    
+    return members.where((member) {
+      if (member.classes.isNotEmpty) {
+        return member.classes.any((info) => info.classId == _selectedClassId);
+      }
+      return member.classId == _selectedClassId;
+    }).toList();
   }
 
   @override
@@ -66,9 +141,12 @@ class _MembersScreenState extends State<MembersScreen>
           } else if (state is GetMembersSuccess) {
             // Filter out current user
             final currentUser = sl<IProfileRepository>().user;
-            final filteredMembers = state.members
+            var filteredMembers = state.members
                 .where((member) => member.id != currentUser?.id)
                 .toList();
+            
+            // Filter by class if selected
+            filteredMembers = _filterMembersByClass(filteredMembers);
 
             return RefreshIndicator(
                 onRefresh: () async {
@@ -77,6 +155,7 @@ class _MembersScreenState extends State<MembersScreen>
                 child: Column(
                   children: [
                     _buildSearchSection(filteredMembers),
+                    _buildClassFilter(),
                     _buildViewToggle(),
                     Expanded(
                       child: filteredMembers.isEmpty
@@ -225,6 +304,48 @@ class _MembersScreenState extends State<MembersScreen>
                         .toLowerCase()
                         .contains(value.toLowerCase()))
                 .toList();
+          });
+        },
+      ),
+    );
+  }
+
+  Widget _buildClassFilter() {
+    if (_isLoadingClasses) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: LinearProgressIndicator(),
+      );
+    }
+
+    if (!_shouldShowClassFilter) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: DropdownButtonFormField<String?>(
+        value: _selectedClassId,
+        decoration: const InputDecoration(
+          labelText: 'اختر فصل',
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+        items: [
+          const DropdownMenuItem<String?>(
+            value: null,
+            child: Text('كل الفصول'),
+          ),
+          ..._availableClasses.map(
+            (classModel) => DropdownMenuItem<String?>(
+              value: classModel.id,
+              child: Text(classModel.name),
+            ),
+          ),
+        ],
+        onChanged: (value) {
+          setState(() {
+            _selectedClassId = value;
           });
         },
       ),

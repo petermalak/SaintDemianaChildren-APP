@@ -25,9 +25,9 @@ class StatsCubit extends Cubit<StatsState> {
     });
   }
 
-  Future<void> fetchStats() async {
+  Future<void> fetchStats({String? classId}) async {
     emit(StatsLoading());
-    final response = await _homeRepository.fetchStats();
+    final response = await _homeRepository.fetchStats(classId: classId);
     response.fold(
       (error) => emit(StatsFailure(error)),
       (stats) => emit(StatsSuccess(stats)),

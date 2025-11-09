@@ -19,10 +19,13 @@ class MembersRepository implements IMembersRepository {
 
   @override
   Future<Either<String, List<UserModel>>> fetchMembers(
-      bool isSuperAdmin) async {
+      bool isSuperAdmin, {String? classId}) async {
     try {
+      final queryParams = classId != null ? {'classId': classId} : null;
       final response = await _apiService.get(
-          path: isSuperAdmin ? ApiEndpoints.users : ApiEndpoints.members);
+        path: isSuperAdmin ? ApiEndpoints.users : ApiEndpoints.members,
+        queryParameters: queryParams,
+      );
       final members = (response.data as List)
           .map((memberJson) => UserModel.fromJson(memberJson))
           .toList();

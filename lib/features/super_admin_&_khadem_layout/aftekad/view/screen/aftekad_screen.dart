@@ -99,14 +99,20 @@ class _AftekadScreenState extends State<AftekadScreen> {
   }
 
   Future<void> _loadClassOptions() async {
-    if (_currentUser?.role != UserRole.khadem) return;
+    final userRole = _currentUser?.role;
+    final isKhadem = userRole == UserRole.khadem;
+    final isSuperAdmin = userRole == UserRole.superAdmin;
+
+    if (!isKhadem && !isSuperAdmin) return;
 
     setState(() {
       _isLoadingClasses = true;
     });
 
     final classRepository = sl<IClassRepository>();
-    final result = await classRepository.loadMyClasses();
+    final result = isSuperAdmin
+        ? await classRepository.loadClasses()
+        : await classRepository.loadMyClasses();
 
     if (!mounted) return;
 
@@ -265,8 +271,17 @@ class _AftekadScreenState extends State<AftekadScreen> {
     );
   }
 
-  bool get _canFilterByClass =>
-      _currentUser?.role == UserRole.khadem && _classOptions.isNotEmpty;
+  bool get _canFilterByClass {
+    final user = _currentUser;
+    if (user == null) return false;
+    if (user.role == UserRole.superAdmin) {
+      return _classOptions.isNotEmpty;
+    }
+    if (user.role == UserRole.khadem) {
+      return _classOptions.length > 1;
+    }
+    return false;
+  }
 
   Widget _buildSearchField() {
     return TextField(

@@ -3,13 +3,17 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/home/model/stats_model.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/home/viewmodel/stats_cubit.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/view/widget/add_user_dialog.dart';
+import 'package:saint_demiana_children/features/authentication/model/user_model.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/model/class_model.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
+import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
 
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/data_refresh_cubit.dart';
 import '../../repository/i_home_repository.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final Animation<double> cardAnimation;
   final ScrollController? scrollController;
 
@@ -20,17 +24,142 @@ class HomeScreen extends StatelessWidget {
   });
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  UserModel? _currentUser;
+  String? _selectedClassId;
+  bool _isLoadingClasses = false;
+  List<ClassModel> _availableClasses = const [];
+  late StatsCubit _statsCubit;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentUser = sl<IProfileRepository>().user;
+    _statsCubit = StatsCubit(sl<IHomeRepository>(), sl<DataRefreshCubit>())
+      ..fetchStats(classId: _selectedClassId);
+    _loadClassesIfNeeded();
+  }
+
+  @override
+  void dispose() {
+    _statsCubit.close();
+    super.dispose();
+  }
+
+  Future<void> _loadClassesIfNeeded() async {
+    final user = _currentUser;
+    if (user == null) return;
+    final userRole = user.role;
+    final isKhadem = userRole == UserRole.khadem;
+    final isSuperAdmin = userRole == UserRole.superAdmin;
+
+    if (!isKhadem && !isSuperAdmin) return;
+
+    setState(() {
+      _isLoadingClasses = true;
+    });
+
+    final classRepository = sl<IClassRepository>();
+    final result = isSuperAdmin
+        ? await classRepository.loadClasses()
+        : await classRepository.loadMyClasses();
+
+    result.fold(
+      (error) {
+        print('⚠️ [HomeScreen] Failed to load classes: $error');
+        if (!mounted) return;
+        setState(() {
+          _availableClasses = const [];
+        });
+      },
+      (classes) {
+        if (!mounted) return;
+        setState(() {
+          _availableClasses = classes;
+          if (_selectedClassId != null &&
+              !_availableClasses.any((c) => c.id == _selectedClassId)) {
+            _selectedClassId = null;
+          }
+        });
+      },
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _isLoadingClasses = false;
+    });
+  }
+
+  bool get _shouldShowClassFilter {
+    final user = _currentUser;
+    if (user == null) return false;
+    if (user.role == UserRole.superAdmin) {
+      return _availableClasses.isNotEmpty;
+    }
+    if (user.role == UserRole.khadem) {
+      return _availableClasses.length > 1;
+    }
+    return false;
+  }
+
+  Widget _buildClassFilter() {
+    if (_isLoadingClasses) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: LinearProgressIndicator(),
+      );
+    }
+
+    if (!_shouldShowClassFilter) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: DropdownButtonFormField<String?>(
+        value: _selectedClassId,
+        decoration: const InputDecoration(
+          labelText: 'اختر فصل',
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+        items: [
+          const DropdownMenuItem<String?>(
+            value: null,
+            child: Text('كل الفصول'),
+          ),
+          ..._availableClasses.map(
+            (classModel) => DropdownMenuItem<String?>(
+              value: classModel.id,
+              child: Text(classModel.name),
+            ),
+          ),
+        ],
+        onChanged: (value) {
+          setState(() {
+            _selectedClassId = value;
+          });
+          _statsCubit.fetchStats(classId: value);
+        },
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-        controller: scrollController,
+        controller: widget.scrollController,
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           _buildWelcomeSection(),
-          const SizedBox(height: 24),
-          BlocProvider(
-              create: (context) =>
-                  StatsCubit(sl<IHomeRepository>(), sl<DataRefreshCubit>())
-                    ..fetchStats(),
+          const SizedBox(height: 16),
+          _buildClassFilter(),
+          const SizedBox(height: 8),
+          BlocProvider.value(
+              value: _statsCubit,
               child: BlocBuilder<StatsCubit, StatsState>(
                   builder: (context, state) {
                 if (state is StatsLoading) {
@@ -135,10 +264,10 @@ class HomeScreen extends StatelessWidget {
   Widget _buildStatCard(
       String title, String value, IconData icon, Color color) {
     return AnimatedBuilder(
-      animation: cardAnimation,
+      animation: widget.cardAnimation,
       builder: (context, child) {
         return Transform.scale(
-          scale: cardAnimation.value,
+          scale: widget.cardAnimation.value,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             decoration: BoxDecoration(

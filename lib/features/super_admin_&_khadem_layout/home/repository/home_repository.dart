@@ -12,9 +12,13 @@ class HomeRepository implements IHomeRepository {
   HomeRepository(this._apiService);
 
   @override
-  Future<Either<String, StatsModel>> fetchStats() async {
+  Future<Either<String, StatsModel>> fetchStats({String? classId}) async {
     try {
-      final response = await _apiService.get(path: ApiEndpoints.stats);
+      final queryParams = classId != null ? {'classId': classId} : null;
+      final response = await _apiService.get(
+        path: ApiEndpoints.stats,
+        queryParameters: queryParams,
+      );
 
       return right(StatsModel.fromJson(response.data['data']));
       // return right(StatsModel(
