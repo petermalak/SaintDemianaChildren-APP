@@ -167,15 +167,15 @@ class _AddAftekadDialogState extends State<AddAftekadDialog> {
                           Expanded(
                             child: TextButton(
                               onPressed: () => Navigator.pop(context),
-                          child: Text(
-                            'إلغاء',
-                            style: ResponsiveDialogTypography.merge(
-                              textTheme.titleMedium,
-                              typography.button,
-                              color: AppColors.primaryMaroon,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                              child: Text(
+                                'إلغاء',
+                                style: ResponsiveDialogTypography.merge(
+                                  textTheme.titleMedium,
+                                  typography.button,
+                                  color: AppColors.primaryMaroon,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -187,15 +187,15 @@ class _AddAftekadDialogState extends State<AddAftekadDialog> {
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 12),
                               ),
-                          child: Text(
-                            'تسجيل الافتقاد',
-                            style: ResponsiveDialogTypography.merge(
-                              textTheme.titleMedium,
-                              typography.button,
-                              color: AppColors.accentWhite,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
+                              child: Text(
+                                'تسجيل الافتقاد',
+                                style: ResponsiveDialogTypography.merge(
+                                  textTheme.titleMedium,
+                                  typography.button,
+                                  color: AppColors.accentWhite,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
                           ),
                         ],

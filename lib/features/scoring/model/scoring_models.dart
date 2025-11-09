@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:equatable/equatable.dart';
 
 /// Scoring System Configuration Model
@@ -12,6 +14,8 @@ class ScoringConfigModel extends Equatable {
   final int praisePoints;
   final List<ScoringTierModel>? tiers;
   final ClassInfo? classInfo;
+  final ScoreDefinitionModel? scoreDefinition;
+  final String? scoreDefinitionId;
 
   const ScoringConfigModel({
     required this.id,
@@ -24,6 +28,8 @@ class ScoringConfigModel extends Equatable {
     required this.praisePoints,
     this.tiers,
     this.classInfo,
+    this.scoreDefinition,
+    this.scoreDefinitionId,
   });
 
   factory ScoringConfigModel.fromJson(Map<String, dynamic> json) {
@@ -43,6 +49,10 @@ class ScoringConfigModel extends Equatable {
           : null,
       classInfo:
           json['class'] != null ? ClassInfo.fromJson(json['class']) : null,
+      scoreDefinition: json['scoreDefinition'] != null
+          ? ScoreDefinitionModel.fromJson(json['scoreDefinition'])
+          : null,
+      scoreDefinitionId: json['scoreDefinitionId'],
     );
   }
 
@@ -56,6 +66,7 @@ class ScoringConfigModel extends Equatable {
       'generalMeetingPoints': generalMeetingPoints,
       'specialMeetingPoints': specialMeetingPoints,
       'praisePoints': praisePoints,
+      'scoreDefinitionId': scoreDefinitionId ?? scoreDefinition?.id,
     };
   }
 
@@ -70,6 +81,8 @@ class ScoringConfigModel extends Equatable {
     int? praisePoints,
     List<ScoringTierModel>? tiers,
     ClassInfo? classInfo,
+    ScoreDefinitionModel? scoreDefinition,
+    String? scoreDefinitionId,
   }) {
     return ScoringConfigModel(
       id: id ?? this.id,
@@ -82,6 +95,8 @@ class ScoringConfigModel extends Equatable {
       praisePoints: praisePoints ?? this.praisePoints,
       tiers: tiers ?? this.tiers,
       classInfo: classInfo ?? this.classInfo,
+      scoreDefinition: scoreDefinition ?? this.scoreDefinition,
+      scoreDefinitionId: scoreDefinitionId ?? this.scoreDefinitionId,
     );
   }
 
@@ -97,6 +112,152 @@ class ScoringConfigModel extends Equatable {
         praisePoints,
         tiers,
         classInfo,
+        scoreDefinition,
+        scoreDefinitionId,
+      ];
+}
+
+class ScoreDefinitionModel extends Equatable {
+  final String id;
+  final String name;
+  final String? description;
+  final Map<String, dynamic> criteria;
+  final Map<String, dynamic>? metadata;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  const ScoreDefinitionModel({
+    required this.id,
+    required this.name,
+    this.description,
+    this.criteria = const {},
+    this.metadata,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory ScoreDefinitionModel.fromJson(Map<String, dynamic> json) {
+    final criteria = _parseCriteria(json['criteria']);
+    return ScoreDefinitionModel(
+      id: json['id'] ?? '',
+      name: json['name'] ?? '',
+      description: json['description'],
+      criteria: criteria,
+      metadata: _parseMap(json['metadata']),
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'])
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'])
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'description': description,
+      'criteria': criteria,
+      'metadata': metadata,
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
+    };
+  }
+
+  int get massPoints => _attendanceValue('mass');
+  int get generalMeetingPoints => _attendanceValue('generalMeeting');
+  int get specialMeetingPoints => _attendanceValue('specialMeeting');
+  int get praisePoints => _attendanceValue('praise');
+
+  Map<String, int> get attendancePoints => {
+        'massPoints': massPoints,
+        'generalMeetingPoints': generalMeetingPoints,
+        'specialMeetingPoints': specialMeetingPoints,
+        'praisePoints': praisePoints,
+      };
+
+  ScoreDefinitionModel copyWith({
+    String? id,
+    String? name,
+    String? description,
+    Map<String, dynamic>? criteria,
+    Map<String, dynamic>? metadata,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return ScoreDefinitionModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      criteria: criteria ?? this.criteria,
+      metadata: metadata ?? this.metadata,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  static Map<String, dynamic> _parseCriteria(dynamic value) {
+    if (value == null) return {};
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    if (value is String) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map<String, dynamic>) return decoded;
+        if (decoded is Map) {
+          return Map<String, dynamic>.from(decoded);
+        }
+        return {};
+      } catch (_) {
+        return {};
+      }
+    }
+    return {};
+  }
+
+  static Map<String, dynamic>? _parseMap(dynamic value) {
+    if (value == null) return null;
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) return Map<String, dynamic>.from(value);
+    if (value is String) {
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map<String, dynamic>) return decoded;
+        if (decoded is Map) {
+          return Map<String, dynamic>.from(decoded);
+        }
+        return null;
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  int _attendanceValue(String key) {
+    final attendance = criteria['attendance'];
+    if (attendance is Map) {
+      final value = attendance[key];
+      if (value is num) return value.toInt();
+      if (value is String) {
+        return int.tryParse(value) ?? 0;
+      }
+    }
+    return 0;
+  }
+
+  @override
+  List<Object?> get props => [
+        id,
+        name,
+        description,
+        criteria,
+        metadata,
+        createdAt,
+        updatedAt,
       ];
 }
 

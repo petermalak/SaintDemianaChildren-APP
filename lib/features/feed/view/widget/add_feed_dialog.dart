@@ -252,12 +252,12 @@ class _AddFeedDialogState extends State<AddFeedDialog> {
                             widget.existingFeed != null
                                 ? 'تعديل الإعلان'
                                 : 'إضافة إعلان جديد',
-                        style: ResponsiveDialogTypography.merge(
-                          textTheme.titleLarge,
-                          typography.headline,
-                          color: AppColors.primaryMaroon,
-                          fontWeight: FontWeight.bold,
-                        ),
+                            style: ResponsiveDialogTypography.merge(
+                              textTheme.titleLarge,
+                              typography.headline,
+                              color: AppColors.primaryMaroon,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         IconButton(
@@ -317,11 +317,14 @@ class _AddFeedDialogState extends State<AddFeedDialog> {
                                                 child: Text(
                                                   _selectedClass?.name ??
                                                       'لم يتم تعيين فصل',
-                                        style: ResponsiveDialogTypography.merge(
-                                          textTheme.bodyLarge,
-                                          typography.subtitle,
-                                          color: AppColors.textPrimary,
-                                        ),
+                                                  style:
+                                                      ResponsiveDialogTypography
+                                                          .merge(
+                                                    textTheme.bodyLarge,
+                                                    typography.subtitle,
+                                                    color:
+                                                        AppColors.textPrimary,
+                                                  ),
                                                 ),
                                               ),
                                             ],
@@ -353,8 +356,9 @@ class _AddFeedDialogState extends State<AddFeedDialog> {
                                               value: classModel,
                                               child: Text(
                                                 classModel.name,
-                                                style: ResponsiveDialogTypography
-                                                    .merge(
+                                                style:
+                                                    ResponsiveDialogTypography
+                                                        .merge(
                                                   textTheme.bodyMedium,
                                                   typography.body,
                                                   color: AppColors.textPrimary,
@@ -507,12 +511,12 @@ class _AddFeedDialogState extends State<AddFeedDialog> {
                         children: [
                           Text(
                             'الرابط',
-                        style: ResponsiveDialogTypography.merge(
-                          textTheme.titleMedium,
-                          typography.title,
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                        ),
+                            style: ResponsiveDialogTypography.merge(
+                              textTheme.titleMedium,
+                              typography.title,
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           const SizedBox(height: AppSpacing.sm),
                           TextFormField(
@@ -520,8 +524,8 @@ class _AddFeedDialogState extends State<AddFeedDialog> {
                             decoration: InputDecoration(
                               hintText: 'https://example.com',
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(
-                                    AppSpacing.radiusMd),
+                                borderRadius:
+                                    BorderRadius.circular(AppSpacing.radiusMd),
                               ),
                               contentPadding: const EdgeInsets.symmetric(
                                 horizontal: AppSpacing.md,
@@ -558,8 +562,8 @@ class _AddFeedDialogState extends State<AddFeedDialog> {
                               ),
                               decoration: BoxDecoration(
                                 border: Border.all(color: Colors.grey),
-                                borderRadius: BorderRadius.circular(
-                                    AppSpacing.radiusMd),
+                                borderRadius:
+                                    BorderRadius.circular(AppSpacing.radiusMd),
                               ),
                               child: Row(
                                 children: [
@@ -597,8 +601,8 @@ class _AddFeedDialogState extends State<AddFeedDialog> {
                             padding: const EdgeInsets.symmetric(
                                 vertical: AppSpacing.md),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(
-                                  AppSpacing.radiusMd),
+                              borderRadius:
+                                  BorderRadius.circular(AppSpacing.radiusMd),
                             ),
                           ),
                           child: isLoading
@@ -607,9 +611,8 @@ class _AddFeedDialogState extends State<AddFeedDialog> {
                                   width: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    valueColor:
-                                        AlwaysStoppedAnimation<Color>(
-                                            Colors.white),
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white),
                                   ),
                                 )
                               : Text(

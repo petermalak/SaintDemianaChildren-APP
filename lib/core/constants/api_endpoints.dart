@@ -47,8 +47,13 @@ class ApiEndpoints {
   static const String scoringConfig = "scoring/config/";
   static const String scoringTiers = "scoring/tiers/";
   static const String scoringTierById = "scoring/tiers/tier/";
+  static const String scoreDefinitions = "scoring/scores/definitions";
+  static String scoreDefinitionById(String definitionId) =>
+      "scoring/scores/definitions/$definitionId";
   static const String scoringUsers = "scoring/users/";
   static const String scoringClasses = "scoring/classes/";
+  static String scoringClassScore(String classId) =>
+      "scoring/classes/$classId/score";
   static const String myScores = "scoring/my-scores";
   static const String myTransactions = "scoring/my-transactions";
 }

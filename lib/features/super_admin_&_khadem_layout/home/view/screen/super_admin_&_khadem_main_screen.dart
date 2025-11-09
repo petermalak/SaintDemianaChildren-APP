@@ -13,8 +13,9 @@ import '../../../../../core/di/service_locator.dart';
 import '../../../../authentication/model/user_model.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
 import '../../../../scoring/view/screen/scoring_config_screen.dart';
-import '../../../../scoring/viewmodel/config_cubit/config_cubit.dart';
 import '../../../../scoring/repository/i_scoring_repository.dart';
+import '../../../../scoring/viewmodel/config_cubit/config_cubit.dart';
+import '../../../../scoring/viewmodel/score_definition_cubit/score_definition_cubit.dart';
 import '../../../members/view/widget/add_user_dialog.dart';
 import '../../../members/view/widget/attendance_dialog.dart';
 
@@ -511,8 +512,16 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BlocProvider(
-          create: (context) => ConfigCubit(sl<IScoringRepository>()),
+        builder: (context) => MultiBlocProvider(
+          providers: [
+            BlocProvider(
+              create: (context) => ConfigCubit(sl<IScoringRepository>()),
+            ),
+            BlocProvider(
+              create: (context) =>
+                  ScoreDefinitionCubit(sl<IScoringRepository>()),
+            ),
+          ],
           child: const ScoringConfigScreen(
             classId: null,
             className: null,

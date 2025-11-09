@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../model/scoring_models.dart';
 import '../../viewmodel/config_cubit/config_cubit.dart';
 import '../../viewmodel/config_cubit/config_state.dart';
-import '../../model/scoring_models.dart';
-import '../widget/edit_system_name_dialog.dart';
+import '../../viewmodel/score_definition_cubit/score_definition_cubit.dart';
+import '../../viewmodel/score_definition_cubit/score_definition_state.dart';
 import '../widget/edit_attendance_points_dialog.dart';
+import '../widget/edit_system_name_dialog.dart';
 import '../widget/edit_tier_dialog.dart';
+import '../widget/score_definition_picker_dialog.dart';
 
 class ScoringConfigScreen extends StatefulWidget {
   final String? classId;
@@ -29,6 +32,9 @@ class _ScoringConfigScreenState extends State<ScoringConfigScreen> {
   void initState() {
     super.initState();
     _loadConfig();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ScoreDefinitionCubit>().loadDefinitions();
+    });
   }
 
   void _loadConfig() {
@@ -45,58 +51,78 @@ class _ScoringConfigScreenState extends State<ScoringConfigScreen> {
               : 'Global Scoring Config',
         ),
       ),
-      body: BlocListener<ConfigCubit, ConfigState>(
-        listener: (context, state) {
-          if (state is ConfigError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
+      body: MultiBlocListener(
+        listeners: [
+          BlocListener<ConfigCubit, ConfigState>(
+            listener: (context, state) {
+              if (state is ConfigError) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.message),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
 
-          if (state is ConfigLoaded) {
-            setState(() {
-              _config = state.config;
-              _tiers = state.config.tiers;
-            });
-          }
+              if (state is ConfigLoaded) {
+                setState(() {
+                  _config = state.config;
+                  _tiers = state.config.tiers;
+                });
+              }
 
-          if (state is ConfigUpdated) {
-            setState(() {
-              _config = state.config;
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Configuration updated successfully'),
-                backgroundColor: Colors.green,
-              ),
-            );
-            _loadConfig(); // Reload to get latest data
-          }
+              if (state is ConfigUpdated) {
+                setState(() {
+                  _config = state.config;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Configuration updated successfully'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+                _loadConfig(); // Reload to get latest data
+              }
 
-          if (state is TiersLoaded) {
-            setState(() {
-              _tiers = state.tiers;
-            });
-          }
+              if (state is TiersLoaded) {
+                setState(() {
+                  _tiers = state.tiers;
+                });
+              }
 
-          if (state is TierCreated ||
-              state is TierUpdated ||
-              state is TierDeleted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Tier updated successfully'),
-                backgroundColor: Colors.green,
-              ),
-            );
-            _loadConfig(); // Reload to get latest data
-          }
-        },
+              if (state is TierCreated ||
+                  state is TierUpdated ||
+                  state is TierDeleted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Tier updated successfully'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+                _loadConfig(); // Reload to get latest data
+              }
+            },
+          ),
+          BlocListener<ScoreDefinitionCubit, ScoreDefinitionState>(
+            listenWhen: (previous, current) =>
+                current.errorMessage != null &&
+                current.errorMessage != previous.errorMessage,
+            listener: (context, state) {
+              if (state.errorMessage != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(state.errorMessage!),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                context.read<ScoreDefinitionCubit>().clearError();
+              }
+            },
+          ),
+        ],
         child: BlocBuilder<ConfigCubit, ConfigState>(
           builder: (context, state) {
-            if (state is ConfigLoading) {
+            if (state is ConfigLoading && _config == null) {
               return const Center(child: CircularProgressIndicator());
             }
 
@@ -117,6 +143,8 @@ class _ScoringConfigScreenState extends State<ScoringConfigScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          _buildScoreDefinitionSection(),
+          const SizedBox(height: 16),
           _buildSystemNameSection(),
           const SizedBox(height: 16),
           _buildAttendancePointsSection(),
@@ -152,6 +180,117 @@ class _ScoringConfigScreenState extends State<ScoringConfigScreen> {
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildScoreDefinitionSection() {
+    return BlocBuilder<ScoreDefinitionCubit, ScoreDefinitionState>(
+      builder: (context, definitionState) {
+        final currentDefinition = _config?.scoreDefinition;
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Score Profile',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            currentDefinition?.name ??
+                                'No profile assigned yet',
+                            style: const TextStyle(fontSize: 16),
+                          ),
+                          if (currentDefinition?.description?.isNotEmpty ==
+                              true) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              currentDefinition!.description!,
+                              style: const TextStyle(color: Colors.grey),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (widget.classId != null)
+                      TextButton.icon(
+                        onPressed: definitionState.isLoading
+                            ? null
+                            : _showAssignScoreProfileDialog,
+                        icon: const Icon(Icons.swap_horiz),
+                        label: const Text('Assign profile'),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (currentDefinition != null)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildProfileChip(
+                        'Mass',
+                        currentDefinition.massPoints,
+                        Icons.church,
+                      ),
+                      _buildProfileChip(
+                        'General Meeting',
+                        currentDefinition.generalMeetingPoints,
+                        Icons.people_alt,
+                      ),
+                      _buildProfileChip(
+                        'Special Meeting',
+                        currentDefinition.specialMeetingPoints,
+                        Icons.event_available,
+                      ),
+                      _buildProfileChip(
+                        'Praise',
+                        currentDefinition.praisePoints,
+                        Icons.music_note,
+                      ),
+                    ],
+                  )
+                else
+                  const Text(
+                    'Assign a score profile to control the scoring rules for this class.',
+                  ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: OutlinedButton.icon(
+                    onPressed: definitionState.isLoading
+                        ? null
+                        : _showManageScoreProfilesDialog,
+                    icon: const Icon(Icons.manage_accounts),
+                    label: const Text('Manage profiles'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildProfileChip(String label, int points, IconData icon) {
+    return Chip(
+      avatar: Icon(icon, size: 18),
+      label: Text('$label: $points pts'),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
     );
   }
 
@@ -217,6 +356,92 @@ class _ScoringConfigScreenState extends State<ScoringConfigScreen> {
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showAssignScoreProfileDialog() async {
+    if (widget.classId == null) return;
+
+    final definitionCubit = context.read<ScoreDefinitionCubit>();
+    await definitionCubit.loadDefinitions(forceRefresh: true);
+    if (!mounted) return;
+
+    final selectedDefinitionId = await showDialog<String?>(
+      context: context,
+      builder: (dialogContext) => BlocProvider.value(
+        value: definitionCubit,
+        child: ScoreDefinitionPickerDialog(
+          selectable: true,
+          initialSelectionId: _config?.scoreDefinition?.id,
+          currentConfig: _config,
+        ),
+      ),
+    );
+
+    if (selectedDefinitionId == null) return;
+
+    _showProgressDialog();
+    final updatedConfig = await definitionCubit.assignDefinitionToClass(
+      widget.classId!,
+      selectedDefinitionId,
+    );
+
+    if (!mounted) return;
+
+    Navigator.of(context, rootNavigator: true).pop(); // close loader
+
+    if (updatedConfig != null) {
+      setState(() {
+        _config = updatedConfig;
+      });
+      _loadConfig();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Score profile assigned successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else {
+      final error = definitionCubit.state.errorMessage ??
+          'Failed to assign score profile. Please try again.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: Colors.red,
+        ),
+      );
+      definitionCubit.clearError();
+    }
+  }
+
+  Future<void> _showManageScoreProfilesDialog() async {
+    final definitionCubit = context.read<ScoreDefinitionCubit>();
+    await definitionCubit.loadDefinitions(forceRefresh: true);
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => BlocProvider.value(
+        value: definitionCubit,
+        child: ScoreDefinitionPickerDialog(
+          selectable: false,
+          currentConfig: _config,
+        ),
+      ),
+    );
+  }
+
+  void _showProgressDialog() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        child: Center(
+          child: CircularProgressIndicator(),
+        ),
       ),
     );
   }

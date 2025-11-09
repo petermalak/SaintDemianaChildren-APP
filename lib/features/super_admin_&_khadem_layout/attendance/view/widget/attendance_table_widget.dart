@@ -71,11 +71,9 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
   void _selectAll() {
     setState(() {
       _selectedRecordIds.clear();
-      _selectedRecordIds.addAll(
-        widget.attendanceRecords
-            .where((r) => r.id != null && r.id!.isNotEmpty)
-            .map((r) => r.id!)
-      );
+      _selectedRecordIds.addAll(widget.attendanceRecords
+          .where((r) => r.id != null && r.id!.isNotEmpty)
+          .map((r) => r.id!));
     });
   }
 
@@ -250,7 +248,7 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
 
   Future<void> _deleteSelectedRecords(BuildContext context) async {
     final cubit = AddAttendanceCubit(sl<IAttendanceRepository>());
-    
+
     await cubit.bulkDeleteAttendance(
       attendanceIds: _selectedRecordIds.toList(),
     );
@@ -333,7 +331,10 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
     // Create a map to track attendance records by user+date+type for selection
     final Map<String, String?> recordIdMap = {};
     for (final record in widget.attendanceRecords) {
-      if (record.userName != null && record.date != null && record.type != null && record.id != null) {
+      if (record.userName != null &&
+          record.date != null &&
+          record.type != null &&
+          record.id != null) {
         final key = '${record.userName}|${record.date}|${record.type}';
         recordIdMap[key] = record.id;
       }
@@ -427,9 +428,11 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     mainAxisSize: MainAxisSize.min,
                     children: _categories.map((cat) {
-                      final isPresent = widget.attendance[member]?[date]?[cat] == true;
+                      final isPresent =
+                          widget.attendance[member]?[date]?[cat] == true;
                       final recordId = recordIdMap['$member|$date|$cat'];
-                      final isSelected = recordId != null && _selectedRecordIds.contains(recordId);
+                      final isSelected = recordId != null &&
+                          _selectedRecordIds.contains(recordId);
 
                       return GestureDetector(
                         onTap: _selectionMode && recordId != null && isPresent

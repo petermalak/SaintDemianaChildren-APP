@@ -7,8 +7,9 @@ import '../../../../../../core/constants/app_colors.dart';
 import '../../../../../../core/di/service_locator.dart';
 import '../../../../../authentication/model/user_model.dart';
 import '../../../../../scoring/view/screen/scoring_config_screen.dart';
-import '../../../../../scoring/viewmodel/config_cubit/config_cubit.dart';
 import '../../../../../scoring/repository/i_scoring_repository.dart';
+import '../../../../../scoring/viewmodel/config_cubit/config_cubit.dart';
+import '../../../../../scoring/viewmodel/score_definition_cubit/score_definition_cubit.dart';
 import '../../model/class_membership_model.dart';
 import '../../model/class_model.dart';
 import '../../repository/i_class_repository.dart';
@@ -329,8 +330,16 @@ class _ClassCardState extends State<ClassCard> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BlocProvider(
-          create: (context) => ConfigCubit(sl<IScoringRepository>()),
+        builder: (context) => MultiBlocProvider(
+          providers: [
+            BlocProvider(
+              create: (context) => ConfigCubit(sl<IScoringRepository>()),
+            ),
+            BlocProvider(
+              create: (context) =>
+                  ScoreDefinitionCubit(sl<IScoringRepository>()),
+            ),
+          ],
           child: ScoringConfigScreen(
             classId: classItem.id,
             className: classItem.name,

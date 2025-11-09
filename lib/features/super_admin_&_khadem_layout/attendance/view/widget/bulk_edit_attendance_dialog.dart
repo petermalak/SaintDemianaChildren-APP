@@ -177,7 +177,8 @@ class _BulkEditAttendanceDialogContentState
               color: AppColors.primaryMaroon,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.people, size: 18, color: AppColors.accentWhite),
+            child: const Icon(Icons.people,
+                size: 18, color: AppColors.accentWhite),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -262,7 +263,8 @@ class _BulkEditAttendanceDialogContentState
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primaryMaroon, width: 2),
+              borderSide:
+                  const BorderSide(color: AppColors.primaryMaroon, width: 2),
             ),
             filled: true,
             fillColor: AppColors.accentWhite,
@@ -427,7 +429,8 @@ class _BulkEditAttendanceDialogContentState
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primaryMaroon, width: 2),
+              borderSide:
+                  const BorderSide(color: AppColors.primaryMaroon, width: 2),
             ),
             filled: true,
             fillColor: _updateNotes ? AppColors.accentWhite : Colors.grey[200],
@@ -563,8 +566,10 @@ class _BulkEditAttendanceDialogContentState
       return;
     }
 
-    final attendanceIds =
-        widget.selectedRecords.where((r) => r.id != null).map((r) => r.id!).toList();
+    final attendanceIds = widget.selectedRecords
+        .where((r) => r.id != null)
+        .map((r) => r.id!)
+        .toList();
 
     if (attendanceIds.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -588,4 +593,3 @@ class _BulkEditAttendanceDialogContentState
     return '${date.day}/${date.month}/${date.year}';
   }
 }
-

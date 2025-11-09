@@ -18,8 +18,8 @@ class MembersRepository implements IMembersRepository {
   }
 
   @override
-  Future<Either<String, List<UserModel>>> fetchMembers(
-      bool isSuperAdmin, {String? classId}) async {
+  Future<Either<String, List<UserModel>>> fetchMembers(bool isSuperAdmin,
+      {String? classId}) async {
     try {
       final queryParams = classId != null ? {'classId': classId} : null;
       final response = await _apiService.get(

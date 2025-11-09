@@ -43,7 +43,8 @@ class AddAttendanceCubit extends Cubit<AddAttendanceState> {
     DateTime? date,
     String? notes,
   }) async {
-    print('🔵 [AddAttendanceCubit] Starting bulk update attendance...'); // Debug
+    print(
+        '🔵 [AddAttendanceCubit] Starting bulk update attendance...'); // Debug
     print('🔵 Attendance IDs count: ${attendanceIds.length}'); // Debug
     print('🔵 Event: $event'); // Debug
     print('🔵 Date: $date'); // Debug
@@ -72,7 +73,8 @@ class AddAttendanceCubit extends Cubit<AddAttendanceState> {
   Future<void> bulkDeleteAttendance({
     required List<String> attendanceIds,
   }) async {
-    print('🔵 [AddAttendanceCubit] Starting bulk delete attendance...'); // Debug
+    print(
+        '🔵 [AddAttendanceCubit] Starting bulk delete attendance...'); // Debug
     print('🔵 Attendance IDs count: ${attendanceIds.length}'); // Debug
 
     emit(AddAttendanceLoading());

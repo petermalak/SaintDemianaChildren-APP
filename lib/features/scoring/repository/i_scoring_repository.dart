@@ -29,6 +29,20 @@ abstract class IScoringRepository {
   );
   Future<Either<String, void>> deleteTier(String tierId);
 
+  // Score definitions
+  Future<Either<String, List<ScoreDefinitionModel>>> getScoreDefinitions();
+  Future<Either<String, ScoreDefinitionModel>> createScoreDefinition(
+    Map<String, dynamic> definitionData,
+  );
+  Future<Either<String, ScoreDefinitionModel>> updateScoreDefinition(
+    String definitionId,
+    Map<String, dynamic> definitionData,
+  );
+  Future<Either<String, ScoringConfigModel>> assignScoreDefinitionToClass(
+    String classId,
+    String definitionId,
+  );
+
   // User Scores
   Future<Either<String, UserScoreModel>> getUserScore(
     String userId,

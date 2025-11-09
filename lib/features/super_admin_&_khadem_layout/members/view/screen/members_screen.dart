@@ -106,7 +106,7 @@ class _MembersScreenState extends State<MembersScreen>
 
   List<UserModel> _filterMembersByClass(List<UserModel> members) {
     if (_selectedClassId == null) return members;
-    
+
     return members.where((member) {
       if (member.classes.isNotEmpty) {
         return member.classes.any((info) => info.classId == _selectedClassId);
@@ -144,7 +144,7 @@ class _MembersScreenState extends State<MembersScreen>
             var filteredMembers = state.members
                 .where((member) => member.id != currentUser?.id)
                 .toList();
-            
+
             // Filter by class if selected
             filteredMembers = _filterMembersByClass(filteredMembers);
 

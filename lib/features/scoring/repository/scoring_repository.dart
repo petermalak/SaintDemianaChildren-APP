@@ -207,6 +207,113 @@ class ScoringRepository implements IScoringRepository {
   }
 
   @override
+  Future<Either<String, List<ScoreDefinitionModel>>>
+      getScoreDefinitions() async {
+    try {
+      final response =
+          await _apiService.get(path: ApiEndpoints.scoreDefinitions);
+
+      if (response.data['success'] == true) {
+        final definitions = (response.data['data'] as List)
+            .map((json) => ScoreDefinitionModel.fromJson(json))
+            .toList();
+        definitions.sort((a, b) => a.name.compareTo(b.name));
+        return right(definitions);
+      } else {
+        return left(
+          response.data['message'] ?? 'Failed to load score definitions',
+        );
+      }
+    } on DioException catch (e) {
+      return left(
+        e.response?.data['message'] ?? 'Failed to load score definitions',
+      );
+    } catch (e) {
+      return left('An unexpected error occurred: $e');
+    }
+  }
+
+  @override
+  Future<Either<String, ScoreDefinitionModel>> createScoreDefinition(
+    Map<String, dynamic> definitionData,
+  ) async {
+    try {
+      final response = await _apiService.post(
+        path: ApiEndpoints.scoreDefinitions,
+        body: definitionData,
+      );
+
+      if (response.data['success'] == true) {
+        return right(ScoreDefinitionModel.fromJson(response.data['data']));
+      } else {
+        return left(
+          response.data['message'] ?? 'Failed to create score definition',
+        );
+      }
+    } on DioException catch (e) {
+      return left(
+        e.response?.data['message'] ?? 'Failed to create score definition',
+      );
+    } catch (e) {
+      return left('An unexpected error occurred: $e');
+    }
+  }
+
+  @override
+  Future<Either<String, ScoreDefinitionModel>> updateScoreDefinition(
+    String definitionId,
+    Map<String, dynamic> definitionData,
+  ) async {
+    try {
+      final response = await _apiService.put(
+        path: ApiEndpoints.scoreDefinitionById(definitionId),
+        body: definitionData,
+      );
+
+      if (response.data['success'] == true) {
+        return right(ScoreDefinitionModel.fromJson(response.data['data']));
+      } else {
+        return left(
+          response.data['message'] ?? 'Failed to update score definition',
+        );
+      }
+    } on DioException catch (e) {
+      return left(
+        e.response?.data['message'] ?? 'Failed to update score definition',
+      );
+    } catch (e) {
+      return left('An unexpected error occurred: $e');
+    }
+  }
+
+  @override
+  Future<Either<String, ScoringConfigModel>> assignScoreDefinitionToClass(
+    String classId,
+    String definitionId,
+  ) async {
+    try {
+      final response = await _apiService.put(
+        path: ApiEndpoints.scoringClassScore(classId),
+        body: {'scoreDefinitionId': definitionId},
+      );
+
+      if (response.data['success'] == true) {
+        return right(ScoringConfigModel.fromJson(response.data['data']));
+      } else {
+        return left(
+          response.data['message'] ?? 'Failed to assign score definition',
+        );
+      }
+    } on DioException catch (e) {
+      return left(
+        e.response?.data['message'] ?? 'Failed to assign score definition',
+      );
+    } catch (e) {
+      return left('An unexpected error occurred: $e');
+    }
+  }
+
+  @override
   Future<Either<String, UserScoreModel>> getUserScore(
     String userId,
     String classId,

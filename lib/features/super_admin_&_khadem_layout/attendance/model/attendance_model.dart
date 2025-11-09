@@ -52,7 +52,7 @@ class AttendanceRecord {
   final String? date;
   final String? type;
   final String? notes;
-  
+
   AttendanceRecord({
     this.id,
     this.userId,
@@ -61,7 +61,7 @@ class AttendanceRecord {
     this.type,
     this.notes,
   });
-  
+
   factory AttendanceRecord.fromJson(Map<String, dynamic> json) {
     return AttendanceRecord(
       id: json["id"],

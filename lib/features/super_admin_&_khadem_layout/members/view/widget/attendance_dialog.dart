@@ -71,153 +71,153 @@ class _AddAttendanceDialogContentState
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(20),
-                  topRight: Radius.circular(20),
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.people,
+                      color: AppColors.accentWhite,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'تسجيل حضور',
+                      style: ResponsiveDialogTypography.merge(
+                        textTheme.titleLarge,
+                        typography.headline,
+                        color: AppColors.accentWhite,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(
+                        Icons.close,
+                        color: AppColors.accentWhite,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.people,
-                    color: AppColors.accentWhite,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'تسجيل حضور',
-                    style: ResponsiveDialogTypography.merge(
-                      textTheme.titleLarge,
-                      typography.headline,
-                      color: AppColors.accentWhite,
-                      fontWeight: FontWeight.bold,
+              Flexible(
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildEventSelector(),
+                        const SizedBox(height: 12),
+                        _buildDateSelector(),
+                        const SizedBox(height: 16),
+                        CustomTextField(
+                            controller: _notesController, labelText: 'Note'),
+                        const SizedBox(height: 12),
+                        _buildMembersField(),
+                      ],
                     ),
                   ),
-                  const Spacer(),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(
-                      Icons.close,
-                      color: AppColors.accentWhite,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Flexible(
-              child: Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildEventSelector(),
-                      const SizedBox(height: 12),
-                      _buildDateSelector(),
-                      const SizedBox(height: 16),
-                      CustomTextField(
-                          controller: _notesController, labelText: 'Note'),
-                      const SizedBox(height: 12),
-                      _buildMembersField(),
-                    ],
-                  ),
                 ),
               ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: AppColors.borderLight),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: AppColors.borderLight),
+                  ),
                 ),
-              ),
-              child: BlocConsumer<AddAttendanceCubit, AddAttendanceState>(
-                listener: (context, state) {
-                  print(
-                      '🔴 [OLD Dialog] State changed: ${state.runtimeType}'); // Debug
-                  if (state is AddAttendanceSuccess) {
+                child: BlocConsumer<AddAttendanceCubit, AddAttendanceState>(
+                  listener: (context, state) {
                     print(
-                        '✅ [OLD Dialog] Success! Triggering data refresh...'); // Debug
+                        '🔴 [OLD Dialog] State changed: ${state.runtimeType}'); // Debug
+                    if (state is AddAttendanceSuccess) {
+                      print(
+                          '✅ [OLD Dialog] Success! Triggering data refresh...'); // Debug
 
-                    // Trigger automatic refresh of attendance, stats, and eftekad
-                    sl<DataRefreshCubit>().refreshMultiple({
-                      RefreshType.attendance,
-                      RefreshType.stats,
-                      RefreshType.eftekad,
-                    });
+                      // Trigger automatic refresh of attendance, stats, and eftekad
+                      sl<DataRefreshCubit>().refreshMultiple({
+                        RefreshType.attendance,
+                        RefreshType.stats,
+                        RefreshType.eftekad,
+                      });
 
-                    Navigator.pop(context, true);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('تم تسجيل الحضور بنجاح'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                  } else if (state is AddAttendanceFailure) {
-                    print(
-                        '❌ [OLD Dialog] Failure: ${state.errorMessage}'); // Debug
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(state.errorMessage),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
-                builder: (context, state) {
-                  if (state is AddAttendanceLoading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  return Row(
-                    children: [
-                      Expanded(
-                        child: TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: Text(
-                            'إلغاء',
-                            style: ResponsiveDialogTypography.merge(
-                              textTheme.titleMedium,
-                              typography.button,
-                              color: AppColors.primaryMaroon,
-                              fontWeight: FontWeight.w600,
+                      Navigator.pop(context, true);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('تم تسجيل الحضور بنجاح'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    } else if (state is AddAttendanceFailure) {
+                      print(
+                          '❌ [OLD Dialog] Failure: ${state.errorMessage}'); // Debug
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(state.errorMessage),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
+                  builder: (context, state) {
+                    if (state is AddAttendanceLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: Text(
+                              'إلغاء',
+                              style: ResponsiveDialogTypography.merge(
+                                textTheme.titleMedium,
+                                typography.button,
+                                color: AppColors.primaryMaroon,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _handleAddAttendance,
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: AppColors.accentWhite,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: Text(
-                            'تسجيل الحضور',
-                            style: ResponsiveDialogTypography.merge(
-                              textTheme.titleMedium,
-                              typography.button,
-                              color: AppColors.accentWhite,
-                              fontWeight: FontWeight.w700,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: _handleAddAttendance,
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: AppColors.accentWhite,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: Text(
+                              'تسجيل الحضور',
+                              style: ResponsiveDialogTypography.merge(
+                                textTheme.titleMedium,
+                                typography.button,
+                                color: AppColors.accentWhite,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
-                  );
-                },
+                      ],
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildEventSelector() {
@@ -415,5 +415,4 @@ class _AddAttendanceDialogContentState
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
   }
-
 }
