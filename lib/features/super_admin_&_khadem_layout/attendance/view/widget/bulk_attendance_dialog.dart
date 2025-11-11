@@ -42,6 +42,7 @@ class _BulkAttendanceDialogContentState
   bool _selectAll = false;
   bool _isLoadingMembers = true;
   _BulkDialogStep _currentStep = _BulkDialogStep.details;
+  bool _shouldAddScore = true;
 
   @override
   void initState() {
@@ -187,6 +188,8 @@ class _BulkAttendanceDialogContentState
             const SizedBox(height: 20),
             _buildDateSelector(),
             const SizedBox(height: 20),
+            _buildScoreToggle(),
+            const SizedBox(height: 20),
             _buildSelectionSummary(),
           ],
         ),
@@ -242,6 +245,8 @@ class _BulkAttendanceDialogContentState
                   _buildEventSelector(),
                   const SizedBox(height: 16),
                   _buildDateSelector(),
+                  const SizedBox(height: 16),
+                  _buildScoreToggle(),
                   const SizedBox(height: 20),
                   _buildSelectionSummary(
                     showEventDetails: true,
@@ -563,6 +568,42 @@ class _BulkAttendanceDialogContentState
             ),
           ],
         ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.accentWhite,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.primaryMaroon.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                _shouldAddScore ? Icons.star : Icons.star_border,
+                color: _shouldAddScore
+                    ? AppColors.primaryMaroon
+                    : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  _shouldAddScore
+                      ? 'سيتم احتساب نقاط الحضور للخدام'
+                      : 'لن يتم احتساب نقاط الحضور لهذه الجلسة',
+                  style: ResponsiveDialogTypography.merge(
+                    textTheme.bodyMedium,
+                    typography.body,
+                    color: AppColors.textPrimary,
+                    fontWeight:
+                        _shouldAddScore ? FontWeight.w600 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
 
@@ -636,6 +677,36 @@ class _BulkAttendanceDialogContentState
                 fontWeight: FontWeight.w600,
               ),
               overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _shouldAddScore
+                  ? AppColors.primaryMaroon
+                  : AppColors.textSecondary.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _shouldAddScore ? Icons.star : Icons.star_border,
+                  size: 12,
+                  color: AppColors.accentWhite,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _shouldAddScore ? 'النقاط مفعلة' : 'بدون نقاط',
+                  style: ResponsiveDialogTypography.merge(
+                    textTheme.labelSmall,
+                    typography.label * 0.85,
+                    color: AppColors.accentWhite,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(width: 8),
@@ -1027,11 +1098,68 @@ class _BulkAttendanceDialogContentState
           members: _selectedMembers,
           event: _selectedEvent!,
           date: _selectedDate,
+          addScore: _shouldAddScore,
         );
   }
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  Widget _buildScoreToggle() {
+    final textTheme = Theme.of(context).textTheme;
+    final typography = ResponsiveDialogTypography.resolve(
+      MediaQuery.of(context).size,
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.accentWhite,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.primaryMaroon.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'احتساب نقاط الحضور',
+                  style: ResponsiveDialogTypography.merge(
+                    textTheme.titleMedium,
+                    typography.title,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'يمكنك إيقاف هذا الخيار إذا لم ترغب في إضافة نقاط للحضور لهذا الاجتماع.',
+                  style: ResponsiveDialogTypography.merge(
+                    textTheme.bodySmall,
+                    typography.label,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Switch.adaptive(
+            value: _shouldAddScore,
+            activeColor: AppColors.primaryMaroon,
+            onChanged: (value) {
+              setState(() => _shouldAddScore = value);
+            },
+          ),
+        ],
+      ),
+    );
   }
 }
 

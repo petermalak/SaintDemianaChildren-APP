@@ -217,40 +217,66 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
   }
 
   Future<void> _showDeleteConfirmation(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final impactScore = await showDialog<bool?>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('تأكيد الحذف'),
-        content: Text(
-          'هل أنت متأكد من حذف ${_selectedRecordIds.length} سجل حضور؟\nلا يمكن التراجع عن هذا الإجراء.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
+      builder: (context) {
+        bool impactScore = false;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('تأكيد الحذف'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'هل أنت متأكد من حذف ${_selectedRecordIds.length} سجل حضور؟\nلا يمكن التراجع عن هذا الإجراء.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  SwitchListTile.adaptive(
+                    value: impactScore,
+                    onChanged: (value) => setState(() => impactScore = value),
+                    activeColor: AppColors.primaryMaroon,
+                    title: const Text('تعديل النقاط المرتبطة'),
+                    subtitle: const Text(
+                        'سيتم خصم النقاط التي تمت إضافتها لهذه السجلات إن وجدت.'),
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, null),
+                  child: const Text('إلغاء'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, impactScore),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text('حذف'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
 
-    if (confirmed == true && mounted) {
-      await _deleteSelectedRecords(context);
+    if (impactScore != null && mounted) {
+      await _deleteSelectedRecords(context, impactScore);
     }
   }
 
-  Future<void> _deleteSelectedRecords(BuildContext context) async {
+  Future<void> _deleteSelectedRecords(
+      BuildContext context, bool impactScore) async {
     final cubit = AddAttendanceCubit(sl<IAttendanceRepository>());
 
     await cubit.bulkDeleteAttendance(
       attendanceIds: _selectedRecordIds.toList(),
+      impactScore: impactScore,
     );
 
     if (!mounted) return;

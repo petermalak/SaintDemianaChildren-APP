@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import '../model/class_assignment_model.dart';
 import '../model/class_model.dart';
 
 abstract class IClassRepository {
@@ -11,4 +12,11 @@ abstract class IClassRepository {
       String id, String name, String location);
   void removeUserFromClass(String classId, String userId);
   void deleteClass(String classId);
+  Future<Either<String, ClassAssignmentsModel>> loadClassAssignments(
+      String classId);
+  Future<Either<String, ClassAssignmentsModel>> updateClassAssignments(
+    String classId,
+    Map<String, Set<String>> assignments, {
+    Map<String, Map<String, String?>>? notes,
+  });
 }

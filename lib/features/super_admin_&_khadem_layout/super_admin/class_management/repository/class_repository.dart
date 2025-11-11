@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:saint_demiana_children/core/constants/api_endpoints.dart';
 import 'package:saint_demiana_children/core/services/interface/i_api_service.dart';
 
+import '../model/class_assignment_model.dart';
 import '../model/class_model.dart';
 import 'i_class_repository.dart';
 
@@ -93,5 +94,52 @@ class ClassRepository implements IClassRepository {
     final classModel = _classes.firstWhere((c) => c.id == classId);
     classModel.memberships?.removeWhere((m) => m.userId == userId);
     _apiService.delete(path: '${ApiEndpoints.classes}$classId/members/$userId');
+  }
+
+  @override
+  Future<Either<String, ClassAssignmentsModel>> loadClassAssignments(
+      String classId) async {
+    try {
+      final response =
+          await _apiService.get(path: ApiEndpoints.classAssignments(classId));
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return Right(ClassAssignmentsModel.fromJson(data));
+      }
+      return const Left('Unexpected response format');
+    } on DioException catch (e) {
+      return Left(_apiService.handleError(e));
+    } catch (e) {
+      return const Left('An unexpected error occurred');
+    }
+  }
+
+  @override
+  Future<Either<String, ClassAssignmentsModel>> updateClassAssignments(
+    String classId,
+    Map<String, Set<String>> assignments, {
+    Map<String, Map<String, String?>>? notes,
+  }) async {
+    try {
+      final payload = {
+        'assignments':
+            ClassAssignmentsModel.buildUpdatePayload(assignments, notes: notes),
+      };
+
+      final response = await _apiService.put(
+        path: ApiEndpoints.classAssignments(classId),
+        body: payload,
+      );
+
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        return Right(ClassAssignmentsModel.fromJson(data));
+      }
+      return const Left('Unexpected response format');
+    } on DioException catch (e) {
+      return Left(_apiService.handleError(e));
+    } catch (e) {
+      return const Left('An unexpected error occurred');
+    }
   }
 }

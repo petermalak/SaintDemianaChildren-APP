@@ -40,6 +40,7 @@ class _AddAttendanceDialogContentState
   String? _selectedEvent;
   final _notesController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
+  bool _shouldAddScore = true;
 
   @override
   void dispose() {
@@ -119,6 +120,10 @@ class _AddAttendanceDialogContentState
                         _buildEventSelector(),
                         const SizedBox(height: 12),
                         _buildDateSelector(),
+                        const SizedBox(height: 16),
+                        _buildScoreToggle(),
+                        const SizedBox(height: 16),
+                        _buildScoreToggle(),
                         const SizedBox(height: 16),
                         CustomTextField(
                             controller: _notesController, labelText: 'Note'),
@@ -409,10 +414,67 @@ class _AddAttendanceDialogContentState
         date: _selectedDate,
         notes: _notesController.text.trim().isNotEmpty
             ? _notesController.text.trim()
-            : null);
+            : null,
+        addScore: _shouldAddScore);
   }
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  Widget _buildScoreToggle() {
+    final textTheme = Theme.of(context).textTheme;
+    final typography = ResponsiveDialogTypography.resolve(
+      MediaQuery.of(context).size,
+    );
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.accentWhite,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.primaryMaroon.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'احتساب نقاط الحضور',
+                  style: ResponsiveDialogTypography.merge(
+                    textTheme.titleMedium,
+                    typography.title,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'أوقف هذا الخيار إذا لم ترغب في إضافة نقاط لهذا الحضور.',
+                  style: ResponsiveDialogTypography.merge(
+                    textTheme.bodySmall,
+                    typography.label,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Switch.adaptive(
+            value: _shouldAddScore,
+            activeColor: AppColors.primaryMaroon,
+            onChanged: (value) {
+              setState(() => _shouldAddScore = value);
+            },
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -4,8 +4,11 @@ import '../model/aftekad_model.dart';
 
 abstract class IAftekadRepository {
   Future<Either<String, List<AftekadModel>>> getAftekadByWeek(
-      String fridayDate, String khademId,
-      {String? classId});
+    String fridayDate, {
+    String? khademId,
+    String? classId,
+    String? khademName,
+  });
   Future<Either<String, Unit>> addAftekad(
       {required AftekadType type,
       required DateTime date,

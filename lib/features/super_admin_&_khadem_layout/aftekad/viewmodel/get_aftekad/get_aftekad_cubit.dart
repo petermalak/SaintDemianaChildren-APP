@@ -15,6 +15,7 @@ class GetAftekadCubit extends Cubit<GetAftekadState> {
   String? _lastFridayDate;
   String? _lastKhademId;
   String? _lastClassId;
+  String? _lastKhademName;
   Map<String, int>? _makhdoumsMissedFridays;
 
   GetAftekadCubit(this._aftekadRepository, [this._refreshCubit])
@@ -29,10 +30,15 @@ class GetAftekadCubit extends Cubit<GetAftekadState> {
           refreshState.shouldRefresh(RefreshType.all)) {
         print('✅ [GetAftekadCubit] Refresh triggered for eftekad!');
         // Re-fetch with last parameters
-        if (_lastFridayDate != null && _lastKhademId != null) {
+        if (_lastFridayDate != null) {
           print(
               '🔄 [GetAftekadCubit] Reloading data: date=$_lastFridayDate, khadem=$_lastKhademId, class=$_lastClassId');
-          getAftekad(_lastFridayDate!, _lastKhademId!, classId: _lastClassId);
+          getAftekad(
+            _lastFridayDate!,
+            khademId: _lastKhademId,
+            classId: _lastClassId,
+            khademName: _lastKhademName,
+          );
         } else {
           print(
               '⚠️ [GetAftekadCubit] Cannot refresh - missing date or khademId');
@@ -41,17 +47,26 @@ class GetAftekadCubit extends Cubit<GetAftekadState> {
     });
   }
 
-  Future<void> getAftekad(String fridayDate, String khademId,
-      {String? classId}) async {
+  Future<void> getAftekad(
+    String fridayDate, {
+    String? khademId,
+    String? classId,
+    String? khademName,
+  }) async {
     print(
-        '📥 [GetAftekadCubit] Fetching aftekad: date=$fridayDate, khadem=$khademId, class=$classId');
+        '📥 [GetAftekadCubit] Fetching aftekad: date=$fridayDate, khadem=$khademId, class=$classId, khademName=$khademName');
     _lastFridayDate = fridayDate;
     _lastKhademId = khademId;
     _lastClassId = classId;
+    _lastKhademName = khademName;
 
     emit(GetAftekadLoading());
-    final result = await _aftekadRepository
-        .getAftekadByWeek(fridayDate, khademId, classId: classId);
+    final result = await _aftekadRepository.getAftekadByWeek(
+      fridayDate,
+      khademId: khademId,
+      classId: classId,
+      khademName: khademName,
+    );
     result.fold(
       (failure) {
         print('❌ [GetAftekadCubit] Fetch failed: $failure');

@@ -11,12 +11,21 @@ class AttendanceRepository implements IAttendanceRepository {
   AttendanceRepository(this._apiService);
   final IApiService _apiService;
   @override
-  Future<Either<String, AttendanceModel>> fetchAttendance(
-      {String? classId}) async {
+  Future<Either<String, AttendanceModel>> fetchAttendance({
+    String? classId,
+    String? khademId,
+    String? khademName,
+  }) async {
     try {
       final queryParameters = <String, dynamic>{};
       if (classId != null && classId.isNotEmpty) {
         queryParameters['classId'] = classId;
+      }
+      if (khademId != null && khademId.isNotEmpty) {
+        queryParameters['khademId'] = khademId;
+      }
+      if (khademName != null && khademName.isNotEmpty) {
+        queryParameters['khademName'] = khademName;
       }
 
       // Fetch all attendance records (removed type filter)
@@ -46,14 +55,16 @@ class AttendanceRepository implements IAttendanceRepository {
       {required List<UserModel> members,
       required String event,
       required DateTime date,
-      String? notes}) async {
+      String? notes,
+      bool addScore = true}) async {
     try {
       final requestBody = {
         "date":
             "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}",
         "type": event,
         "note": notes ?? "",
-        "users_ids": members.map((e) => e.id).toList()
+        "users_ids": members.map((e) => e.id).toList(),
+        "shouldAddScore": addScore
       };
 
       print(
@@ -82,7 +93,9 @@ class AttendanceRepository implements IAttendanceRepository {
       {required List<String> attendanceIds,
       String? event,
       DateTime? date,
-      String? notes}) async {
+      String? notes,
+      bool? impactScore,
+      bool? shouldAddScore}) async {
     try {
       final requestBody = <String, dynamic>{
         "attendance_ids": attendanceIds,
@@ -99,6 +112,14 @@ class AttendanceRepository implements IAttendanceRepository {
 
       if (notes != null) {
         requestBody["notes"] = notes;
+      }
+
+      if (impactScore != null) {
+        requestBody["impactScore"] = impactScore;
+      }
+
+      if (shouldAddScore != null) {
+        requestBody["shouldAddScore"] = shouldAddScore;
       }
 
       print(
@@ -124,10 +145,11 @@ class AttendanceRepository implements IAttendanceRepository {
 
   @override
   Future<Either<String, Unit>> bulkDeleteAttendance(
-      {required List<String> attendanceIds}) async {
+      {required List<String> attendanceIds, bool impactScore = false}) async {
     try {
       final requestBody = {
         "attendance_ids": attendanceIds,
+        "impactScore": impactScore,
       };
 
       print(

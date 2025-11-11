@@ -52,6 +52,7 @@ class AttendanceRecord {
   final String? date;
   final String? type;
   final String? notes;
+  final bool? shouldAddScore;
 
   AttendanceRecord({
     this.id,
@@ -60,6 +61,7 @@ class AttendanceRecord {
     this.date,
     this.type,
     this.notes,
+    this.shouldAddScore,
   });
 
   factory AttendanceRecord.fromJson(Map<String, dynamic> json) {
@@ -70,6 +72,19 @@ class AttendanceRecord {
       date: json["date"],
       type: json["type"],
       notes: json["notes"],
+      shouldAddScore: json.containsKey("shouldAddScore")
+          ? _parseShouldAddScore(json["shouldAddScore"])
+          : null,
     );
+  }
+
+  static bool? _parseShouldAddScore(dynamic value) {
+    if (value == null) return null;
+    if (value is bool) return value;
+    final lower = value.toString().toLowerCase().trim();
+    if (lower.isEmpty) return null;
+    if (['true', '1', 'yes', 'on'].contains(lower)) return true;
+    if (['false', '0', 'no', 'off'].contains(lower)) return false;
+    return null;
   }
 }

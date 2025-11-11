@@ -14,16 +14,22 @@ class AddAttendanceCubit extends Cubit<AddAttendanceState> {
       {required List<UserModel> members,
       required String event,
       required DateTime date,
-      String? notes}) async {
+      String? notes,
+      bool addScore = true}) async {
     print('🔵 [AddAttendanceCubit] Starting bulk add attendance...'); // Debug
     print('🔵 Members count: ${members.length}'); // Debug
     print('🔵 Event: $event'); // Debug
     print('🔵 Date: $date'); // Debug
+    print('🔵 Add score: $addScore'); // Debug
 
     emit(AddAttendanceLoading());
 
     final result = await _attendanceRepository.bulkAddAttendance(
-        members: members, event: event, date: date, notes: notes);
+        members: members,
+        event: event,
+        date: date,
+        notes: notes,
+        addScore: addScore);
 
     result.fold(
       (error) {
@@ -42,6 +48,8 @@ class AddAttendanceCubit extends Cubit<AddAttendanceState> {
     String? event,
     DateTime? date,
     String? notes,
+    bool impactScore = false,
+    bool? shouldAddScore,
   }) async {
     print(
         '🔵 [AddAttendanceCubit] Starting bulk update attendance...'); // Debug
@@ -56,6 +64,8 @@ class AddAttendanceCubit extends Cubit<AddAttendanceState> {
       event: event,
       date: date,
       notes: notes,
+      impactScore: impactScore,
+      shouldAddScore: shouldAddScore,
     );
 
     result.fold(
@@ -72,6 +82,7 @@ class AddAttendanceCubit extends Cubit<AddAttendanceState> {
 
   Future<void> bulkDeleteAttendance({
     required List<String> attendanceIds,
+    bool impactScore = false,
   }) async {
     print(
         '🔵 [AddAttendanceCubit] Starting bulk delete attendance...'); // Debug
@@ -81,6 +92,7 @@ class AddAttendanceCubit extends Cubit<AddAttendanceState> {
 
     final result = await _attendanceRepository.bulkDeleteAttendance(
       attendanceIds: attendanceIds,
+      impactScore: impactScore,
     );
 
     result.fold(

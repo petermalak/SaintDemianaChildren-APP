@@ -9,6 +9,7 @@ import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../authentication/model/user_model.dart';
 import '../../repository/i_members_repository.dart';
+import '../widget/manage_assignments_dialog.dart';
 
 class MembersScreen extends StatefulWidget {
   const MembersScreen({
@@ -115,6 +116,12 @@ class _MembersScreenState extends State<MembersScreen>
     }).toList();
   }
 
+  bool get _canManageAssignments {
+    final user = _currentUser;
+    if (user == null) return false;
+    return user.role == UserRole.superAdmin || user.role == UserRole.khadem;
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -156,6 +163,7 @@ class _MembersScreenState extends State<MembersScreen>
                   children: [
                     _buildSearchSection(filteredMembers),
                     _buildClassFilter(),
+                    _buildAssignmentsButton(),
                     _buildViewToggle(),
                     Expanded(
                       child: filteredMembers.isEmpty
@@ -352,6 +360,28 @@ class _MembersScreenState extends State<MembersScreen>
     );
   }
 
+  Widget _buildAssignmentsButton() {
+    if (!_canManageAssignments || _availableClasses.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: ElevatedButton.icon(
+          onPressed: _isLoadingClasses ? null : _openManageAssignmentsDialog,
+          icon: const Icon(Icons.assignment_ind),
+          label: const Text('توزيع المخدومين'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primaryMaroon,
+            foregroundColor: AppColors.accentWhite,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildViewToggle() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -406,5 +436,21 @@ class _MembersScreenState extends State<MembersScreen>
         ],
       ),
     );
+  }
+
+  Future<void> _openManageAssignmentsDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => ManageAssignmentsDialog(
+        availableClasses: _availableClasses,
+        initialClassId: _selectedClassId,
+      ),
+    );
+
+    if (result == true) {
+      // Reload members list to reflect any changes
+      _membersCubit.getMembers();
+      _loadClassesIfNeeded();
+    }
   }
 }

@@ -17,16 +17,24 @@ class AftekadRepository implements IAftekadRepository {
 
   @override
   Future<Either<String, List<AftekadModel>>> getAftekadByWeek(
-      String fridayDate, String khademId,
-      {String? classId}) async {
+    String fridayDate, {
+    String? khademId,
+    String? classId,
+    String? khademName,
+  }) async {
     try {
       final queryParameters = {
         "status": "completed",
-        "khademId": khademId,
       };
 
       if (classId != null && classId.isNotEmpty) {
         queryParameters["classId"] = classId;
+      }
+      if (khademId != null && khademId.isNotEmpty) {
+        queryParameters["khademId"] = khademId;
+      }
+      if (khademName != null && khademName.isNotEmpty) {
+        queryParameters["khademName"] = khademName;
       }
 
       final response = await _apiService.get(

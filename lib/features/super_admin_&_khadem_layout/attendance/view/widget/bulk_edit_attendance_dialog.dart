@@ -45,11 +45,53 @@ class _BulkEditAttendanceDialogContentState
   bool _updateEvent = false;
   bool _updateDate = false;
   bool _updateNotes = false;
+  bool _impactScore = false;
+  bool _updateShouldAddScore = false;
+  bool _shouldAddScore = true;
+  bool _hasMixedScoreStatus = false;
+  bool? _initialShouldAddScore;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialiseScoreState();
+  }
 
   @override
   void dispose() {
     _notesController.dispose();
     super.dispose();
+  }
+
+  void _initialiseScoreState() {
+    final scoreFlags = widget.selectedRecords
+        .map((record) => record.shouldAddScore)
+        .whereType<bool>()
+        .toList();
+
+    if (scoreFlags.isEmpty) {
+      _initialShouldAddScore = null;
+      _shouldAddScore = true;
+      return;
+    }
+
+    final allTrue = scoreFlags.every((flag) => flag);
+    final allFalse = scoreFlags.every((flag) => flag == false);
+
+    if (allTrue) {
+      _initialShouldAddScore = true;
+      _shouldAddScore = true;
+      _hasMixedScoreStatus = false;
+    } else if (allFalse) {
+      _initialShouldAddScore = false;
+      _shouldAddScore = false;
+      _hasMixedScoreStatus = false;
+    } else {
+      _initialShouldAddScore = null;
+      _hasMixedScoreStatus = true;
+      // Default to true when mixed to avoid accidentally disabling points
+      _shouldAddScore = true;
+    }
   }
 
   @override
@@ -89,6 +131,8 @@ class _BulkEditAttendanceDialogContentState
                         _buildDateSelector(),
                         const SizedBox(height: 20),
                         _buildNotesField(),
+                        const SizedBox(height: 20),
+                        _buildScoringOptions(),
                       ],
                     ),
                   ),
@@ -440,6 +484,142 @@ class _BulkEditAttendanceDialogContentState
     );
   }
 
+  Widget _buildScoringOptions() {
+    final mediaSize = MediaQuery.of(context).size;
+    final typography = ResponsiveDialogTypography.resolve(mediaSize);
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.primaryMaroon.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: AppColors.primaryMaroon.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Column(
+            children: [
+              SwitchListTile.adaptive(
+                value: _impactScore,
+                onChanged: (value) {
+                  setState(() {
+                    _impactScore = value;
+                    if (!value) {
+                      _updateShouldAddScore = false;
+                    }
+                  });
+                },
+                activeColor: AppColors.primaryMaroon,
+                title: Text(
+                  'إعادة احتساب النقاط',
+                  style: ResponsiveDialogTypography.merge(
+                    textTheme.titleMedium,
+                    typography.title,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                subtitle: Text(
+                  'سيتم خصم النقاط المحتسبة سابقًا ثم إعادة احتسابها بعد تطبيق التعديلات.',
+                  style: ResponsiveDialogTypography.merge(
+                    textTheme.bodySmall,
+                    typography.label,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                contentPadding: EdgeInsets.zero,
+              ),
+              if (_impactScore && _hasMixedScoreStatus)
+                Padding(
+                  padding:
+                      const EdgeInsets.only(left: 12, right: 12, bottom: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline,
+                          size: 18, color: AppColors.primaryMaroon),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'بعض السجلات تم احتساب نقاطها والبعض الآخر لم يتم احتسابه. يمكنك توحيد الحالة من خلال الخيار التالي.',
+                          style: ResponsiveDialogTypography.merge(
+                            textTheme.bodySmall,
+                            typography.label,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (_impactScore)
+                CheckboxListTile(
+                  value: _updateShouldAddScore,
+                  onChanged: (value) {
+                    setState(() {
+                      _updateShouldAddScore = value ?? false;
+                    });
+                  },
+                  activeColor: AppColors.primaryMaroon,
+                  title: Text(
+                    'تعديل حالة احتساب النقاط',
+                    style: ResponsiveDialogTypography.merge(
+                      textTheme.titleMedium,
+                      typography.subtitle,
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'فعّل هذا الخيار إذا أردت تفعيل أو إيقاف احتساب النقاط لهذه السجلات بعد التعديل.',
+                    style: ResponsiveDialogTypography.merge(
+                      textTheme.bodySmall,
+                      typography.label,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              if (_impactScore && _updateShouldAddScore)
+                SwitchListTile.adaptive(
+                  value: _shouldAddScore,
+                  onChanged: (value) {
+                    setState(() {
+                      _shouldAddScore = value;
+                    });
+                  },
+                  activeColor: AppColors.primaryMaroon,
+                  title: Text(
+                    'احتساب النقاط بعد التعديل',
+                    style: ResponsiveDialogTypography.merge(
+                      textTheme.titleMedium,
+                      typography.subtitle,
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    _shouldAddScore
+                        ? 'سيتم احتساب النقاط بعد حفظ التعديلات.'
+                        : 'لن يتم احتساب أي نقاط لهذه السجلات بعد التعديل.',
+                    style: ResponsiveDialogTypography.merge(
+                      textTheme.bodySmall,
+                      typography.label,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  contentPadding: EdgeInsets.zero,
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildActionButtons() {
     final mediaSize = MediaQuery.of(context).size;
     final typography = ResponsiveDialogTypography.resolve(mediaSize);
@@ -586,6 +766,9 @@ class _BulkEditAttendanceDialogContentState
           event: _updateEvent ? _selectedEvent : null,
           date: _updateDate ? _selectedDate : null,
           notes: _updateNotes ? _notesController.text : null,
+          impactScore: _impactScore,
+          shouldAddScore:
+              _impactScore && _updateShouldAddScore ? _shouldAddScore : null,
         );
   }
 
