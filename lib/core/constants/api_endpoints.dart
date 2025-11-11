@@ -37,6 +37,8 @@ class ApiEndpoints {
 
   static const String classes = "classes/";
   static const String myClasses = "classes/my-classes/";
+  static String classAssignments(String classId) =>
+      "classes/$classId/assignments";
 
   static String aftekadByWeek(String fridayDate) {
     return "eftekad/history/friday/$fridayDate";
