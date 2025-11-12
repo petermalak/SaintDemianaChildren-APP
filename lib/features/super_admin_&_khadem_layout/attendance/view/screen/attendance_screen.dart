@@ -33,8 +33,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   List<ClassModel> _availableClasses = const [];
   List<AssignmentUser> _khademOptions = const [];
   String? _selectedKhademId;
+  String? _selectedKhademScope;
+  String _khademFilterSelection = _khademFilterSelfValue;
   bool _isLoadingAssignments = false;
   ScrollController? _internalScrollController;
+
+  static const String _khademFilterSelfValue = 'self';
+  static const String _khademFilterAllValue = 'all';
+  static const String _khademFilterPrefix = 'khadem:';
 
   static const Map<String, String> _attendanceTypeLabels = {
     'praise': 'تسبحة',
@@ -54,19 +60,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
     _currentUser = sl<IProfileRepository>().user;
     if (_currentUser?.role == UserRole.khadem) {
+      _selectedKhademScope = _khademFilterSelfValue;
+      _khademFilterSelection = _khademFilterSelfValue;
       _selectedKhademId = _currentUser?.id;
-      if (_currentUser != null) {
-        _khademOptions = [_buildUserOptionFromUser(_currentUser!)];
-      }
+      _khademOptions = const [];
     }
     _attendanceCubit = GetAttendanceCubit(
       sl<IAttendanceRepository>(),
       sl<DataRefreshCubit>(),
     );
-    _attendanceCubit.fetchAttendance(
-      classId: _selectedClassId,
-      khademId: _selectedKhademId,
-    );
+    _fetchAttendanceWithCurrentFilters();
     _loadClassesIfNeeded();
   }
 
@@ -123,10 +126,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           );
         } else {
           _resetKhademOptionsForAllClasses();
-          _attendanceCubit.fetchAttendance(
-            classId: null,
-            khademId: _selectedKhademId,
-          );
+          _fetchAttendanceWithCurrentFilters();
         }
       },
     );
@@ -135,6 +135,56 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() {
       _isLoadingClasses = false;
     });
+  }
+
+  void _fetchAttendanceWithCurrentFilters({String? classIdOverride}) {
+    final isKhadem = _currentUser?.role == UserRole.khadem;
+    final scope = isKhadem ? _selectedKhademScope : null;
+    final effectiveKhademId = isKhadem
+        ? (scope == _khademFilterAllValue
+            ? null
+            : (_selectedKhademId ?? _currentUser?.id))
+        : _selectedKhademId;
+
+    _attendanceCubit.fetchAttendance(
+      classId: classIdOverride ?? _selectedClassId,
+      khademId: effectiveKhademId,
+      khademScope: scope,
+    );
+  }
+
+  void _handleKhademFilterChangeForKhadem(String? value) {
+    final userId = _currentUser?.id;
+    var selection = value ?? _khademFilterSelfValue;
+
+    if (selection == _khademFilterAllValue && _selectedClassId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى اختيار فصل أولاً لعرض كل المخدومين'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      selection = _khademFilterSelfValue;
+    }
+
+    setState(() {
+      if (selection == _khademFilterAllValue) {
+        _selectedKhademScope = _khademFilterAllValue;
+        _selectedKhademId = null;
+        _khademFilterSelection = selection;
+      } else if (selection.startsWith(_khademFilterPrefix)) {
+        final targetId = selection.substring(_khademFilterPrefix.length);
+        _selectedKhademScope = null;
+        _selectedKhademId = targetId;
+        _khademFilterSelection = selection;
+      } else {
+        _selectedKhademScope = _khademFilterSelfValue;
+        _selectedKhademId = userId;
+        _khademFilterSelection = _khademFilterSelfValue;
+      }
+    });
+
+    _fetchAttendanceWithCurrentFilters();
   }
 
   bool get _shouldShowClassFilter {
@@ -166,6 +216,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       setState(() {
         _khademOptions = [selfOption];
         _selectedKhademId = selfOption.id;
+        _selectedKhademScope = _khademFilterSelfValue;
+        _khademFilterSelection = _khademFilterSelfValue;
       });
     } else {
       setState(() {
@@ -194,10 +246,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           _isLoadingAssignments = false;
           _khademOptions = const [];
         });
-        _attendanceCubit.fetchAttendance(
-          classId: classId,
-          khademId: _selectedKhademId,
-        );
+        _fetchAttendanceWithCurrentFilters(classIdOverride: classId);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(error),
@@ -208,45 +257,71 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       (assignments) {
         final options = [...assignments.khadems];
         final user = _currentUser;
-        if (user?.role == UserRole.khadem) {
-          final selfOption = _buildUserOptionFromUser(user!);
+        if (user != null && user.role == UserRole.khadem) {
+          final selfOption = _buildUserOptionFromUser(user);
           if (!options.any((option) => option.id == selfOption.id)) {
             options.add(selfOption);
           }
         }
 
         final optionIds = options.map((option) => option.id).toSet();
-        String? nextSelected = _selectedKhademId;
+        String? nextSelectedId = _selectedKhademId;
+        String? nextScope = _selectedKhademScope;
+        String? nextFilterSelection = _khademFilterSelection;
 
-        if (user?.role == UserRole.khadem) {
-          nextSelected = user?.id;
+        if (user != null && user.role == UserRole.khadem) {
+          final userId = user.id;
+          final hasUserId = userId != null && userId.isNotEmpty;
+          if (_khademFilterSelection == _khademFilterAllValue) {
+            nextScope = _khademFilterAllValue;
+            nextSelectedId = null;
+          } else if (_khademFilterSelection.startsWith(_khademFilterPrefix)) {
+            final targetId =
+                _khademFilterSelection.substring(_khademFilterPrefix.length);
+            if (optionIds.contains(targetId)) {
+              nextScope = null;
+              nextSelectedId = targetId;
+              nextFilterSelection = '$_khademFilterPrefix$targetId';
+            } else {
+              nextScope = _khademFilterSelfValue;
+              nextSelectedId = hasUserId ? userId : null;
+              nextFilterSelection = _khademFilterSelfValue;
+            }
+          } else if (hasUserId) {
+            nextScope = _khademFilterSelfValue;
+            nextSelectedId = userId;
+            nextFilterSelection = _khademFilterSelfValue;
+          } else {
+            nextScope = _khademFilterSelfValue;
+            nextSelectedId = null;
+            nextFilterSelection = _khademFilterSelfValue;
+          }
         } else {
           if (resetSelection ||
-              nextSelected == null ||
-              !optionIds.contains(nextSelected)) {
-            nextSelected = null;
+              nextSelectedId == null ||
+              !optionIds.contains(nextSelectedId)) {
+            nextSelectedId = null;
           }
+          nextScope = null;
+          nextFilterSelection = nextSelectedId;
         }
 
         setState(() {
           _khademOptions = options;
-          _selectedKhademId = nextSelected;
+          _selectedKhademId = nextSelectedId;
+          _selectedKhademScope = nextScope;
+          _khademFilterSelection =
+              nextFilterSelection ?? _khademFilterSelection;
           _isLoadingAssignments = false;
         });
 
-        _attendanceCubit.fetchAttendance(
-          classId: classId,
-          khademId: _selectedKhademId,
-        );
+        _fetchAttendanceWithCurrentFilters(classIdOverride: classId);
       },
     );
   }
 
-  Future<void> _refreshAttendance() {
-    return _attendanceCubit.fetchAttendance(
-      classId: _selectedClassId,
-      khademId: _selectedKhademId,
-    );
+  Future<void> _refreshAttendance() async {
+    _fetchAttendanceWithCurrentFilters();
   }
 
   Future<void> _onClassFilterChanged(String? value) async {
@@ -257,10 +332,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     if (value == null) {
       _resetKhademOptionsForAllClasses();
-      _attendanceCubit.fetchAttendance(
-        classId: null,
-        khademId: _selectedKhademId,
-      );
+      _fetchAttendanceWithCurrentFilters();
     } else {
       await _loadAssignmentsForClass(
         value,
@@ -434,13 +506,44 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Widget _buildKhademField() {
     final user = _currentUser;
     if (user?.role == UserRole.khadem) {
-      return InputDecorator(
+      final otherKhadems =
+          _khademOptions.where((option) => option.id != user?.id).toList();
+
+      return DropdownButtonFormField<String>(
+        value: _khademFilterSelection,
         decoration: const InputDecoration(
-          labelText: 'الخادم',
+          labelText: 'عرض المخدومين',
           border: OutlineInputBorder(),
-          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         ),
-        child: Text(user?.name ?? 'الخادم'),
+        isExpanded: true,
+        items: [
+          DropdownMenuItem<String>(
+            value: _khademFilterSelfValue,
+            child: Text('مخدومي (${user?.name ?? ''})'),
+          ),
+          DropdownMenuItem<String>(
+            value: _khademFilterAllValue,
+            enabled: _selectedClassId != null,
+            child: Text(
+              'كل مخدومي الفصل',
+              style: TextStyle(
+                color: _selectedClassId == null
+                    ? AppColors.textSecondary
+                    : AppColors.textPrimary,
+              ),
+            ),
+          ),
+          ...otherKhadems.map(
+            (option) => DropdownMenuItem<String>(
+              value: '$_khademFilterPrefix${option.id}',
+              child: Text(option.name ?? 'خادم بدون اسم'),
+            ),
+          ),
+        ],
+        onChanged: _isLoadingAssignments
+            ? null
+            : (value) => _handleKhademFilterChangeForKhadem(value),
       );
     }
 
@@ -469,11 +572,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           : (value) {
               setState(() {
                 _selectedKhademId = value;
+                _selectedKhademScope = null;
               });
-              _attendanceCubit.fetchAttendance(
-                classId: _selectedClassId,
-                khademId: _selectedKhademId,
-              );
+              _fetchAttendanceWithCurrentFilters();
             },
     );
   }
@@ -792,9 +893,17 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       );
 
       if (result == true && context.mounted) {
+        final isKhadem = _currentUser?.role == UserRole.khadem;
+        final khademId =
+            isKhadem && _selectedKhademScope == _khademFilterAllValue
+                ? null
+                : (isKhadem
+                    ? (_selectedKhademId ?? _currentUser?.id)
+                    : _selectedKhademId);
         await _attendanceCubit.fetchAttendance(
           classId: _selectedClassId,
-          khademId: _selectedKhademId,
+          khademId: khademId,
+          khademScope: isKhadem ? _selectedKhademScope : null,
         );
       }
     } catch (e) {

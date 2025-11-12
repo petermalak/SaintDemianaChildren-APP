@@ -44,8 +44,14 @@ class _AftekadScreenState extends State<AftekadScreen> {
   ClassAssignmentsModel? _currentAssignments;
   List<AssignmentUser> _khademOptions = const [];
   String? _selectedKhademId;
+  String? _selectedKhademScope;
+  String _khademFilterSelection = _khademFilterSelfValue;
   bool _isLoadingAssignments = false;
   ScrollController? _internalScrollController;
+
+  static const String _khademFilterSelfValue = 'self';
+  static const String _khademFilterAllValue = 'all';
+  static const String _khademFilterPrefix = 'khadem:';
 
   ScrollController get _effectiveScrollController =>
       widget.scrollController ?? _internalScrollController!;
@@ -66,17 +72,12 @@ class _AftekadScreenState extends State<AftekadScreen> {
         .toList();
     _classOptions = _assignedClasses;
     if (_currentUser?.role == UserRole.khadem) {
+      _selectedKhademScope = _khademFilterSelfValue;
+      _khademFilterSelection = _khademFilterSelfValue;
       _selectedKhademId = _currentUser?.id;
-      if (_currentUser?.id != null) {
-        _khademOptions = [
-          AssignmentUser(
-            id: _currentUser!.id!,
-            name: _currentUser!.name,
-            email: _currentUser!.email,
-            phoneNumber: _currentUser!.phoneNumber,
-            role: 'khadem',
-          ),
-        ];
+      final selfOption = _assignmentUserFromCurrentUser();
+      if (selfOption != null) {
+        _khademOptions = [selfOption];
       }
     }
     _loadClassOptions();
@@ -88,11 +89,7 @@ class _AftekadScreenState extends State<AftekadScreen> {
       final mostRecentFriday = _fridayDates.first;
       final formattedDate = DateFormat('yyyy-MM-dd').format(mostRecentFriday);
       _currentSelectedDate = formattedDate;
-      _aftekadCubit.getAftekad(
-        formattedDate,
-        khademId: _selectedKhademId,
-        classId: _selectedClassId,
-      );
+      _fetchAftekadWithCurrentFilters(fridayDateOverride: formattedDate);
     }
   }
 
@@ -192,15 +189,32 @@ class _AftekadScreenState extends State<AftekadScreen> {
           );
         } else {
           _resetKhademFilterForAllClasses();
-          if (_currentSelectedDate != null) {
-            _aftekadCubit.getAftekad(
-              _currentSelectedDate!,
-              khademId: _selectedKhademId,
-              classId: _selectedClassId,
-            );
-          }
+          _fetchAftekadWithCurrentFilters();
         }
       },
+    );
+  }
+
+  void _fetchAftekadWithCurrentFilters({
+    String? fridayDateOverride,
+    String? classIdOverride,
+  }) {
+    final fridayDate = fridayDateOverride ?? _currentSelectedDate;
+    if (fridayDate == null) return;
+
+    final isKhadem = _currentUser?.role == UserRole.khadem;
+    final scope = isKhadem ? _selectedKhademScope : null;
+    final effectiveKhademId = isKhadem
+        ? (scope == _khademFilterAllValue
+            ? null
+            : (_selectedKhademId ?? _currentUser?.id))
+        : _selectedKhademId;
+
+    (_aftekadCubit as dynamic).updateKhademScope(scope);
+    _aftekadCubit.getAftekad(
+      fridayDate,
+      khademId: effectiveKhademId,
+      classId: classIdOverride ?? _selectedClassId,
     );
   }
 
@@ -226,6 +240,8 @@ class _AftekadScreenState extends State<AftekadScreen> {
         setState(() {
           _khademOptions = [selfOption];
           _selectedKhademId = selfOption.id;
+          _selectedKhademScope = _khademFilterSelfValue;
+          _khademFilterSelection = _khademFilterSelfValue;
           _currentAssignments = null;
         });
       }
@@ -233,6 +249,8 @@ class _AftekadScreenState extends State<AftekadScreen> {
       setState(() {
         _khademOptions = const [];
         _selectedKhademId = null;
+        _selectedKhademScope = null;
+        _khademFilterSelection = _khademFilterSelfValue;
         _currentAssignments = null;
       });
     }
@@ -258,13 +276,7 @@ class _AftekadScreenState extends State<AftekadScreen> {
           _currentAssignments = null;
           _khademOptions = const [];
         });
-        if (_currentSelectedDate != null) {
-          _aftekadCubit.getAftekad(
-            _currentSelectedDate!,
-            khademId: _selectedKhademId,
-            classId: _selectedClassId,
-          );
-        }
+        _fetchAftekadWithCurrentFilters(classIdOverride: _selectedClassId);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(error),
@@ -283,30 +295,55 @@ class _AftekadScreenState extends State<AftekadScreen> {
         }
 
         final optionIds = options.map((option) => option.id).toSet();
-        String? nextSelected = _selectedKhademId;
+        String? nextSelectedId = _selectedKhademId;
+        String? nextScope = _selectedKhademScope;
+        String? nextFilterSelection = _khademFilterSelection;
 
-        if (user?.role == UserRole.khadem) {
-          nextSelected = user?.id;
-        } else if (resetSelection ||
-            nextSelected == null ||
-            !optionIds.contains(nextSelected)) {
-          nextSelected = null;
+        if (user != null && user.role == UserRole.khadem) {
+          final userId = user.id;
+          final hasUserId = userId != null && userId.isNotEmpty;
+
+          if (_khademFilterSelection == _khademFilterAllValue) {
+            nextScope = _khademFilterAllValue;
+            nextSelectedId = null;
+          } else if (_khademFilterSelection.startsWith(_khademFilterPrefix)) {
+            final targetId =
+                _khademFilterSelection.substring(_khademFilterPrefix.length);
+            if (optionIds.contains(targetId)) {
+              nextScope = null;
+              nextSelectedId = targetId;
+              nextFilterSelection = '$_khademFilterPrefix$targetId';
+            } else {
+              nextScope = _khademFilterSelfValue;
+              nextSelectedId = hasUserId ? userId : null;
+              nextFilterSelection = _khademFilterSelfValue;
+            }
+          } else {
+            nextScope = _khademFilterSelfValue;
+            nextSelectedId = hasUserId ? userId : null;
+            nextFilterSelection = _khademFilterSelfValue;
+          }
+        } else {
+          if (resetSelection ||
+              nextSelectedId == null ||
+              !optionIds.contains(nextSelectedId)) {
+            nextSelectedId = null;
+          }
+          nextScope = null;
+          nextFilterSelection = nextSelectedId ?? _khademFilterSelfValue;
         }
 
         setState(() {
           _currentAssignments = assignments;
           _khademOptions = options;
-          _selectedKhademId = nextSelected;
+          _selectedKhademId = nextSelectedId;
+          _selectedKhademScope = nextScope;
+          _khademFilterSelection =
+              nextFilterSelection ?? _khademFilterSelfValue;
           _isLoadingAssignments = false;
         });
 
-        if (_currentSelectedDate != null) {
-          _aftekadCubit.getAftekad(
-            _currentSelectedDate!,
-            khademId: _selectedKhademId,
-            classId: _selectedClassId,
-          );
-        }
+        _fetchAftekadWithCurrentFilters(classIdOverride: classId);
       },
     );
   }
@@ -319,13 +356,7 @@ class _AftekadScreenState extends State<AftekadScreen> {
 
     if (classId == null || classId.isEmpty) {
       _resetKhademFilterForAllClasses();
-      if (_currentSelectedDate != null) {
-        _aftekadCubit.getAftekad(
-          _currentSelectedDate!,
-          khademId: _selectedKhademId,
-          classId: _selectedClassId,
-        );
-      }
+      _fetchAftekadWithCurrentFilters();
     } else {
       await _loadAssignmentsForClass(
         classId,
@@ -337,14 +368,44 @@ class _AftekadScreenState extends State<AftekadScreen> {
   void _onKhademSelectionChanged(String? khademId) {
     setState(() {
       _selectedKhademId = khademId;
+      _selectedKhademScope = null;
+      _khademFilterSelection = khademId ?? _khademFilterSelfValue;
     });
-    if (_currentSelectedDate != null) {
-      _aftekadCubit.getAftekad(
-        _currentSelectedDate!,
-        khademId: _selectedKhademId,
-        classId: _selectedClassId,
+    _fetchAftekadWithCurrentFilters();
+  }
+
+  void _handleKhademFilterChangeForKhadem(String? value) {
+    final userId = _currentUser?.id;
+    var selection = value ?? _khademFilterSelfValue;
+
+    if (selection == _khademFilterAllValue && _selectedClassId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى اختيار فصل أولاً لعرض كل المخدومين'),
+          backgroundColor: AppColors.warning,
+        ),
       );
+      selection = _khademFilterSelfValue;
     }
+
+    setState(() {
+      if (selection == _khademFilterAllValue) {
+        _selectedKhademScope = _khademFilterAllValue;
+        _selectedKhademId = null;
+        _khademFilterSelection = selection;
+      } else if (selection.startsWith(_khademFilterPrefix)) {
+        final targetId = selection.substring(_khademFilterPrefix.length);
+        _selectedKhademScope = null;
+        _selectedKhademId = targetId;
+        _khademFilterSelection = selection;
+      } else {
+        _selectedKhademScope = _khademFilterSelfValue;
+        _selectedKhademId = userId;
+        _khademFilterSelection = _khademFilterSelfValue;
+      }
+    });
+
+    _fetchAftekadWithCurrentFilters();
   }
 
   bool get _shouldShowKhademFilter {
@@ -364,13 +425,44 @@ class _AftekadScreenState extends State<AftekadScreen> {
     }
 
     if (user.role == UserRole.khadem) {
-      return InputDecorator(
+      final otherKhadems =
+          _khademOptions.where((option) => option.id != user.id).toList();
+
+      return DropdownButtonFormField<String>(
+        value: _khademFilterSelection,
         decoration: const InputDecoration(
-          labelText: 'الخادم',
+          labelText: 'عرض المخدومين',
           border: OutlineInputBorder(),
-          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         ),
-        child: Text(user.name ?? 'الخادم'),
+        isExpanded: true,
+        items: [
+          DropdownMenuItem<String>(
+            value: _khademFilterSelfValue,
+            child: Text('مخدومي (${user.name ?? ''})'),
+          ),
+          DropdownMenuItem<String>(
+            value: _khademFilterAllValue,
+            enabled: _selectedClassId != null,
+            child: Text(
+              'كل مخدومي الفصل',
+              style: TextStyle(
+                color: _selectedClassId == null
+                    ? AppColors.textSecondary
+                    : AppColors.textPrimary,
+              ),
+            ),
+          ),
+          ...otherKhadems.map(
+            (option) => DropdownMenuItem<String>(
+              value: '$_khademFilterPrefix${option.id}',
+              child: Text(option.name ?? 'خادم بدون اسم'),
+            ),
+          ),
+        ],
+        onChanged: _isLoadingAssignments
+            ? null
+            : (value) => _handleKhademFilterChangeForKhadem(value),
       );
     }
 
@@ -485,22 +577,15 @@ class _AftekadScreenState extends State<AftekadScreen> {
     if (_currentSelectedDate != dateIso) {
       _currentSelectedDate = dateIso;
       // Fetch aftekad data for selected date
-      _aftekadCubit.getAftekad(
-        dateIso,
-        khademId: _selectedKhademId,
-        classId: _selectedClassId,
-      );
+      _fetchAftekadWithCurrentFilters(fridayDateOverride: dateIso);
     }
   }
 
   Future<void> _refreshAftekad() {
     final selectedDate = _currentSelectedDate;
     if (selectedDate == null) return Future.value();
-    return _aftekadCubit.getAftekad(
-      selectedDate,
-      khademId: _selectedKhademId,
-      classId: _selectedClassId,
-    );
+    _fetchAftekadWithCurrentFilters(fridayDateOverride: selectedDate);
+    return Future.value();
   }
 
   @override

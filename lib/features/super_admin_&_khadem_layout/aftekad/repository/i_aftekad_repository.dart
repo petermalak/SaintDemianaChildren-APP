@@ -8,6 +8,7 @@ abstract class IAftekadRepository {
     String? khademId,
     String? classId,
     String? khademName,
+    String? khademScope,
   });
   Future<Either<String, Unit>> addAftekad(
       {required AftekadType type,

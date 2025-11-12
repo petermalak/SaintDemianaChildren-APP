@@ -16,6 +16,7 @@ class GetAftekadCubit extends Cubit<GetAftekadState> {
   String? _lastKhademId;
   String? _lastClassId;
   String? _lastKhademName;
+  String? _lastKhademScope;
   Map<String, int>? _makhdoumsMissedFridays;
 
   GetAftekadCubit(this._aftekadRepository, [this._refreshCubit])
@@ -38,6 +39,7 @@ class GetAftekadCubit extends Cubit<GetAftekadState> {
             khademId: _lastKhademId,
             classId: _lastClassId,
             khademName: _lastKhademName,
+            khademScope: _lastKhademScope,
           );
         } else {
           print(
@@ -52,13 +54,16 @@ class GetAftekadCubit extends Cubit<GetAftekadState> {
     String? khademId,
     String? classId,
     String? khademName,
+    String? khademScope,
   }) async {
+    final scopeToUse = khademScope ?? _lastKhademScope;
     print(
-        '📥 [GetAftekadCubit] Fetching aftekad: date=$fridayDate, khadem=$khademId, class=$classId, khademName=$khademName');
+        '📥 [GetAftekadCubit] Fetching aftekad: date=$fridayDate, khadem=$khademId, class=$classId, khademName=$khademName, scope=$scopeToUse');
     _lastFridayDate = fridayDate;
     _lastKhademId = khademId;
     _lastClassId = classId;
     _lastKhademName = khademName;
+    _lastKhademScope = scopeToUse;
 
     emit(GetAftekadLoading());
     final result = await _aftekadRepository.getAftekadByWeek(
@@ -66,6 +71,7 @@ class GetAftekadCubit extends Cubit<GetAftekadState> {
       khademId: khademId,
       classId: classId,
       khademName: khademName,
+      khademScope: scopeToUse,
     );
     result.fold(
       (failure) {
@@ -87,6 +93,10 @@ class GetAftekadCubit extends Cubit<GetAftekadState> {
 
   // Getter for makhdoumsMissedFridays
   Map<String, int>? get makhdoumsMissedFridays => _makhdoumsMissedFridays;
+
+  void updateKhademScope(String? scope) {
+    _lastKhademScope = scope;
+  }
 
   @override
   Future<void> close() {

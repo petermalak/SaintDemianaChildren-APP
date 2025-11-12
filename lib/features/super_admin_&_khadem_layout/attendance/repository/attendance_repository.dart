@@ -15,6 +15,7 @@ class AttendanceRepository implements IAttendanceRepository {
     String? classId,
     String? khademId,
     String? khademName,
+    String? khademScope,
   }) async {
     try {
       final queryParameters = <String, dynamic>{};
@@ -26,6 +27,9 @@ class AttendanceRepository implements IAttendanceRepository {
       }
       if (khademName != null && khademName.isNotEmpty) {
         queryParameters['khademName'] = khademName;
+      }
+      if (khademScope != null && khademScope.isNotEmpty) {
+        queryParameters['khademScope'] = khademScope;
       }
 
       // Fetch all attendance records (removed type filter)

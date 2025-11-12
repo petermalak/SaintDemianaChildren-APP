@@ -8,6 +8,7 @@ abstract class IAttendanceRepository {
     String? classId,
     String? khademId,
     String? khademName,
+    String? khademScope,
   });
 
   Future<Either<String, Unit>> bulkAddAttendance(

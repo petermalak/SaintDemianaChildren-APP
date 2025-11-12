@@ -21,6 +21,7 @@ class AftekadRepository implements IAftekadRepository {
     String? khademId,
     String? classId,
     String? khademName,
+    String? khademScope,
   }) async {
     try {
       final queryParameters = {
@@ -35,6 +36,9 @@ class AftekadRepository implements IAftekadRepository {
       }
       if (khademName != null && khademName.isNotEmpty) {
         queryParameters["khademName"] = khademName;
+      }
+      if (khademScope != null && khademScope.isNotEmpty) {
+        queryParameters["khademScope"] = khademScope;
       }
 
       final response = await _apiService.get(
