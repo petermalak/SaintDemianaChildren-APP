@@ -930,33 +930,77 @@ class _AftekadScreenState extends State<AftekadScreen> {
     Map<String, int> missedFridays,
   ) {
     final list = members.map((member) {
-      final existing = completed.firstWhere(
-        (aftekad) => aftekad.makhdoum?.id == member.id,
-        orElse: () {
-          final missed = missedFridays[member.id] ?? 0;
-          return AftekadModel(
-            makhdoumId: member.id,
-            status: false,
-            classId: member.classId,
-            consecutiveMissedFridays: missed,
-            makhdoum: Makhdoum(
-              id: member.id,
-              name: member.name,
-            ),
-          );
-        },
-      );
+      // Find all eftekads for this makhdoum and get the most recent one
+      final makhdoumEftekads = completed.where(
+        (aftekad) => aftekad.makhdoum?.id == member.id || aftekad.makhdoumId == member.id,
+      ).toList();
+      
+      // If multiple exist, get the most recent one (by completedDate or createdAt)
+      final existing = makhdoumEftekads.isNotEmpty
+          ? makhdoumEftekads.reduce((a, b) {
+              // Compare by completedDate first, then createdAt
+              final aDate = _getDateForComparison(a);
+              final bDate = _getDateForComparison(b);
+              return aDate.isAfter(bDate) ? a : b;
+            })
+          : null;
 
-      if (existing.consecutiveMissedFridays == null &&
-          missedFridays.containsKey(member.id)) {
-        existing.consecutiveMissedFridays = missedFridays[member.id];
+      if (existing != null) {
+        // Ensure status is set correctly
+        if (existing.status == null || existing.status == false) {
+          existing.status = true; // If it's in the completed list, it should be true
+        }
+        
+        if (existing.consecutiveMissedFridays == null &&
+            missedFridays.containsKey(member.id)) {
+          existing.consecutiveMissedFridays = missedFridays[member.id];
+        }
+        
+        return existing;
+      } else {
+        // No completed eftekad found, create a pending one
+        final missed = missedFridays[member.id] ?? 0;
+        return AftekadModel(
+          makhdoumId: member.id,
+          status: false,
+          classId: member.classId,
+          consecutiveMissedFridays: missed,
+          makhdoum: Makhdoum(
+            id: member.id,
+            name: member.name,
+          ),
+        );
       }
-
-      return existing;
     }).toList();
 
     list.sort(_compareAftekads);
     return list;
+  }
+
+  DateTime _getDateForComparison(AftekadModel aftekad) {
+    // Try to get completedDate first, then scheduledDate, then createdAt
+    try {
+      if (aftekad.completedDate != null) {
+        if (aftekad.completedDate is DateTime) {
+          return aftekad.completedDate as DateTime;
+        } else if (aftekad.completedDate is String) {
+          return DateTime.parse(aftekad.completedDate as String);
+        }
+      }
+      if (aftekad.scheduledDate != null) {
+        if (aftekad.scheduledDate is DateTime) {
+          return aftekad.scheduledDate as DateTime;
+        } else if (aftekad.scheduledDate is String) {
+          return DateTime.parse(aftekad.scheduledDate as String);
+        }
+      }
+      if (aftekad.createdAt != null) {
+        return DateTime.parse(aftekad.createdAt!);
+      }
+    } catch (e) {
+      print('Error parsing date for comparison: $e');
+    }
+    return DateTime(1970); // Fallback to very old date
   }
 
   Widget _buildAftekadSummary(_AftekadViewData data) {

@@ -25,6 +25,7 @@ class UserModel extends Equatable {
   String? fatherOfConfession;
   String? classId;
   final List<UserClassInfo> classes;
+  final List<UserClassAssignment> classAssignments;
   UserModel({
     this.id,
     this.name,
@@ -44,7 +45,9 @@ class UserModel extends Equatable {
     this.addressLocationLink,
     this.fatherOfConfession,
     List<UserClassInfo>? classes,
-  }) : classes = classes ?? const [];
+    List<UserClassAssignment>? classAssignments,
+  })  : classes = classes ?? const [],
+        classAssignments = classAssignments ?? const [];
 
   factory UserModel.fromJson(Map<String, dynamic> json, {String? token}) {
     final List<UserClassInfo> parsedClasses = (json['classes'] is List)
@@ -92,6 +95,14 @@ class UserModel extends Equatable {
       extractedClassId = combinedClasses.first.classId;
     }
 
+    final List<UserClassAssignment> parsedAssignments =
+        (json['classAssignments'] is List)
+            ? (json['classAssignments'] as List)
+                .whereType<Map<String, dynamic>>()
+                .map(UserClassAssignment.fromJson)
+                .toList()
+            : const <UserClassAssignment>[];
+
     print('🔍 [UserModel] Extracted classId: $extractedClassId from JSON');
     print('🔍 [UserModel] classMemberships: ${json['classMemberships']}');
 
@@ -117,6 +128,7 @@ class UserModel extends Equatable {
       addressLocationLink: json['addressLocationLink'],
       fatherOfConfession: json['fatherOfConfession'],
       classes: combinedClasses,
+      classAssignments: parsedAssignments,
     );
   }
 
@@ -176,6 +188,7 @@ class UserModel extends Equatable {
     String? addressLocationLink,
     String? fatherOfConfession,
     List<UserClassInfo>? classes,
+    List<UserClassAssignment>? classAssignments,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -196,6 +209,7 @@ class UserModel extends Equatable {
       addressLocationLink: addressLocationLink ?? this.addressLocationLink,
       fatherOfConfession: fatherOfConfession ?? this.fatherOfConfession,
       classes: classes ?? this.classes,
+      classAssignments: classAssignments ?? this.classAssignments,
     );
   }
 
@@ -246,7 +260,50 @@ class UserModel extends Equatable {
         addressLocationLink,
         fatherOfConfession,
         classes,
+        classAssignments,
       ];
+
+  String? get primaryClassId {
+    if (classId != null && classId!.isNotEmpty) {
+      return classId;
+    }
+    if (classes.isNotEmpty) {
+      return classes.first.classId;
+    }
+    return null;
+  }
+
+  List<UserClassSummary> get classSummaries {
+    if (classes.isEmpty && classAssignments.isEmpty) {
+      return const [];
+    }
+
+    final membershipMap = {
+      for (final membership in classes) membership.classId: membership
+    };
+
+    final assignmentMap = {
+      for (final assignment in classAssignments) assignment.classId: assignment
+    };
+
+    final classIds = <String>{
+      ...membershipMap.keys,
+      ...assignmentMap.keys,
+    };
+
+    return classIds.map((id) {
+      final membership = membershipMap[id];
+      final assignment = assignmentMap[id];
+      return UserClassSummary(
+        classId: id,
+        className: assignment?.className ?? membership?.className,
+        membershipRole: membership?.membershipRole,
+        isActive: membership?.isActive ?? true,
+        joinedAt: membership?.joinedAt,
+        assignedKhadems: assignment?.khadems ?? const [],
+      );
+    }).toList();
+  }
 }
 
 class UserClassInfo extends Equatable {
@@ -316,5 +373,98 @@ class UserClassInfo extends Equatable {
         membershipRole,
         isActive,
         joinedAt,
+      ];
+}
+
+class UserClassAssignment extends Equatable {
+  final String classId;
+  final String? className;
+  final List<AssignmentKhademInfo> khadems;
+
+  const UserClassAssignment({
+    required this.classId,
+    this.className,
+    List<AssignmentKhademInfo>? khadems,
+  }) : khadems = khadems ?? const [];
+
+  factory UserClassAssignment.fromJson(Map<String, dynamic> json) {
+    final khademEntries = (json['khadems'] is List)
+        ? (json['khadems'] as List)
+            .whereType<Map<String, dynamic>>()
+            .map(AssignmentKhademInfo.fromJson)
+            .toList()
+        : const <AssignmentKhademInfo>[];
+
+    return UserClassAssignment(
+      classId: (json['classId'] ?? '').toString(),
+      className: json['className'] as String?,
+      khadems: khademEntries,
+    );
+  }
+
+  @override
+  List<Object?> get props => [classId, className, khadems];
+}
+
+class AssignmentKhademInfo extends Equatable {
+  final String? id;
+  final String? name;
+  final String? phoneNumber;
+  final String? email;
+
+  const AssignmentKhademInfo({
+    this.id,
+    this.name,
+    this.phoneNumber,
+    this.email,
+  });
+
+  factory AssignmentKhademInfo.fromJson(Map<String, dynamic> json) {
+    return AssignmentKhademInfo(
+      id: json['id']?.toString(),
+      name: json['name'] as String?,
+      phoneNumber: json['phoneNumber'] as String?,
+      email: json['email'] as String?,
+    );
+  }
+
+  @override
+  List<Object?> get props => [id, name, phoneNumber, email];
+}
+
+class UserClassSummary extends Equatable {
+  final String classId;
+  final String? className;
+  final String? membershipRole;
+  final bool isActive;
+  final DateTime? joinedAt;
+  final List<AssignmentKhademInfo> assignedKhadems;
+
+  const UserClassSummary({
+    required this.classId,
+    this.className,
+    this.membershipRole,
+    this.isActive = true,
+    this.joinedAt,
+    List<AssignmentKhademInfo>? assignedKhadems,
+  }) : assignedKhadems = assignedKhadems ?? const [];
+
+  String get khademNames {
+    if (assignedKhadems.isEmpty) {
+      return 'لا يوجد خدام محددين';
+    }
+    return assignedKhadems
+        .map((khadem) => khadem.name ?? 'خادم بدون اسم')
+        .join('، ');
+  }
+
+  @override
+  List<Object?> get props => [
+        classId,
+        className,
+        membershipRole,
+        isActive,
+        joinedAt,
+        assignedKhadems,
       ];
 }

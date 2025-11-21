@@ -36,6 +36,8 @@ class _FeedScreenState extends State<FeedScreen> {
   int _currentOffset = 0;
   final int _limit = 20;
   StreamSubscription<RemoteMessage>? _notificationSubscription;
+  List<UserClassInfo> _availableClasses = const [];
+  String? _selectedClassFilter;
 
   @override
   void initState() {
@@ -43,6 +45,14 @@ class _FeedScreenState extends State<FeedScreen> {
     _scrollController = widget.scrollController ?? ScrollController();
     _scrollController.addListener(_onScroll);
     _setupNotificationListener();
+    final profile = sl<IProfileRepository>().user;
+    if (profile != null) {
+      _availableClasses = profile.classes
+          .where((info) =>
+              info.membershipRole == 'khadem' ||
+              profile.role == UserRole.superAdmin)
+          .toList();
+    }
   }
 
   @override
@@ -78,6 +88,12 @@ class _FeedScreenState extends State<FeedScreen> {
             widget.classId!,
             type: _selectedType,
           );
+    } else if (_selectedClassFilter != null &&
+        _selectedClassFilter!.isNotEmpty) {
+      context.read<GetFeedCubit>().getFeedsByClass(
+            _selectedClassFilter!,
+            type: _selectedType,
+          );
     } else {
       // Load all feeds for user's classes (for khadems/admins)
       context.read<GetFeedCubit>().getMyFeeds(
@@ -88,9 +104,49 @@ class _FeedScreenState extends State<FeedScreen> {
     }
   }
 
+  Widget _buildClassFilterBar() {
+    final user = sl<IProfileRepository>().user;
+    final canFilter = user != null &&
+        (user.role == UserRole.khadem || user.role == UserRole.superAdmin);
+    if (!canFilter || _availableClasses.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: DropdownButtonFormField<String?>(
+        value: _selectedClassFilter,
+        decoration: const InputDecoration(
+          labelText: 'عرض فصل محدد',
+          border: OutlineInputBorder(),
+          prefixIcon: Icon(Icons.class_rounded),
+        ),
+        items: [
+          const DropdownMenuItem<String?>(
+            value: null,
+            child: Text('جميع الفصول'),
+          ),
+          ..._availableClasses.map(
+            (info) => DropdownMenuItem<String?>(
+              value: info.classId,
+              child: Text(info.className ?? 'فصل بدون اسم'),
+            ),
+          ),
+        ],
+        onChanged: (value) {
+          setState(() {
+            _selectedClassFilter = value;
+            _currentOffset = 0;
+          });
+          _loadFeeds(refresh: true);
+        },
+      ),
+    );
+  }
+
   void _onScroll() {
     // Disable pagination when loading by classId (it loads all feeds at once)
-    if (widget.classId != null) return;
+    if (widget.classId != null || _selectedClassFilter != null) return;
 
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
@@ -159,172 +215,169 @@ class _FeedScreenState extends State<FeedScreen> {
           ],
         ),
         backgroundColor: Colors.grey[100],
-        body: BlocConsumer<GetFeedCubit, GetFeedState>(
-          listener: (context, state) {
-            if (state is GetFeedFailure) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(state.errorMessage),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          },
-          builder: (context, state) {
-            if (state is GetFeedLoading) {
-              return const Center(child: CircularProgressIndicator());
-            } else if (state is GetFeedSuccess) {
-              final feeds = state.feeds;
-              if (feeds.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryMaroon.withOpacity(0.08),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          Icons.feed_rounded,
-                          size: 64,
-                          color: AppColors.primaryMaroon.withOpacity(0.4),
-                        ),
+        body: Column(
+          children: [
+            if (widget.classId == null) _buildClassFilterBar(),
+            Expanded(
+              child: BlocConsumer<GetFeedCubit, GetFeedState>(
+                listener: (context, state) {
+                  if (state is GetFeedFailure) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(state.errorMessage),
+                        backgroundColor: Colors.red,
                       ),
-                      const SizedBox(height: 20),
-                      Text(
-                        'لا توجد إعلانات',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: Colors.grey[800],
-                              fontWeight: FontWeight.bold,
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        isKhadem
-                            ? 'ابدأ بإضافة إعلانات لطلابك'
-                            : 'سيتم عرض الإعلانات من خادمك هنا',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Colors.grey[600],
-                            ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                );
-              }
-
-              return RefreshIndicator(
-                color: AppColors.primaryMaroon,
-                backgroundColor: Colors.white,
-                onRefresh: () async {
-                  _currentOffset = 0;
-                  await Future.delayed(
-                      const Duration(milliseconds: 500)); // Visual feedback
-                  context.read<GetFeedCubit>().getMyFeeds(
-                        type: _selectedType,
-                        limit: _limit,
-                        offset: 0,
-                      );
+                    );
+                  }
                 },
-                child: ListView.separated(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  itemBuilder: (context, index) {
-                    if (index == feeds.length && state.hasMore) {
-                      return const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(AppSpacing.md),
-                          child: CircularProgressIndicator(),
+                builder: (context, state) {
+                  if (state is GetFeedLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  } else if (state is GetFeedSuccess) {
+                    final feeds = state.feeds;
+                    if (feeds.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryMaroon.withOpacity(0.08),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.feed_rounded,
+                                size: 64,
+                                color: AppColors.primaryMaroon.withOpacity(0.4),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              'لا توجد إعلانات',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
+                                    color: Colors.grey[800],
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              isKhadem
+                                  ? 'ابدأ بإضافة إعلانات لطلابك'
+                                  : 'سيتم عرض الإعلانات من خادمك هنا',
+                              style:
+                                  Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                        color: Colors.grey[600],
+                                      ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
                         ),
                       );
                     }
-                    return FeedCard(
-                      feed: feeds[index],
-                      isKhadem: isKhadem,
-                      onDelete: (feedId) {
-                        context.read<GetFeedCubit>().deleteFeed(feedId);
+
+                    return RefreshIndicator(
+                      color: AppColors.primaryMaroon,
+                      backgroundColor: Colors.white,
+                      onRefresh: () async {
+                        _loadFeeds(refresh: true);
                       },
-                      onEdit: (feed) {
-                        final addFeedCubit = context.read<AddFeedCubit>();
-                        showDialog(
-                          context: context,
-                          builder: (dialogContext) => BlocProvider.value(
-                            value: addFeedCubit,
-                            child: AddFeedDialog(existingFeed: feed),
-                          ),
-                        ).then((result) {
-                          if (result == true) {
-                            _currentOffset = 0;
-                            context.read<GetFeedCubit>().getMyFeeds(
-                                  type: _selectedType,
-                                  limit: _limit,
-                                  offset: 0,
-                                );
+                      child: ListView.separated(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        itemBuilder: (context, index) {
+                          if (index == feeds.length && state.hasMore) {
+                            return const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(AppSpacing.md),
+                                child: CircularProgressIndicator(),
+                              ),
+                            );
                           }
-                        });
-                      },
+                          return FeedCard(
+                            feed: feeds[index],
+                            isKhadem: isKhadem,
+                            onDelete: (feedId) {
+                              context.read<GetFeedCubit>().deleteFeed(feedId);
+                            },
+                            onEdit: (feed) {
+                              final addFeedCubit = context.read<AddFeedCubit>();
+                              showDialog(
+                                context: context,
+                                builder: (dialogContext) => BlocProvider.value(
+                                  value: addFeedCubit,
+                                  child: AddFeedDialog(existingFeed: feed),
+                                ),
+                              ).then((result) {
+                                if (result == true) {
+                                  _currentOffset = 0;
+                                  context.read<GetFeedCubit>().getMyFeeds(
+                                        type: _selectedType,
+                                        limit: _limit,
+                                        offset: 0,
+                                      );
+                                }
+                              });
+                            },
+                          );
+                        },
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: AppSpacing.md),
+                        itemCount: feeds.length + (state.hasMore ? 1 : 0),
+                      ),
                     );
-                  },
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(height: AppSpacing.md),
-                  itemCount: feeds.length + (state.hasMore ? 1 : 0),
-                ),
-              );
-            } else if (state is GetFeedLoadingMore) {
-              return RefreshIndicator(
-                color: AppColors.primaryMaroon,
-                backgroundColor: Colors.white,
-                onRefresh: () async {
-                  _currentOffset = 0;
-                  await Future.delayed(
-                      const Duration(milliseconds: 500)); // Visual feedback
-                  context.read<GetFeedCubit>().getMyFeeds(
-                        type: _selectedType,
-                        limit: _limit,
-                        offset: 0,
-                      );
+                  } else if (state is GetFeedLoadingMore) {
+                    return RefreshIndicator(
+                      color: AppColors.primaryMaroon,
+                      backgroundColor: Colors.white,
+                      onRefresh: () async {
+                        _loadFeeds(refresh: true);
+                      },
+                      child: ListView.separated(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        itemBuilder: (context, index) {
+                          return FeedCard(
+                            feed: state.feeds[index],
+                            isKhadem: isKhadem,
+                            onDelete: (feedId) {
+                              context.read<GetFeedCubit>().deleteFeed(feedId);
+                            },
+                            onEdit: (feed) {
+                              final addFeedCubit = context.read<AddFeedCubit>();
+                              showDialog(
+                                context: context,
+                                builder: (dialogContext) => BlocProvider.value(
+                                  value: addFeedCubit,
+                                  child: AddFeedDialog(existingFeed: feed),
+                                ),
+                              ).then((result) {
+                                if (result == true) {
+                                  _currentOffset = 0;
+                                  context.read<GetFeedCubit>().getMyFeeds(
+                                        type: _selectedType,
+                                        limit: _limit,
+                                        offset: 0,
+                                      );
+                                }
+                              });
+                            },
+                          );
+                        },
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: AppSpacing.md),
+                        itemCount: state.feeds.length,
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
                 },
-                child: ListView.separated(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  itemBuilder: (context, index) {
-                    return FeedCard(
-                      feed: state.feeds[index],
-                      isKhadem: isKhadem,
-                      onDelete: (feedId) {
-                        context.read<GetFeedCubit>().deleteFeed(feedId);
-                      },
-                      onEdit: (feed) {
-                        final addFeedCubit = context.read<AddFeedCubit>();
-                        showDialog(
-                          context: context,
-                          builder: (dialogContext) => BlocProvider.value(
-                            value: addFeedCubit,
-                            child: AddFeedDialog(existingFeed: feed),
-                          ),
-                        ).then((result) {
-                          if (result == true) {
-                            _currentOffset = 0;
-                            context.read<GetFeedCubit>().getMyFeeds(
-                                  type: _selectedType,
-                                  limit: _limit,
-                                  offset: 0,
-                                );
-                          }
-                        });
-                      },
-                    );
-                  },
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(height: AppSpacing.md),
-                  itemCount: state.feeds.length,
-                ),
-              );
-            }
-            return const SizedBox.shrink();
-          },
+              ),
+            ),
+          ],
         ),
         floatingActionButton: (isKhadem && !widget.isReadOnly)
             ? Builder(

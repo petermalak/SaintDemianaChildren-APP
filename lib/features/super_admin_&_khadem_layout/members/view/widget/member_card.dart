@@ -8,6 +8,7 @@ import '../../../../scoring/view/widget/manage_points_dialog.dart';
 import '../../../../scoring/view/widget/score_badge_widget.dart';
 import '../../../../scoring/viewmodel/scoring_cubit/scoring_cubit.dart';
 import '../../../../scoring/repository/i_scoring_repository.dart';
+import '../../../../profile/repository/i_profile_repository.dart';
 import 'add_user_dialog.dart';
 
 class MemberCard extends StatefulWidget {
@@ -80,34 +81,11 @@ class _MemberCardState extends State<MemberCard> {
                 },
               ),
               // Show manage points option for makhdoum only
-              if (widget.user.role == UserRole.makhdoum &&
-                  widget.user.classId != null)
-                ListTile(
-                  leading: const Icon(Icons.emoji_events,
-                      color: AppColors.accentGold),
-                  title: const Text('إدارة النقاط'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    showDialog(
-                      context: context,
-                      builder: (dialogContext) => BlocProvider(
-                        create: (context) =>
-                            ScoringCubit(sl<IScoringRepository>()),
-                        child: ManagePointsDialog(
-                          userId: widget.user.id!,
-                          userName: widget.user.name!,
-                          classId: widget.user.classId!,
-                        ),
-                      ),
-                    ).then((_) {
-                      // Refresh after dialog closes
-                      setState(() {
-                        _refreshKey++; // Force ScoreBadgeWidget to reload
-                      });
-                      widget.onUpdate();
-                    });
-                  },
-                ),
+              _buildManagePointsTile(context),
+              if (widget.user.classSummaries.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _buildClassMembershipSection(),
+              ],
               ListTile(
                 leading:
                     const Icon(Icons.phone, color: AppColors.primaryMaroon),
@@ -172,6 +150,280 @@ class _MemberCardState extends State<MemberCard> {
     );
   }
 
+  Widget _buildManagePointsTile(BuildContext context) {
+    if (widget.user.role != UserRole.makhdoum) {
+      return const SizedBox.shrink();
+    }
+
+    final currentUser = sl<IProfileRepository>().user;
+    final currentUserId = currentUser?.id;
+    final isSuperAdmin = currentUser?.role == UserRole.superAdmin;
+
+    final currentUserClasses = currentUser?.classes ?? const <UserClassInfo>[];
+    final currentKhademClassIds = currentUserClasses
+        .where((info) =>
+            info.membershipRole == 'khadem' && (info.isActive ?? true))
+        .map((info) => info.classId)
+        .toSet();
+
+    final permittedSummaries = widget.user.classSummaries.where((summary) {
+      final isMakhdoumMembership =
+          summary.membershipRole == 'makhdoum' || summary.membershipRole == null;
+      if (!isMakhdoumMembership) {
+        return false;
+      }
+
+      if (isSuperAdmin == true) {
+        return true;
+      }
+
+      if (currentUserId == null) {
+        return false;
+      }
+
+      final explicitlyAssigned = summary.assignedKhadems
+          .any((khadem) => khadem.id == currentUserId);
+
+      final sharesClass =
+          currentKhademClassIds.contains(summary.classId);
+
+      return explicitlyAssigned || sharesClass;
+    }).toList();
+
+    if (permittedSummaries.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final uniqueSummaries = {
+      for (final summary in permittedSummaries) summary.classId: summary
+    }.values.toList();
+
+    return ListTile(
+      leading: const Icon(Icons.emoji_events, color: AppColors.accentGold),
+      title: const Text('إدارة النقاط'),
+      subtitle: uniqueSummaries.length == 1
+          ? Text(uniqueSummaries.first.className ?? 'الفصل الحالي')
+          : const Text('اختر الفصل لإدارة النقاط'),
+      onTap: () => _openManagePointsSelector(
+        uniqueSummaries,
+        isSuperAdmin == true ? widget.user.primaryClassId : null,
+      ),
+    );
+  }
+
+  void _openManagePointsSelector(
+    List<UserClassSummary> summaries,
+    String? fallbackClassId,
+  ) {
+    final availableSummaries = summaries.isNotEmpty
+        ? summaries
+        : (fallbackClassId != null
+            ? [
+                _buildFallbackSummary(fallbackClassId),
+              ]
+            : <UserClassSummary>[]);
+
+    if (availableSummaries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا يوجد فصل مرتبط لإدارة النقاط'),
+        ),
+      );
+      return;
+    }
+
+    if (availableSummaries.length == 1) {
+      Navigator.pop(context);
+      _openManagePointsForClass(availableSummaries.first);
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'اختر الفصل لإدارة النقاط',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            ...availableSummaries.map(
+              (summary) => ListTile(
+                leading: const Icon(Icons.class_rounded),
+                title: Text(summary.className ?? 'فصل بدون اسم'),
+                subtitle: Text(summary.khademNames),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.pop(context);
+                  _openManagePointsForClass(summary);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openManagePointsForClass(UserClassSummary summary) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => BlocProvider(
+        create: (context) => ScoringCubit(sl<IScoringRepository>()),
+        child: ManagePointsDialog(
+          userId: widget.user.id!,
+          userName: widget.user.name ?? '',
+          classId: summary.classId,
+          className: summary.className,
+        ),
+      ),
+    ).then((_) {
+      setState(() {
+        _refreshKey++;
+      });
+      widget.onUpdate();
+    });
+  }
+
+  UserClassSummary _buildFallbackSummary(String classId) {
+    UserClassInfo? membership;
+    try {
+      membership = widget.user.classes.firstWhere(
+        (info) => info.classId == classId,
+      );
+    } catch (_) {
+      membership = null;
+    }
+
+    return UserClassSummary(
+      classId: classId,
+      className: membership?.className,
+      membershipRole: membership?.membershipRole ?? 'makhdoum',
+    );
+  }
+
+  Widget _buildClassMembershipSection() {
+    final summaries = widget.user.classSummaries;
+    if (summaries.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(bottom: 4),
+          child: Text(
+            'الفصول المرتبطة',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+        ...summaries.map(
+          (summary) => ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              Icons.class_outlined,
+              color: AppColors.primaryMaroon.withValues(alpha: 0.8),
+            ),
+            title: Text(summary.className ?? 'فصل بدون اسم'),
+            subtitle: Text(
+              summary.membershipRole == 'khadem'
+                  ? 'الدور: ${_localizeMembershipRole(summary.membershipRole)}'
+                  : summary.khademNames,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget? _buildClassAssignmentsSection({required bool compact}) {
+    final summaries = widget.user.classSummaries;
+    if (summaries.isEmpty) {
+      return null;
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: summaries
+          .map((summary) => _buildClassChip(summary, compact: compact))
+          .toList(),
+    );
+  }
+
+  Widget _buildClassChip(UserClassSummary summary,
+      {required bool compact}) {
+    final description = summary.membershipRole == 'makhdoum'
+        ? summary.khademNames
+        : 'الدور: ${_localizeMembershipRole(summary.membershipRole)}';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.primaryMaroon.withValues(alpha: 0.05.clamp(0.0, 1.0)),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppColors.primaryMaroon.withValues(alpha: 0.2.clamp(0.0, 1.0)),
+        ),
+      ),
+      constraints: const BoxConstraints(minWidth: 90),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            summary.className ?? 'فصل بدون اسم',
+            style: TextStyle(
+              fontSize: compact ? 10 : 12,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            description,
+            style: TextStyle(
+              fontSize: compact ? 8 : 10,
+              color: AppColors.textSecondary,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _localizeMembershipRole(String? role) {
+    switch (role) {
+      case 'khadem':
+        return 'خادم';
+      case 'makhdoum':
+        return 'مخدوم';
+      default:
+        return 'عضو';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -221,6 +473,9 @@ class _MemberCardState extends State<MemberCard> {
   }
 
   Widget _buildGridViewCard() {
+    final badgeClassId = widget.user.primaryClassId;
+    final classAssignmentsSection =
+        _buildClassAssignmentsSection(compact: widget.isCompact);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
@@ -302,14 +557,18 @@ class _MemberCardState extends State<MemberCard> {
           ],
           // Show score badge for makhdoum only
           if (widget.user.role == UserRole.makhdoum &&
-              widget.user.classId != null) ...[
+              badgeClassId != null) ...[
             const SizedBox(height: 6),
             ScoreBadgeWidget(
               key: ValueKey('score_${widget.user.id}_$_refreshKey'),
               userId: widget.user.id!,
-              classId: widget.user.classId!,
+              classId: badgeClassId,
               compact: true,
             ),
+          ],
+          if (classAssignmentsSection != null) ...[
+            const SizedBox(height: 6),
+            classAssignmentsSection,
           ],
         ],
       ),
@@ -317,6 +576,9 @@ class _MemberCardState extends State<MemberCard> {
   }
 
   Widget _buildListViewCard() {
+    final badgeClassId = widget.user.primaryClassId;
+    final classAssignmentsSection =
+        _buildClassAssignmentsSection(compact: false);
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
@@ -412,14 +674,18 @@ class _MemberCardState extends State<MemberCard> {
                 ],
                 // Show score badge for makhdoum only
                 if (widget.user.role == UserRole.makhdoum &&
-                    widget.user.classId != null) ...[
+                    badgeClassId != null) ...[
                   const SizedBox(height: 6),
                   ScoreBadgeWidget(
                     key: ValueKey('score_${widget.user.id}_$_refreshKey'),
                     userId: widget.user.id!,
-                    classId: widget.user.classId!,
+                    classId: badgeClassId,
                     compact: true,
                   ),
+                ],
+                if (classAssignmentsSection != null) ...[
+                  const SizedBox(height: 8),
+                  classAssignmentsSection,
                 ],
               ],
             ),

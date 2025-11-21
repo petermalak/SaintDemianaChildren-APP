@@ -7,12 +7,14 @@ class ManagePointsDialog extends StatefulWidget {
   final String userId;
   final String userName;
   final String classId;
+  final String? className;
 
   const ManagePointsDialog({
     Key? key,
     required this.userId,
     required this.userName,
     required this.classId,
+    this.className,
   }) : super(key: key);
 
   @override
@@ -67,7 +69,23 @@ class _ManagePointsDialogState extends State<ManagePointsDialog> {
         }
       },
       child: AlertDialog(
-        title: Text('إدارة النقاط - ${widget.userName}'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('إدارة النقاط - ${widget.userName}'),
+            if (widget.className != null && widget.className!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                'الفصل: ${widget.className}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ],
+        ),
         content: BlocBuilder<ScoringCubit, ScoringState>(
           builder: (context, state) {
             final isLoading = state is ScoringLoading;

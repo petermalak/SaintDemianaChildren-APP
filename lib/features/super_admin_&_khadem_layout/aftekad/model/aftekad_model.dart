@@ -35,7 +35,14 @@ class AftekadModel {
     type = json['type'] != null
         ? AftekadType.values.firstWhere((e) => e.name == json['type'])
         : null;
-    status = json['status'] == "completed" ? true : false;
+    // Handle both string "completed" and boolean true/false
+    if (json['status'] == "completed" || json['status'] == true) {
+      status = true;
+    } else if (json['status'] == false || json['status'] == null) {
+      status = false;
+    } else {
+      status = false;
+    }
     duration = json['duration'];
     notes = json['notes'];
     scheduledDate = json['scheduledDate'];

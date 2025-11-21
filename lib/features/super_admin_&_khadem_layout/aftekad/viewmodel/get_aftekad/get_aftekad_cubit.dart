@@ -30,12 +30,13 @@ class GetAftekadCubit extends Cubit<GetAftekadState> {
       if (refreshState.shouldRefresh(RefreshType.eftekad) ||
           refreshState.shouldRefresh(RefreshType.all)) {
         print('✅ [GetAftekadCubit] Refresh triggered for eftekad!');
-        // Re-fetch with last parameters
-        if (_lastFridayDate != null) {
+        // Use Friday date from refresh state if provided, otherwise use last Friday date
+        final fridayDateToUse = refreshState.fridayDate ?? _lastFridayDate;
+        if (fridayDateToUse != null) {
           print(
-              '🔄 [GetAftekadCubit] Reloading data: date=$_lastFridayDate, khadem=$_lastKhademId, class=$_lastClassId');
+              '🔄 [GetAftekadCubit] Reloading data: date=$fridayDateToUse, khadem=$_lastKhademId, class=$_lastClassId');
           getAftekad(
-            _lastFridayDate!,
+            fridayDateToUse,
             khademId: _lastKhademId,
             classId: _lastClassId,
             khademName: _lastKhademName,

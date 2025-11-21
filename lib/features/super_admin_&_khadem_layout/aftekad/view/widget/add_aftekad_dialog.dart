@@ -7,6 +7,7 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/afte
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/data_refresh_cubit.dart';
+import '../../../../../core/utils/date_helper.dart';
 import '../../../../../core/utils/responsive_dialog_utils.dart';
 import '../../../../../core/widgets/custom_text_field.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
@@ -23,6 +24,7 @@ class _AddAftekadDialogState extends State<AddAftekadDialog> {
   final _formKey = GlobalKey<FormState>();
   AftekadType? _selectedType;
   DateTime _selectedDate = DateTime.now();
+  DateTime? _submittedDate; // Store the date that was submitted
 
   @override
   void dispose() {
@@ -141,13 +143,16 @@ class _AddAftekadDialogState extends State<AddAftekadDialog> {
                         );
 
                         Future.delayed(const Duration(milliseconds: 300), () {
+                          // Determine the Friday date for the submitted date
+                          final submittedDate = _submittedDate ?? _selectedDate;
+                          final fridayDate = DateHelper.getFridayDateStringForDate(submittedDate);
                           print(
-                            '🔄 [AddAftekadDialog] Triggering DataRefreshCubit NOW...',
+                            '🔄 [AddAftekadDialog] Triggering DataRefreshCubit NOW for Friday: $fridayDate (submitted date: ${DateHelper.formatDateToString(submittedDate)})',
                           );
                           sl<DataRefreshCubit>().refreshMultiple({
                             RefreshType.eftekad,
                             RefreshType.stats,
-                          });
+                          }, fridayDate: fridayDate);
                         });
                       } else if (state is AddAftekadFailure) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -245,6 +250,9 @@ class _AddAftekadDialogState extends State<AddAftekadDialog> {
       return;
     }
 
+    // Store the date being submitted
+    _submittedDate = _selectedDate;
+    
     context.read<AddAftekadCubit>().addAftekad(
           type: _selectedType!,
           date: _selectedDate,

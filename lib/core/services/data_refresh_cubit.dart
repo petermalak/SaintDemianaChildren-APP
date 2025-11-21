@@ -28,11 +28,13 @@ class DataRefreshCubit extends Cubit<DataRefreshState> {
   }
 
   /// Trigger refresh for eftekad data only
-  void refreshEftekad() {
-    print('🔄 [DataRefreshCubit] Refresh EFTEKAD triggered');
+  /// [fridayDate] - Optional Friday date to refresh for (YYYY-MM-DD format)
+  void refreshEftekad({String? fridayDate}) {
+    print('🔄 [DataRefreshCubit] Refresh EFTEKAD triggered${fridayDate != null ? " for Friday: $fridayDate" : ""}');
     emit(DataRefreshState(
       timestamp: DateTime.now(),
       refreshTypes: {RefreshType.eftekad},
+      fridayDate: fridayDate,
     ));
   }
 
@@ -55,11 +57,13 @@ class DataRefreshCubit extends Cubit<DataRefreshState> {
   }
 
   /// Trigger multiple specific refreshes at once
-  void refreshMultiple(Set<RefreshType> types) {
-    print('🔄 [DataRefreshCubit] Refresh MULTIPLE triggered: $types');
+  /// [fridayDate] - Optional Friday date to refresh for (YYYY-MM-DD format)
+  void refreshMultiple(Set<RefreshType> types, {String? fridayDate}) {
+    print('🔄 [DataRefreshCubit] Refresh MULTIPLE triggered: $types${fridayDate != null ? " for Friday: $fridayDate" : ""}');
     emit(DataRefreshState(
       timestamp: DateTime.now(),
       refreshTypes: types,
+      fridayDate: fridayDate,
     ));
   }
 }
@@ -78,15 +82,18 @@ enum RefreshType {
 class DataRefreshState extends Equatable {
   final DateTime timestamp;
   final Set<RefreshType> refreshTypes;
+  final String? fridayDate; // Optional Friday date (YYYY-MM-DD) for eftekad refreshes
 
   const DataRefreshState({
     required this.timestamp,
     required this.refreshTypes,
+    this.fridayDate,
   });
 
   DataRefreshState.initial()
       : timestamp = DateTime(2000),
-        refreshTypes = const {RefreshType.all};
+        refreshTypes = const {RefreshType.all},
+        fridayDate = null;
 
   /// Check if this refresh should trigger a specific type
   bool shouldRefresh(RefreshType type) {
@@ -95,5 +102,5 @@ class DataRefreshState extends Equatable {
   }
 
   @override
-  List<Object?> get props => [timestamp, refreshTypes];
+  List<Object?> get props => [timestamp, refreshTypes, fridayDate];
 }

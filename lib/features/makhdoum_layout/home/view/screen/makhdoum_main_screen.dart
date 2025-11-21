@@ -4,9 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:saint_demiana_children/features/makhdoum_layout/home/view/screen/home_screen.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
-import '../../../../../core/utils/jwt_helper.dart';
 import '../../../../authentication/repository/i_authentication_repository.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
+import '../../../../authentication/model/user_model.dart';
 import '../../../../scoring/view/screen/scoring_dashboard_screen.dart';
 import '../../../../scoring/viewmodel/scoring_cubit/scoring_cubit.dart';
 import '../../../../scoring/repository/i_scoring_repository.dart';
@@ -32,6 +32,8 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
   final Map<int, ScrollController> _scrollControllers = {};
   bool _isTabBarVisible = true;
   double _lastScrollOffset = 0;
+  List<UserClassInfo> _makhdoumClasses = const [];
+  String? _selectedMakhdoumClassId;
 
   @override
   void initState() {
@@ -39,6 +41,7 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
     _pageController = PageController();
     _initializeAnimations();
     _initializeScrollControllers();
+    _hydrateMakhdoumClasses();
   }
 
   void _initializeAnimations() {
@@ -54,6 +57,55 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
     for (int i = 0; i < 4; i++) {
       _scrollControllers[i] = ScrollController()
         ..addListener(() => _handleScroll(i));
+    }
+  }
+
+  void _hydrateMakhdoumClasses() {
+    final user = sl<IProfileRepository>().user;
+    if (user == null) return;
+
+    final relevantClasses = user.classes
+        .where((info) => info.membershipRole == 'makhdoum')
+        .toList();
+
+    _makhdoumClasses = relevantClasses;
+
+    if (_selectedMakhdoumClassId == null) {
+      if (_makhdoumClasses.isNotEmpty) {
+        _selectedMakhdoumClassId = _makhdoumClasses.first.classId;
+      } else if (user.classId != null && user.classId!.isNotEmpty) {
+        _selectedMakhdoumClassId = user.classId;
+      }
+    }
+  }
+
+  String? get _effectiveMakhdoumClassId {
+    if (_selectedMakhdoumClassId != null &&
+        _selectedMakhdoumClassId!.isNotEmpty) {
+      return _selectedMakhdoumClassId;
+    }
+    if (_makhdoumClasses.isNotEmpty) {
+      return _makhdoumClasses.first.classId;
+    }
+    final user = sl<IProfileRepository>().user;
+    return user?.classId;
+  }
+
+  String? _getClassNameById(String? classId) {
+    if (classId == null || classId.isEmpty) {
+      return null;
+    }
+    try {
+      return _makhdoumClasses
+              .firstWhere((info) => info.classId == classId)
+              .className ??
+          'فصلي';
+    } catch (_) {
+      final user = sl<IProfileRepository>().user;
+      if (user != null && user.classId == classId) {
+        return 'فصلي';
+      }
+      return null;
     }
   }
 
@@ -361,68 +413,135 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
     print('📰 [MakhdoumMain] User classId: ${user?.classId}');
 
     if (user == null || user.id == null) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.orange),
-            SizedBox(height: 16),
-            Text('User data not available'),
-            Text('Please login again', style: TextStyle(fontSize: 12)),
-          ],
-        ),
+      return _buildMakhdoumError(
+        icon: Icons.error_outline,
+        title: 'User data not available',
+        subtitle: 'Please login again',
       );
     }
 
-    // Try to get classId
-    String? classId = user.classId;
-
-    // If classId is still null, try to extract from JWT token directly
-    if (classId == null && user.token != null) {
-      print(
-          '🔍 [MakhdoumMain] ClassId is null, trying to extract from JWT token...');
-      classId = JwtHelper.extractClassIdFromToken(user.token);
-      print('🔍 [MakhdoumMain] Extracted classId from JWT: $classId');
-
-      // Update user model with extracted classId
-      if (classId != null) {
-        user.classId = classId;
-        print('✅ [MakhdoumMain] Updated user classId: $classId');
-      }
-    }
-
+    final classId = _effectiveMakhdoumClassId;
     if (classId == null || classId.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.class_outlined, size: 64, color: Colors.orange),
-            SizedBox(height: 16),
-            Text('لم يتم تعيين فصل لك بعد',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 8),
-            Text('الرجاء التواصل مع الإدارة',
-                style: TextStyle(fontSize: 14, color: Colors.grey)),
-          ],
-        ),
-      );
+      return _buildNoClassAssigned();
     }
 
-    print('📰 [MakhdoumMain] Creating feeds with classId: $classId');
-
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(
-          create: (context) =>
-              GetFeedCubit(sl<IFeedRepository>())..getFeedsByClass(classId!),
+    return Column(
+      children: [
+        _buildMakhdoumClassSelector(
+          title: 'فصل الأخبار',
+          selectedClassId: classId,
         ),
-        BlocProvider(
-          create: (context) => AddFeedCubit(sl<IFeedRepository>()),
+        Expanded(
+          child: MultiBlocProvider(
+            key: ValueKey('makhdoum_feed_$classId'),
+            providers: [
+              BlocProvider(
+                create: (context) =>
+                    GetFeedCubit(sl<IFeedRepository>())..getFeedsByClass(classId),
+              ),
+              BlocProvider(
+                create: (context) => AddFeedCubit(sl<IFeedRepository>()),
+              ),
+            ],
+            child: FeedScreen(
+              classId: classId,
+              isReadOnly: true,
+              scrollController: _scrollControllers[2],
+            ),
+          ),
         ),
       ],
-      child: FeedScreen(
-        classId: classId,
-        isReadOnly: true, // Makhdoums can only view, not create feeds
+    );
+  }
+
+  Widget _buildMakhdoumError({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+  }) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 64, color: Colors.orange),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoClassAssigned() {
+    return _buildMakhdoumError(
+      icon: Icons.class_outlined,
+      title: 'لم يتم تعيين فصل لك بعد',
+      subtitle: 'الرجاء التواصل مع الإدارة',
+    );
+  }
+
+  Widget _buildMakhdoumClassSelector({
+    required String title,
+    required String selectedClassId,
+  }) {
+    final hasMultiple = _makhdoumClasses.length > 1;
+    final className = _getClassNameById(selectedClassId) ?? 'فصلي';
+
+    if (!hasMultiple) {
+      return ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+        leading: const Icon(Icons.class_rounded, color: AppColors.primaryMaroon),
+        title: Text(title),
+        subtitle: Text(className),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: selectedClassId,
+            items: _makhdoumClasses
+                .map(
+                  (info) => DropdownMenuItem(
+                    value: info.classId,
+                    child: Text(info.className ?? 'فصل بدون اسم'),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                _selectedMakhdoumClassId = value;
+              });
+            },
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.class_rounded),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -434,47 +553,38 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
     print('🏆 [MakhdoumMain] User classId: ${user?.classId}');
 
     if (user == null || user.id == null) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 64, color: Colors.orange),
-            SizedBox(height: 16),
-            Text('User data not available'),
-            Text('Please login again', style: TextStyle(fontSize: 12)),
-          ],
-        ),
+      return _buildMakhdoumError(
+        icon: Icons.error_outline,
+        title: 'User data not available',
+        subtitle: 'Please login again',
       );
     }
 
-    // Try to get classId - it might be in classMemberships or directly
-    String? classId = user.classId;
-
-    // If classId is still null, try to extract from JWT token directly
-    if (classId == null && user.token != null) {
-      print(
-          '🔍 [MakhdoumMain] ClassId is null, trying to extract from JWT token...');
-      classId = JwtHelper.extractClassIdFromToken(user.token);
-      print('🔍 [MakhdoumMain] Extracted classId from JWT: $classId');
-
-      // Update user model with extracted classId
-      if (classId != null) {
-        user.classId = classId;
-        print('✅ [MakhdoumMain] Updated user classId: $classId');
-      }
+    final classId = _effectiveMakhdoumClassId;
+    if (classId == null || classId.isEmpty) {
+      return _buildNoClassAssigned();
     }
 
-    print(
-        '🏆 [MakhdoumMain] Creating dashboard with userId: ${user.id}, classId: $classId');
+    final className = _getClassNameById(classId) ?? 'فصلي';
 
-    return BlocProvider(
-      create: (context) => ScoringCubit(sl<IScoringRepository>()),
-      child: ScoringDashboardScreen(
-        userId: user.id!,
-        classId:
-            classId ?? '', // Pass empty string if null, let dashboard handle it
-        className: 'فصلي',
-      ),
+    return Column(
+      children: [
+        _buildMakhdoumClassSelector(
+          title: 'فصل التايو',
+          selectedClassId: classId,
+        ),
+        Expanded(
+          child: BlocProvider(
+            key: ValueKey('makhdoum_scoring_$classId'),
+            create: (context) => ScoringCubit(sl<IScoringRepository>()),
+            child: ScoringDashboardScreen(
+              userId: user.id!,
+              classId: classId,
+              className: className,
+            ),
+          ),
+        ),
+      ],
     );
   }
 
