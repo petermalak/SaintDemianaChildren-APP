@@ -65,10 +65,31 @@ class UserModel extends Equatable {
     }
 
     List<Map<String, dynamic>> memberships = [];
-    if (json['classMemberships'] != null && json['classMemberships'] is List) {
-      memberships = (json['classMemberships'] as List)
-          .whereType<Map<String, dynamic>>()
-          .toList();
+    if (json['classMemberships'] != null) {
+      if (json['classMemberships'] is List) {
+        memberships = (json['classMemberships'] as List)
+            .whereType<Map<String, dynamic>>()
+            .toList();
+      } else if (json['classMemberships'] is Map) {
+        // Handle case where classMemberships comes as a Map instead of List
+        // This can happen with certain JSON serialization issues
+        print('⚠️ [UserModel] classMemberships is a Map, converting to List');
+        try {
+          final map = json['classMemberships'] as Map<String, dynamic>;
+          // Try to extract values if it's a map of objects
+          if (map.isNotEmpty) {
+            final values = map.values.whereType<Map<String, dynamic>>().toList();
+            memberships = values;
+          }
+        } catch (e) {
+          print('❌ [UserModel] Error converting classMemberships Map to List: $e');
+          memberships = [];
+        }
+      } else {
+        // Not a List or Map - log and use empty list
+        print('⚠️ [UserModel] classMemberships is neither List nor Map, type: ${json['classMemberships'].runtimeType}');
+        memberships = [];
+      }
     }
 
     if (extractedClassId == null && memberships.isNotEmpty) {

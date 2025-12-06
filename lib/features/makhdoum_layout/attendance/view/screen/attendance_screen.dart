@@ -5,18 +5,77 @@ import 'package:saint_demiana_children/features/makhdoum_layout/attendance/viewm
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../super_admin_&_khadem_layout/attendance/model/attendance_model.dart';
+import '../../../../profile/repository/i_profile_repository.dart';
+import '../../../../authentication/model/user_model.dart';
 import '../../repository/i_attendance_repository.dart';
 
-class AttendanceScreen extends StatelessWidget {
+class AttendanceScreen extends StatefulWidget {
   final ScrollController? scrollController;
+  final String? initialClassId;
 
-  const AttendanceScreen({super.key, this.scrollController});
+  const AttendanceScreen({
+    super.key,
+    this.scrollController,
+    this.initialClassId,
+  });
+
+  @override
+  State<AttendanceScreen> createState() => _AttendanceScreenState();
+}
+
+class _AttendanceScreenState extends State<AttendanceScreen> {
+  List<UserClassInfo> _makhdoumClasses = const [];
+  String? _selectedClassId;
+
+  @override
+  void initState() {
+    super.initState();
+    _hydrateMakhdoumClasses();
+  }
+
+  void _hydrateMakhdoumClasses() {
+    final user = sl<IProfileRepository>().user;
+    if (user == null) return;
+
+    final relevantClasses = user.classes
+        .where((info) => info.membershipRole == 'makhdoum')
+        .toList();
+
+    setState(() {
+      _makhdoumClasses = relevantClasses;
+      
+      if (widget.initialClassId != null && widget.initialClassId!.isNotEmpty) {
+        _selectedClassId = widget.initialClassId;
+      } else if (_makhdoumClasses.isNotEmpty) {
+        _selectedClassId = _makhdoumClasses.first.classId;
+      } else if (user.classId != null && user.classId!.isNotEmpty) {
+        _selectedClassId = user.classId;
+      }
+    });
+  }
+
+  String? _getClassNameById(String? classId) {
+    if (classId == null || classId.isEmpty) {
+      return null;
+    }
+    try {
+      return _makhdoumClasses
+              .firstWhere((info) => info.classId == classId)
+              .className ??
+          'فصلي';
+    } catch (_) {
+      return 'فصلي';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final hasMultipleClasses = _makhdoumClasses.length > 1;
+
     return BlocProvider(
       create: (context) =>
-          AttendanceCubit(sl<IAttendanceRepository>())..fetchAttendance(),
+          AttendanceCubit(sl<IAttendanceRepository>())
+            ..fetchAttendance(classId: _selectedClassId),
       child: BlocBuilder<AttendanceCubit, AttendanceState>(
         builder: (context, state) {
           if (state is AttendanceLoading) {
@@ -78,55 +137,109 @@ class AttendanceScreen extends StatelessWidget {
           } else if (state is AttendanceSuccess) {
             final records = state.attendanceModel.attendanceRecords ?? [];
 
-            if (records.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.event_busy,
-                      color: AppColors.textSecondary,
-                      size: 60,
-                    ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'لا توجد سجلات حضور',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'سيتم عرض سجلات الحضور الخاصة بك هنا',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
+            return Column(
+              children: [
+                // Class selector
+                if (hasMultipleClasses)
+                  _buildClassSelector(context),
+                
+                Expanded(
+                  child: records.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.event_busy,
+                                color: AppColors.textSecondary,
+                                size: 60,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'لا توجد سجلات حضور',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'سيتم عرض سجلات الحضور الخاصة بك هنا',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: () async {
+                            await context.read<AttendanceCubit>().fetchAttendance(
+                                  classId: _selectedClassId,
+                                );
+                          },
+                          color: AppColors.primaryMaroon,
+                          child: ListView.builder(
+                            controller: widget.scrollController,
+                            padding: const EdgeInsets.all(16),
+                            itemCount: records.length,
+                            itemBuilder: (context, index) {
+                              return _buildAttendanceCard(records[index]);
+                            },
+                          ),
+                        ),
                 ),
-              );
-            }
-
-            return RefreshIndicator(
-              onRefresh: () async {
-                await context.read<AttendanceCubit>().fetchAttendance();
-              },
-              color: AppColors.primaryMaroon,
-              child: ListView.builder(
-                controller: scrollController,
-                padding: const EdgeInsets.all(16),
-                itemCount: records.length,
-                itemBuilder: (context, index) {
-                  return _buildAttendanceCard(records[index]);
-                },
-              ),
+              ],
             );
           }
 
           return const SizedBox.shrink();
         },
+      ),
+    );
+  }
+
+  Widget _buildClassSelector(BuildContext context) {
+    final className = _getClassNameById(_selectedClassId) ?? 'فصلي';
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'فصل الحضور',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: _selectedClassId,
+            items: _makhdoumClasses
+                .map(
+                  (info) => DropdownMenuItem(
+                    value: info.classId,
+                    child: Text(info.className ?? 'فصل بدون اسم'),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                _selectedClassId = value;
+              });
+              // Fetch attendance for the new class
+              context.read<AttendanceCubit>().fetchAttendance(classId: value);
+            },
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.class_rounded),
+            ),
+          ),
+        ],
       ),
     );
   }

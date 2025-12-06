@@ -74,4 +74,36 @@ class ProfileRepository implements IProfileRepository {
       return left("Unexpected error occurred");
     }
   }
+
+  @override
+  Future<Either<String, UserModel>> refreshUser() async {
+    try {
+      print('🔄 [ProfileRepository] Refreshing user from API...');
+      
+      final response = await _apiService.get(path: ApiEndpoints.myProfile);
+      
+      // Preserve the token from the current user
+      final currentToken = _user?.token;
+      
+      final refreshedUser = UserModel.fromJson(
+        response.data,
+        token: currentToken,
+      );
+      
+      print('✅ [ProfileRepository] User refreshed: ${refreshedUser.name}');
+      print('🏫 [ProfileRepository] Refreshed user classId: ${refreshedUser.classId}');
+      
+      // Update the cached user
+      _user = refreshedUser;
+      await _storageService.saveProfile(refreshedUser);
+      
+      return right(refreshedUser);
+    } on DioException catch (e) {
+      print('❌ [ProfileRepository] Error refreshing user: ${_apiService.handleError(e)}');
+      return left(_apiService.handleError(e));
+    } catch (e) {
+      print('❌ [ProfileRepository] Unexpected error refreshing user: $e');
+      return left("Unexpected error occurred: $e");
+    }
+  }
 }

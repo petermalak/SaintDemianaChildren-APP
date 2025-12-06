@@ -11,10 +11,17 @@ class AttendanceRepository implements IAttendanceRepository {
   AttendanceRepository(this._apiService);
 
   @override
-  Future<Either<String, AttendanceModel>> fetchAttendance() async {
+  Future<Either<String, AttendanceModel>> fetchAttendance({String? classId}) async {
     try {
+      // Build query parameters
+      final Map<String, dynamic> queryParams = {};
+      if (classId != null && classId.isNotEmpty) {
+        queryParams['classId'] = classId;
+      }
+
       final response = await _apiService.get(
         path: ApiEndpoints.attendance,
+        queryParameters: queryParams,
       );
 
       if (response.statusCode == 200) {

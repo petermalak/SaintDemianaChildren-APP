@@ -41,7 +41,31 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
     _pageController = PageController();
     _initializeAnimations();
     _initializeScrollControllers();
-    _hydrateMakhdoumClasses();
+    _checkAndRefreshUser();
+  }
+
+  void _checkAndRefreshUser() async {
+    final profileRepo = sl<IProfileRepository>();
+    final user = profileRepo.user;
+    
+    // If user has no classId, refresh from API
+    if (user != null && (user.classId == null || user.classId!.isEmpty)) {
+      print('🔄 [MakhdoumMain] User classId is null, refreshing user profile...');
+      final result = await profileRepo.refreshUser();
+      result.fold(
+        (error) {
+          print('❌ [MakhdoumMain] Failed to refresh user: $error');
+        },
+        (refreshedUser) {
+          print('✅ [MakhdoumMain] User refreshed, classId: ${refreshedUser.classId}');
+          setState(() {
+            _hydrateMakhdoumClasses();
+          });
+        },
+      );
+    } else {
+      _hydrateMakhdoumClasses();
+    }
   }
 
   void _initializeAnimations() {
@@ -176,7 +200,9 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
                       children: [
                         HomeScreen(scrollController: _scrollControllers[0]),
                         AttendanceScreen(
-                            scrollController: _scrollControllers[1]),
+                          scrollController: _scrollControllers[1],
+                          initialClassId: _effectiveMakhdoumClassId,
+                        ),
                         _buildFeedsTab(),
                         _buildScoringTab(),
                       ],

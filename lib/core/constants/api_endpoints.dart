@@ -15,8 +15,9 @@ class ApiEndpoints {
 
   // DEVELOPMENT - Keep these commented for reference
   // static const String baseUrl = "http://localhost:7000/";
-  static const String baseUrl = "http://192.168.1.11:7000/";
+  // static const String baseUrl = "http://192.168.1.11:7000/";
   // static const String baseUrl = "http://172.20.10.5:7000/";
+  static const String baseUrl = "http://192.168.1.112:7000/";
 
   static const String feeds = "feeds/";
   static const String myFeeds = "feeds/my-feeds/";
