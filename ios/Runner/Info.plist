@@ -48,6 +48,9 @@
 	<!-- Permissions for phone calls and WhatsApp -->
 	<key>NSPhoneNumberUsageDescription</key>
 	<string>This app needs access to make phone calls to contact church members.</string>
+	<!-- Biometric Authentication Permission -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Use Face ID or Touch ID to securely login to your account</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>tel</string>

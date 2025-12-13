@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:saint_demiana_children/core/services/interface/i_api_service.dart';
 import 'package:saint_demiana_children/core/services/interface/i_storage_service.dart';
 import 'package:saint_demiana_children/core/services/interface/i_notification_service.dart';
+import 'package:saint_demiana_children/core/services/interface/i_biometric_service.dart';
 import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/aftekad/repository/aftekad_repository.dart';
 
@@ -31,6 +32,7 @@ import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/local_notification_service.dart';
+import '../services/biometric_service.dart';
 import '../services/data_refresh_cubit.dart';
 
 final GetIt sl = GetIt.instance;
@@ -46,6 +48,7 @@ Future<void> setupServiceLocator() async {
   sl.registerLazySingleton<IStorageService>(() => StorageService.instance);
   sl.registerLazySingleton<INotificationService>(
       () => NotificationService.instance);
+  sl.registerLazySingleton<IBiometricService>(() => BiometricService());
 
   // Data Refresh Manager (Singleton for global state)
   sl.registerLazySingleton<DataRefreshCubit>(() => DataRefreshCubit());
@@ -53,7 +56,7 @@ Future<void> setupServiceLocator() async {
   // Repositories
   sl.registerLazySingleton<IAuthenticationRepository>(() =>
       AuthenticationRepository(sl<IApiService>(), sl<IProfileRepository>(),
-          sl<IMembersRepository>()));
+          sl<IMembersRepository>(), sl<IBiometricService>()));
   sl.registerLazySingleton<IHomeRepository>(
       () => HomeRepository(sl<IApiService>()));
   sl.registerLazySingleton<IMembersRepository>(

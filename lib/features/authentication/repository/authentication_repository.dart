@@ -1,7 +1,9 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:saint_demiana_children/core/constants/api_endpoints.dart';
 import 'package:saint_demiana_children/core/services/interface/i_api_service.dart';
+import 'package:saint_demiana_children/core/services/interface/i_biometric_service.dart';
 
 import 'package:saint_demiana_children/features/authentication/model/user_model.dart';
 import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
@@ -13,8 +15,9 @@ class AuthenticationRepository implements IAuthenticationRepository {
   final IApiService _apiService;
   final IProfileRepository _profileRepository;
   final IMembersRepository _membersRepository;
-  AuthenticationRepository(
-      this._apiService, this._profileRepository, this._membersRepository);
+  final IBiometricService _biometricService;
+  AuthenticationRepository(this._apiService, this._profileRepository,
+      this._membersRepository, this._biometricService);
 
   @override
   void logout() {
@@ -84,6 +87,22 @@ class AuthenticationRepository implements IAuthenticationRepository {
       _profileRepository.user = user;
 
       print('💾 [AuthRepo] User saved to ProfileRepository');
+
+      // Save credentials for biometric login (only on mobile platforms)
+      // This allows users to use fingerprint/Face ID for future logins
+      if (!kIsWeb && _biometricService.isSupported) {
+        try {
+          await _biometricService.saveCredentials(email, password);
+          if (kDebugMode) {
+            print('✅ [AuthRepo] Credentials saved for biometric login');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('⚠️ [AuthRepo] Failed to save credentials for biometric: $e');
+          }
+          // Don't fail login if credential saving fails - biometric is optional
+        }
+      }
 
       if (_profileRepository.user?.role != UserRole.makhdoum) {
         print("=============================================");

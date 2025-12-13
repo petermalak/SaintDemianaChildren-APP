@@ -60,6 +60,10 @@ dependencies:
   
   # Phone and WhatsApp integration
   url_launcher: ^6.2.1
+  
+  # Biometric Authentication
+  local_auth: ^2.3.0
+  flutter_secure_storage: ^9.0.0
 
 dev_dependencies:
   flutter_test:
