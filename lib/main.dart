@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:go_router/go_router.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:shorebird_code_push/shorebird_code_push.dart';
 
 import 'core/di/service_locator.dart';
 import 'core/services/storage_service.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/update_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/notification_listener_wrapper.dart';
+import 'core/widgets/update_checker.dart';
 import 'features/splash_screen/view/screen/splash_screen.dart';
 import 'features/authentication/view/screen/login_screen.dart';
 import 'features/super_admin_&_khadem_layout/home/view/screen/super_admin_&_khadem_main_screen.dart';
@@ -24,16 +27,22 @@ void main() async {
   if (!kIsWeb) {
     try {
       await Firebase.initializeApp();
-      print('✅ Firebase initialized for mobile');
+      if (kDebugMode) {
+        print('✅ Firebase initialized for mobile');
+      }
 
       // Set up background message handler
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
     } catch (e) {
-      print('⚠️ Firebase initialization failed: $e');
+      if (kDebugMode) {
+        print('⚠️ Firebase initialization failed: $e');
+      }
     }
   } else {
-    print(
-        'ℹ️ Web platform detected - skipping Firebase initialization (use mobile app for notifications)');
+    if (kDebugMode) {
+      print(
+          'ℹ️ Web platform detected - skipping Firebase initialization (use mobile app for notifications)');
+    }
   }
 
   runApp(const SaintDemianaApp());
@@ -56,27 +65,89 @@ class _SaintDemianaAppState extends State<SaintDemianaApp> {
   }
 
   Future<void> _initializeApp() async {
-    print('🚀 [main] Starting app initialization...');
+    if (kDebugMode) {
+      print('🚀 [main] Starting app initialization...');
+    }
 
     // Initialize Hive storage
     await StorageService().init();
-    print('✅ [main] Storage initialized');
+    if (kDebugMode) {
+      print('✅ [main] Storage initialized');
+    }
+
+    // Initialize Shorebird for OTA updates (mobile only)
+    if (!kIsWeb) {
+      try {
+        final shorebirdCodePush = ShorebirdCodePush();
+        await shorebirdCodePush.initialize();
+        if (kDebugMode) {
+          print('✅ [main] Shorebird initialized');
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('⚠️ [main] Shorebird initialization failed: $e');
+        }
+        // Continue app initialization even if Shorebird fails
+      }
+    }
 
     // Setup dependency injection
     await setupServiceLocator();
-    print('✅ [main] Services registered');
+    if (kDebugMode) {
+      print('✅ [main] Services registered');
+    }
 
     // Load user from storage BEFORE app shows
     // This ensures the user/token is available for all API calls
-    print('🚀 [main] Loading user from storage...');
+    if (kDebugMode) {
+      print('🚀 [main] Loading user from storage...');
+    }
     await sl<IProfileRepository>().loadUser();
-    print('✅ [main] User loaded');
+    if (kDebugMode) {
+      print('✅ [main] User loaded');
+    }
 
     setState(() {
       _initialized = true;
     });
 
-    print('✅ [main] App initialization complete!');
+    if (kDebugMode) {
+      print('✅ [main] App initialization complete!');
+    }
+
+    // Check for updates after initialization (non-blocking)
+    if (!kIsWeb) {
+      _checkForUpdates();
+    }
+  }
+
+  /// Checks for app updates in the background
+  Future<void> _checkForUpdates() async {
+    try {
+      final updateService = UpdateService();
+      final result = await updateService.checkForUpdate();
+      
+      result.fold(
+        (error) {
+          if (kDebugMode) {
+            print('⚠️ [main] Update check failed: $error');
+          }
+        },
+        (updateInfo) {
+          if (updateInfo.isUpdateAvailable) {
+            if (kDebugMode) {
+              print('📦 [main] Update available: force=${updateInfo.isForceUpdate}');
+            }
+            // Show update dialog if update is available
+            // This will be handled by the update service
+          }
+        },
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ [main] Error checking for updates: $e');
+      }
+    }
   }
 
   @override
@@ -104,18 +175,20 @@ class _SaintDemianaAppState extends State<SaintDemianaApp> {
       );
     }
 
-    return MaterialApp.router(
-      locale: const Locale('ar', 'EG'),
-      title: 'Saint Demiana Church',
-      builder: (context, child) => Directionality(
-        textDirection: TextDirection.rtl,
-        child: NotificationListenerWrapper(
-          child: child ?? const SizedBox.shrink(),
+    return UpdateChecker(
+      child: MaterialApp.router(
+        locale: const Locale('ar', 'EG'),
+        title: 'Saint Demiana Church',
+        builder: (context, child) => Directionality(
+          textDirection: TextDirection.rtl,
+          child: NotificationListenerWrapper(
+            child: child ?? const SizedBox.shrink(),
+          ),
         ),
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        routerConfig: _router,
       ),
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      routerConfig: _router,
     );
   }
 }

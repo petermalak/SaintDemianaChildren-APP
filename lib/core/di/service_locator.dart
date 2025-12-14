@@ -3,6 +3,7 @@ import 'package:saint_demiana_children/core/services/interface/i_api_service.dar
 import 'package:saint_demiana_children/core/services/interface/i_storage_service.dart';
 import 'package:saint_demiana_children/core/services/interface/i_notification_service.dart';
 import 'package:saint_demiana_children/core/services/interface/i_biometric_service.dart';
+import 'package:saint_demiana_children/core/services/interface/i_update_service.dart';
 import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/aftekad/repository/aftekad_repository.dart';
 
@@ -33,6 +34,7 @@ import '../services/storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/local_notification_service.dart';
 import '../services/biometric_service.dart';
+import '../services/update_service.dart';
 import '../services/data_refresh_cubit.dart';
 
 final GetIt sl = GetIt.instance;
@@ -49,6 +51,7 @@ Future<void> setupServiceLocator() async {
   sl.registerLazySingleton<INotificationService>(
       () => NotificationService.instance);
   sl.registerLazySingleton<IBiometricService>(() => BiometricService());
+  sl.registerLazySingleton<IUpdateService>(() => UpdateService());
 
   // Data Refresh Manager (Singleton for global state)
   sl.registerLazySingleton<DataRefreshCubit>(() => DataRefreshCubit());

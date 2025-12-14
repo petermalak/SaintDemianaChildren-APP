@@ -64,6 +64,10 @@ dependencies:
   # Biometric Authentication
   local_auth: ^2.3.0
   flutter_secure_storage: ^9.0.0
+  
+  # OTA Updates
+  shorebird_code_push: ^2.0.5
+  package_info_plus: ^8.0.0
 
 dev_dependencies:
   flutter_test:
@@ -76,6 +80,7 @@ flutter:
   
   assets:
     - assets/images/
+    - shorebird.yaml
   
   # App icon configuration
   # flutter_icons:
