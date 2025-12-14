@@ -80,30 +80,4 @@ class AddAttendanceCubit extends Cubit<AddAttendanceState> {
     );
   }
 
-  Future<void> bulkDeleteAttendance({
-    required List<String> attendanceIds,
-    bool impactScore = false,
-  }) async {
-    print(
-        '🔵 [AddAttendanceCubit] Starting bulk delete attendance...'); // Debug
-    print('🔵 Attendance IDs count: ${attendanceIds.length}'); // Debug
-
-    emit(AddAttendanceLoading());
-
-    final result = await _attendanceRepository.bulkDeleteAttendance(
-      attendanceIds: attendanceIds,
-      impactScore: impactScore,
-    );
-
-    result.fold(
-      (error) {
-        print('❌ [AddAttendanceCubit] Delete failed: $error'); // Debug
-        emit(AddAttendanceFailure(error));
-      },
-      (_) {
-        print('✅ [AddAttendanceCubit] Delete success!'); // Debug
-        emit(AddAttendanceSuccess());
-      },
-    );
-  }
 }

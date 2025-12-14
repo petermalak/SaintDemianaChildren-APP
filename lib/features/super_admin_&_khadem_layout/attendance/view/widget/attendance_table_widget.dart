@@ -4,10 +4,6 @@ import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/widgets/date_filter/date_filter.dart';
 import '../../model/attendance_model.dart';
 import 'bulk_edit_attendance_dialog.dart';
-import '../../../../../core/di/service_locator.dart';
-import '../../../../../core/services/data_refresh_cubit.dart';
-import '../../repository/i_attendance_repository.dart';
-import '../../viewmodel/add_attendance/add_attendance_cubit.dart';
 
 /// Attendance table widget with improved filtering and bulk operations
 /// Follows Single Responsibility Principle - only displays attendance data
@@ -182,12 +178,6 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
                 tooltip: 'تعديل',
                 color: AppColors.primaryMaroon,
               ),
-              IconButton(
-                onPressed: () => _showDeleteConfirmation(context),
-                icon: const Icon(Icons.delete),
-                tooltip: 'حذف',
-                color: Colors.red,
-              ),
             ],
             IconButton(
               onPressed: _toggleSelectionMode,
@@ -216,87 +206,6 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
     }
   }
 
-  Future<void> _showDeleteConfirmation(BuildContext context) async {
-    final impactScore = await showDialog<bool?>(
-      context: context,
-      builder: (context) {
-        bool impactScore = false;
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('تأكيد الحذف'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'هل أنت متأكد من حذف ${_selectedRecordIds.length} سجل حضور؟\nلا يمكن التراجع عن هذا الإجراء.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  SwitchListTile.adaptive(
-                    value: impactScore,
-                    onChanged: (value) => setState(() => impactScore = value),
-                    activeColor: AppColors.primaryMaroon,
-                    title: const Text('تعديل النقاط المرتبطة'),
-                    subtitle: const Text(
-                        'سيتم خصم النقاط التي تمت إضافتها لهذه السجلات إن وجدت.'),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, null),
-                  child: const Text('إلغاء'),
-                ),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context, impactScore),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text('حذف'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    if (impactScore != null && mounted) {
-      await _deleteSelectedRecords(context, impactScore);
-    }
-  }
-
-  Future<void> _deleteSelectedRecords(
-      BuildContext context, bool impactScore) async {
-    final cubit = AddAttendanceCubit(sl<IAttendanceRepository>());
-
-    await cubit.bulkDeleteAttendance(
-      attendanceIds: _selectedRecordIds.toList(),
-      impactScore: impactScore,
-    );
-
-    if (!mounted) return;
-
-    sl<DataRefreshCubit>().refreshMultiple({
-      RefreshType.attendance,
-      RefreshType.stats,
-      RefreshType.eftekad,
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('تم حذف ${_selectedRecordIds.length} سجل حضور بنجاح'),
-        backgroundColor: Colors.green,
-      ),
-    );
-
-    _toggleSelectionMode();
-    widget.onRefresh?.call();
-  }
 
   Widget _buildTableWithFilter() {
     return BlocBuilder<DateFilterCubit, DateFilterState>(
