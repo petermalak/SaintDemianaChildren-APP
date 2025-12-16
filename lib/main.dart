@@ -3,7 +3,8 @@ import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:go_router/go_router.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:shorebird_code_push/shorebird_code_push.dart';
+import 'package:saint_demiana_children/core/services/shorebird_code_push_stub.dart'
+    if (dart.library.io) 'package:shorebird_code_push/shorebird_code_push.dart';
 
 import 'core/di/service_locator.dart';
 import 'core/services/storage_service.dart';
