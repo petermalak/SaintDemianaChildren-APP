@@ -10,6 +10,7 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/home
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/view/screen/members_screen.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
+import '../../../../../core/utils/role_helper.dart';
 import '../../../../authentication/model/user_model.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
 import '../../../../scoring/view/screen/scoring_config_screen.dart';
@@ -38,6 +39,7 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   final Map<int, ScrollController> _scrollControllers = {};
   bool _isTabBarVisible = true;
   double _lastScrollOffset = 0;
+  RoleClassSelection? _selectedRoleClass;
 
   @override
   void initState() {
@@ -52,6 +54,27 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     _pageController = PageController();
     _initializeAnimations();
     _initializeScrollControllers();
+    _initializeRoleSelection();
+  }
+
+  void _initializeRoleSelection() {
+    final user = sl<IProfileRepository>().user;
+    if (user == null) return;
+
+    // Initialize with primary role
+    final primaryRole = RoleHelper.getPrimaryRole(user);
+    if (primaryRole == UserRole.khadem || primaryRole == UserRole.superAdmin) {
+      final khademClasses = RoleHelper.getKhademClasses(user);
+      if (khademClasses.isNotEmpty) {
+        _selectedRoleClass = RoleClassSelection(
+          role: UserRole.khadem,
+          classId: khademClasses.first.classId,
+          className: khademClasses.first.className,
+        );
+      } else {
+        _selectedRoleClass = const RoleClassSelection(role: UserRole.khadem);
+      }
+    }
   }
 
   void _initializeAnimations() {
@@ -145,12 +168,7 @@ class _KhademMainScreenState extends State<KhademMainScreen>
                         _fabAnimationController.reset();
                         _fabAnimationController.forward();
                       },
-                      children: List.generate(5, (index) {
-                        return _cachedTabs.putIfAbsent(
-                          index,
-                          () => _buildTabWidget(index),
-                        );
-                      }),
+                      children: _buildTabWidgets(),
                     ),
                   ),
                 ],
@@ -268,6 +286,9 @@ class _KhademMainScreenState extends State<KhademMainScreen>
           context.push('/profile');
         } else if (value == 'scoring-config') {
           _navigateToGlobalScoringConfig(context);
+        } else if (value == 'switch-to-makhdoum') {
+          // Switch to makhdoum UI
+          context.go('/makhdoum');
         }
       },
       itemBuilder: (context) => [
@@ -303,6 +324,21 @@ class _KhademMainScreenState extends State<KhademMainScreen>
             ),
           ),
         ],
+        // Role switcher for users with mixed roles
+        if (RoleHelper.hasMixedRoles(sl<IProfileRepository>().user) &&
+            RoleHelper.canAccessMakhdoumFeatures(sl<IProfileRepository>().user)) ...[
+          const PopupMenuDivider(),
+          const PopupMenuItem(
+            value: 'switch-to-makhdoum',
+            child: Row(
+              children: [
+                Icon(Icons.swap_horiz, color: AppColors.primaryMaroon),
+                SizedBox(width: 12),
+                Text('التبديل إلى واجهة المخدوم'),
+              ],
+            ),
+          ),
+        ],
         const PopupMenuDivider(),
         const PopupMenuItem(
           value: 'logout',
@@ -319,6 +355,37 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   }
 
   Widget _buildTabNavigation() {
+    // Determine which tabs to show based on selected role
+    final tabs = <Widget>[];
+    
+    if (_isInKhademMode) {
+      // Khadem tabs
+      tabs.addAll([
+        _buildTabButton(0, Icons.home, 'الرئيسية'),
+        _buildTabButton(1, Icons.newspaper, "الأخبار"),
+        _buildTabButton(2, Icons.people, 'الأعضاء'),
+        _buildTabButton(3, Icons.event_note, 'الحضور'),
+        _buildTabButton(4, Icons.person_search, "الأفتقاد"),
+      ]);
+    } else if (_isInMakhdoumMode) {
+      // Makhdoum tabs - show makhdoum-specific tabs
+      tabs.addAll([
+        _buildTabButton(0, Icons.home, 'الرئيسية'),
+        _buildTabButton(1, Icons.event_note, 'الحضور'),
+        _buildTabButton(2, Icons.newspaper, "الأخبار"),
+        _buildTabButton(3, Icons.emoji_events, 'التقييم'),
+      ]);
+    } else {
+      // Default: show all khadem tabs
+      tabs.addAll([
+        _buildTabButton(0, Icons.home, 'الرئيسية'),
+        _buildTabButton(1, Icons.newspaper, "الأخبار"),
+        _buildTabButton(2, Icons.people, 'الأعضاء'),
+        _buildTabButton(3, Icons.event_note, 'الحضور'),
+        _buildTabButton(4, Icons.person_search, "الأفتقاد"),
+      ]);
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
@@ -333,13 +400,7 @@ class _KhademMainScreenState extends State<KhademMainScreen>
         ],
       ),
       child: Row(
-        children: [
-          _buildTabButton(0, Icons.home, 'الرئيسية'),
-          _buildTabButton(1, Icons.newspaper, "الأخبار"),
-          _buildTabButton(2, Icons.people, 'الأعضاء'),
-          _buildTabButton(3, Icons.event_note, 'الحضور'),
-          _buildTabButton(4, Icons.person_search, "الأفتقاد"),
-        ],
+        children: tabs,
       ),
     );
   }
@@ -405,39 +466,94 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     );
   }
 
-  Widget _buildTabWidget(int index) {
-    final scrollController = _scrollControllers[index];
+  List<Widget> _buildTabWidgets() {
+    if (_isInMakhdoumMode) {
+      // Makhdoum mode: show makhdoum-specific screens
+      return [
+        _buildTabWidget(0, _scrollControllers[0]), // Home
+        _buildTabWidget(1, _scrollControllers[1]), // Attendance
+        _buildTabWidget(2, _scrollControllers[2]), // Feed
+        _buildTabWidget(3, _scrollControllers[3]), // Scoring
+      ];
+    } else {
+      // Khadem mode: show khadem screens
+      return List.generate(5, (index) {
+        return _buildTabWidget(index, _scrollControllers[index]);
+      });
+    }
+  }
 
-    switch (index) {
-      case 0:
-        return Provider.value(
-          value: onTabSelected,
-          child: HomeScreen(
+  Widget _buildTabWidget(int index, ScrollController? scrollController) {
+    // Use cached widget if available
+    return _cachedTabs.putIfAbsent(
+      index,
+      () => _buildTabContent(index, scrollController),
+    );
+  }
+
+  Widget _buildTabContent(int index, ScrollController? scrollController) {
+    if (_isInMakhdoumMode) {
+      // Makhdoum-specific content
+      switch (index) {
+        case 0:
+          // Home screen for makhdoum
+          return Provider.value(
+            value: onTabSelected,
+            child: HomeScreen(
+              cardAnimation: _cardAnimation,
+              scrollController: scrollController,
+            ),
+          );
+        case 1:
+          // Attendance screen for makhdoum
+          return AttendanceScreen(
+            scrollController: scrollController,
+          );
+        case 2:
+          // Feed screen
+          return FeedScreen(scrollController: scrollController);
+        case 3:
+          // Scoring screen for makhdoum
+          return const SizedBox(); // TODO: Add makhdoum scoring screen
+        default:
+          return HomeScreen(
             cardAnimation: _cardAnimation,
             scrollController: scrollController,
-          ),
-        );
-      case 1:
-        return FeedScreen(scrollController: scrollController);
-      case 2:
-        return MembersScreen(
-          cardAnimation: _cardAnimation,
-          scrollController: scrollController,
-          onSelectionChanged: (selected) {
-            setState(() {
-              _selectedMembers = List<UserModel>.from(selected);
-            });
-          },
-        );
-      case 3:
-        return AttendanceScreen(scrollController: scrollController);
-      case 4:
-        return AftekadScreen(scrollController: scrollController);
-      default:
-        return HomeScreen(
-          cardAnimation: _cardAnimation,
-          scrollController: scrollController,
-        );
+          );
+      }
+    } else {
+      // Khadem-specific content
+      switch (index) {
+        case 0:
+          return Provider.value(
+            value: onTabSelected,
+            child: HomeScreen(
+              cardAnimation: _cardAnimation,
+              scrollController: scrollController,
+            ),
+          );
+        case 1:
+          return FeedScreen(scrollController: scrollController);
+        case 2:
+          return MembersScreen(
+            cardAnimation: _cardAnimation,
+            scrollController: scrollController,
+            onSelectionChanged: (selected) {
+              setState(() {
+                _selectedMembers = List<UserModel>.from(selected);
+              });
+            },
+          );
+        case 3:
+          return AttendanceScreen(scrollController: scrollController);
+        case 4:
+          return AftekadScreen(scrollController: scrollController);
+        default:
+          return HomeScreen(
+            cardAnimation: _cardAnimation,
+            scrollController: scrollController,
+          );
+      }
     }
   }
 
@@ -529,6 +645,18 @@ class _KhademMainScreenState extends State<KhademMainScreen>
         ),
       ),
     );
+  }
+
+
+  /// Check if current selected role/class allows khadem features
+  bool get _isInKhademMode {
+    return _selectedRoleClass?.role == UserRole.khadem ||
+        _selectedRoleClass?.role == UserRole.superAdmin;
+  }
+
+  /// Check if current selected role/class allows makhdoum features
+  bool get _isInMakhdoumMode {
+    return _selectedRoleClass?.role == UserRole.makhdoum;
   }
 
   void _handleLogout(BuildContext context) {

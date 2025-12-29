@@ -59,4 +59,8 @@ class ApiEndpoints {
       "scoring/classes/$classId/score";
   static const String myScores = "scoring/my-scores";
   static const String myTransactions = "scoring/my-transactions";
+
+  // PopeAthnasius meeting data endpoints
+  static String popeAthnasiusData(String userId) =>
+      "users/$userId/pope-athnasius-data";
 }

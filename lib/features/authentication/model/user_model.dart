@@ -26,6 +26,8 @@ class UserModel extends Equatable {
   String? classId;
   final List<UserClassInfo> classes;
   final List<UserClassAssignment> classAssignments;
+  bool? isPopeAthnasius;
+  PopeAthnasiusMeetingData? popeAthnasiusMeetingData;
   UserModel({
     this.id,
     this.name,
@@ -46,6 +48,8 @@ class UserModel extends Equatable {
     this.fatherOfConfession,
     List<UserClassInfo>? classes,
     List<UserClassAssignment>? classAssignments,
+    this.isPopeAthnasius,
+    this.popeAthnasiusMeetingData,
   })  : classes = classes ?? const [],
         classAssignments = classAssignments ?? const [];
 
@@ -78,16 +82,19 @@ class UserModel extends Equatable {
           final map = json['classMemberships'] as Map<String, dynamic>;
           // Try to extract values if it's a map of objects
           if (map.isNotEmpty) {
-            final values = map.values.whereType<Map<String, dynamic>>().toList();
+            final values =
+                map.values.whereType<Map<String, dynamic>>().toList();
             memberships = values;
           }
         } catch (e) {
-          print('❌ [UserModel] Error converting classMemberships Map to List: $e');
+          print(
+              '❌ [UserModel] Error converting classMemberships Map to List: $e');
           memberships = [];
         }
       } else {
         // Not a List or Map - log and use empty list
-        print('⚠️ [UserModel] classMemberships is neither List nor Map, type: ${json['classMemberships'].runtimeType}');
+        print(
+            '⚠️ [UserModel] classMemberships is neither List nor Map, type: ${json['classMemberships'].runtimeType}');
         memberships = [];
       }
     }
@@ -150,6 +157,11 @@ class UserModel extends Equatable {
       fatherOfConfession: json['fatherOfConfession'],
       classes: combinedClasses,
       classAssignments: parsedAssignments,
+      isPopeAthnasius: json['isPopeAthnasius'] as bool? ?? false,
+      popeAthnasiusMeetingData: json['popeAthnasiusMeetingData'] != null
+          ? PopeAthnasiusMeetingData.fromJson(
+              json['popeAthnasiusMeetingData'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -174,6 +186,8 @@ class UserModel extends Equatable {
       'addressLocationLink': addressLocationLink,
       'fatherOfConfession': fatherOfConfession,
       'classes': classes.map((c) => c.toJson()).toList(),
+      'isPopeAthnasius': isPopeAthnasius ?? false,
+      'popeAthnasiusMeetingData': popeAthnasiusMeetingData?.toJson(),
     };
   }
 
@@ -210,6 +224,8 @@ class UserModel extends Equatable {
     String? fatherOfConfession,
     List<UserClassInfo>? classes,
     List<UserClassAssignment>? classAssignments,
+    bool? isPopeAthnasius,
+    PopeAthnasiusMeetingData? popeAthnasiusMeetingData,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -231,6 +247,9 @@ class UserModel extends Equatable {
       fatherOfConfession: fatherOfConfession ?? this.fatherOfConfession,
       classes: classes ?? this.classes,
       classAssignments: classAssignments ?? this.classAssignments,
+      isPopeAthnasius: isPopeAthnasius ?? this.isPopeAthnasius,
+      popeAthnasiusMeetingData:
+          popeAthnasiusMeetingData ?? this.popeAthnasiusMeetingData,
     );
   }
 
@@ -282,6 +301,8 @@ class UserModel extends Equatable {
         fatherOfConfession,
         classes,
         classAssignments,
+        isPopeAthnasius,
+        popeAthnasiusMeetingData,
       ];
 
   String? get primaryClassId {
@@ -487,5 +508,54 @@ class UserClassSummary extends Equatable {
         isActive,
         joinedAt,
         assignedKhadems,
+      ];
+}
+
+class PopeAthnasiusMeetingData extends Equatable {
+  final String? id;
+  final String? userId;
+  final Map<String, dynamic>? additionalData;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+
+  const PopeAthnasiusMeetingData({
+    this.id,
+    this.userId,
+    this.additionalData,
+    this.createdAt,
+    this.updatedAt,
+  });
+
+  factory PopeAthnasiusMeetingData.fromJson(Map<String, dynamic> json) {
+    return PopeAthnasiusMeetingData(
+      id: json['id']?.toString(),
+      userId: json['userId']?.toString(),
+      additionalData: json['additionalData'] as Map<String, dynamic>?,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString())
+          : null,
+      updatedAt: json['updatedAt'] != null
+          ? DateTime.tryParse(json['updatedAt'].toString())
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'userId': userId,
+      'additionalData': additionalData,
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
+    };
+  }
+
+  @override
+  List<Object?> get props => [
+        id,
+        userId,
+        additionalData,
+        createdAt,
+        updatedAt,
       ];
 }

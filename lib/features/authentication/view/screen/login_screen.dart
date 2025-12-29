@@ -9,11 +9,13 @@ import '../../../../core/constants/spacing.dart';
 import '../../../../core/di/service_locator.dart';
 import '../../../../core/services/interface/i_notification_service.dart';
 import '../../../../core/services/interface/i_biometric_service.dart';
+import '../../../../core/utils/role_helper.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/loading_button.dart';
 import '../../../notifications/repository/i_notification_repository.dart';
 import '../../model/user_model.dart';
 import '../../repository/i_authentication_repository.dart';
+import '../widget/role_selection_dialog.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -656,16 +658,49 @@ class _LoginScreenState extends State<LoginScreen>
                             _initializeNotifications();
 
                             final currentUser = state.user;
-                            switch (currentUser.role!) {
-                              case UserRole.khadem:
-                                context.go('/khadem');
-                                break;
-                              case UserRole.makhdoum:
-                                context.go('/makhdoum');
-                                break;
-                              case UserRole.superAdmin:
-                                context.go('/khadem');
-                                break;
+                            
+                            // Check if user has multiple roles
+                            final hasMixedRoles = RoleHelper.hasMixedRoles(currentUser);
+                            
+                            if (hasMixedRoles) {
+                              // Show role selection dialog for users with multiple roles
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false, // User must choose
+                                  builder: (dialogContext) => RoleSelectionDialog(
+                                    user: currentUser,
+                                    onRoleSelected: (selectedRole) {
+                                      // Navigate based on selected role
+                                      switch (selectedRole) {
+                                        case UserRole.khadem:
+                                        case UserRole.superAdmin:
+                                          context.go('/khadem');
+                                          break;
+                                        case UserRole.makhdoum:
+                                          context.go('/makhdoum');
+                                          break;
+                                      }
+                                    },
+                                  ),
+                                );
+                              });
+                            } else {
+                              // Single role - navigate directly
+                              final primaryRole = RoleHelper.getPrimaryRole(currentUser);
+                              
+                              switch (primaryRole) {
+                                case UserRole.khadem:
+                                case UserRole.superAdmin:
+                                  context.go('/khadem');
+                                  break;
+                                case UserRole.makhdoum:
+                                  context.go('/makhdoum');
+                                  break;
+                                default:
+                                  context.go('/login');
+                                  break;
+                              }
                             }
                           }
                         },

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:saint_demiana_children/features/makhdoum_layout/home/view/screen/home_screen.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
+import '../../../../../core/utils/role_helper.dart';
 import '../../../../authentication/repository/i_authentication_repository.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
 import '../../../../authentication/model/user_model.dart';
@@ -315,9 +316,11 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
       onSelected: (value) {
         if (value == 'profile') {
           context.push('/profile');
-        }
-        if (value == 'logout') {
+        } else if (value == 'logout') {
           _handleLogout(context);
+        } else if (value == 'switch-to-khadem') {
+          // Switch to khadem UI
+          context.go('/khadem');
         }
       },
       itemBuilder: (context) => [
@@ -331,6 +334,21 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
             ],
           ),
         ),
+        // Role switcher for users with mixed roles
+        if (RoleHelper.hasMixedRoles(sl<IProfileRepository>().user) &&
+            RoleHelper.canAccessKhademFeatures(sl<IProfileRepository>().user)) ...[
+          const PopupMenuDivider(),
+          const PopupMenuItem(
+            value: 'switch-to-khadem',
+            child: Row(
+              children: [
+                Icon(Icons.swap_horiz, color: AppColors.primaryMaroon),
+                SizedBox(width: 12),
+                Text('التبديل إلى واجهة الخادم'),
+              ],
+            ),
+          ),
+        ],
         const PopupMenuDivider(),
         const PopupMenuItem(
           value: 'logout',

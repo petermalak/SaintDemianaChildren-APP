@@ -5,8 +5,10 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/memb
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/di/service_locator.dart';
+import '../../../../core/utils/role_helper.dart';
 import '../../../authentication/model/user_model.dart';
 import '../../../profile/repository/i_profile_repository.dart';
+import '../../../authentication/view/widget/role_selection_dialog.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -104,23 +106,61 @@ class _SplashScreenState extends State<SplashScreen>
     print('🚀 [SplashScreen] Starting authentication check...');
     await sl<IProfileRepository>().loadUser().then((user) async {
       if (user != null) {
-        if (user.role == UserRole.khadem || user.role == UserRole.superAdmin) {
-          final result = await sl<IMembersRepository>().fetchMembers(
-            user.role == UserRole.superAdmin,
-          );
-
-          result.fold(
-            (failure) {
-              _showErrorDialog(failure);
-            },
-            (_) {
-              context.go('/khadem');
-            },
-          );
-        } else if (user.role == UserRole.makhdoum) {
-          context.go('/makhdoum');
+        // Check if user has multiple roles
+        final hasMixedRoles = RoleHelper.hasMixedRoles(user);
+        
+        if (hasMixedRoles) {
+          // Show role selection dialog for users with multiple roles
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            showDialog(
+              context: context,
+              barrierDismissible: false, // User must choose
+              builder: (dialogContext) => RoleSelectionDialog(
+                user: user,
+                onRoleSelected: (selectedRole) async {
+                  // Navigate based on selected role
+                  if (selectedRole == UserRole.khadem || selectedRole == UserRole.superAdmin) {
+                    final result = await sl<IMembersRepository>().fetchMembers(
+                      selectedRole == UserRole.superAdmin,
+                    );
+                    
+                    result.fold(
+                      (failure) {
+                        _showErrorDialog(failure);
+                      },
+                      (_) {
+                        context.go('/khadem');
+                      },
+                    );
+                  } else if (selectedRole == UserRole.makhdoum) {
+                    context.go('/makhdoum');
+                  }
+                },
+              ),
+            );
+          });
         } else {
-          context.go('/login');
+          // Single role - navigate directly
+          final primaryRole = RoleHelper.getPrimaryRole(user);
+          
+          if (primaryRole == UserRole.khadem || primaryRole == UserRole.superAdmin) {
+            final result = await sl<IMembersRepository>().fetchMembers(
+              primaryRole == UserRole.superAdmin,
+            );
+
+            result.fold(
+              (failure) {
+                _showErrorDialog(failure);
+              },
+              (_) {
+                context.go('/khadem');
+              },
+            );
+          } else if (primaryRole == UserRole.makhdoum) {
+            context.go('/makhdoum');
+          } else {
+            context.go('/login');
+          }
         }
       } else {
         context.go('/login');
