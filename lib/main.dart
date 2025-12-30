@@ -3,8 +3,9 @@ import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:go_router/go_router.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:saint_demiana_children/core/services/shorebird_code_push_stub.dart'
-    if (dart.library.io) 'package:shorebird_code_push/shorebird_code_push.dart';
+// Temporarily disabled - will be fixed in next update
+// import 'package:saint_demiana_children/core/services/shorebird_code_push_stub.dart'
+//     if (dart.library.io) 'package:shorebird_code_push/shorebird_code_push.dart';
 
 import 'core/di/service_locator.dart';
 import 'core/services/storage_service.dart';
@@ -77,20 +78,21 @@ class _SaintDemianaAppState extends State<SaintDemianaApp> {
     }
 
     // Initialize Shorebird for OTA updates (mobile only)
-    if (!kIsWeb) {
-      try {
-        final shorebirdCodePush = ShorebirdCodePush();
-        await shorebirdCodePush.initialize();
-        if (kDebugMode) {
-          print('✅ [main] Shorebird initialized');
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          print('⚠️ [main] Shorebird initialization failed: $e');
-        }
-        // Continue app initialization even if Shorebird fails
-      }
-    }
+    // Temporarily disabled due to import issues - will be fixed in next update
+    // if (!kIsWeb) {
+    //   try {
+    //     final shorebirdCodePush = ShorebirdCodePush();
+    //     await shorebirdCodePush.initialize();
+    //     if (kDebugMode) {
+    //       print('✅ [main] Shorebird initialized');
+    //     }
+    //   } catch (e) {
+    //     if (kDebugMode) {
+    //       print('⚠️ [main] Shorebird initialization failed: $e');
+    //     }
+    //     // Continue app initialization even if Shorebird fails
+    //   }
+    // }
 
     // Setup dependency injection
     await setupServiceLocator();
