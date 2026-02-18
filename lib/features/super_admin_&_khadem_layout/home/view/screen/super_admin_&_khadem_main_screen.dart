@@ -8,6 +8,7 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/afte
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/attendance/view/screen/attendance_screen.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/home/view/screen/home_screen.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/view/screen/members_screen.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/scoring/view/screen/khadem_scoring_screen.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/utils/role_helper.dart';
@@ -96,7 +97,8 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   }
 
   void _initializeScrollControllers() {
-    for (int i = 0; i < 5; i++) {
+    // Initialize 6 scroll controllers for khadem tabs (including scoring)
+    for (int i = 0; i < 6; i++) {
       _scrollControllers[i] = ScrollController()
         ..addListener(() => _handleScroll(i));
     }
@@ -326,7 +328,8 @@ class _KhademMainScreenState extends State<KhademMainScreen>
         ],
         // Role switcher for users with mixed roles
         if (RoleHelper.hasMixedRoles(sl<IProfileRepository>().user) &&
-            RoleHelper.canAccessMakhdoumFeatures(sl<IProfileRepository>().user)) ...[
+            RoleHelper.canAccessMakhdoumFeatures(
+                sl<IProfileRepository>().user)) ...[
           const PopupMenuDivider(),
           const PopupMenuItem(
             value: 'switch-to-makhdoum',
@@ -357,7 +360,7 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   Widget _buildTabNavigation() {
     // Determine which tabs to show based on selected role
     final tabs = <Widget>[];
-    
+
     if (_isInKhademMode) {
       // Khadem tabs
       tabs.addAll([
@@ -366,6 +369,7 @@ class _KhademMainScreenState extends State<KhademMainScreen>
         _buildTabButton(2, Icons.people, 'الأعضاء'),
         _buildTabButton(3, Icons.event_note, 'الحضور'),
         _buildTabButton(4, Icons.person_search, "الأفتقاد"),
+        _buildTabButton(5, Icons.emoji_events, 'التايو'),
       ]);
     } else if (_isInMakhdoumMode) {
       // Makhdoum tabs - show makhdoum-specific tabs
@@ -383,6 +387,7 @@ class _KhademMainScreenState extends State<KhademMainScreen>
         _buildTabButton(2, Icons.people, 'الأعضاء'),
         _buildTabButton(3, Icons.event_note, 'الحضور'),
         _buildTabButton(4, Icons.person_search, "الأفتقاد"),
+        _buildTabButton(5, Icons.emoji_events, 'التايو'),
       ]);
     }
 
@@ -476,8 +481,8 @@ class _KhademMainScreenState extends State<KhademMainScreen>
         _buildTabWidget(3, _scrollControllers[3]), // Scoring
       ];
     } else {
-      // Khadem mode: show khadem screens
-      return List.generate(5, (index) {
+      // Khadem mode: show khadem screens (6 tabs including scoring)
+      return List.generate(6, (index) {
         return _buildTabWidget(index, _scrollControllers[index]);
       });
     }
@@ -548,6 +553,8 @@ class _KhademMainScreenState extends State<KhademMainScreen>
           return AttendanceScreen(scrollController: scrollController);
         case 4:
           return AftekadScreen(scrollController: scrollController);
+        case 5:
+          return KhademScoringScreen(scrollController: scrollController);
         default:
           return HomeScreen(
             cardAnimation: _cardAnimation,
@@ -646,7 +653,6 @@ class _KhademMainScreenState extends State<KhademMainScreen>
       ),
     );
   }
-
 
   /// Check if current selected role/class allows khadem features
   bool get _isInKhademMode {

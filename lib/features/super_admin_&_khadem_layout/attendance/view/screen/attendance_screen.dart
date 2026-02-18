@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/data_refresh_cubit.dart';
+import '../../../../../core/services/excel_export_service.dart';
+import '../../../../../core/widgets/class_export_selection_dialog.dart';
 import '../../repository/i_attendance_repository.dart';
 import '../../model/attendance_model.dart';
 import '../../viewmodel/get_attendance/get_attendance_cubit.dart';
@@ -699,7 +701,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
     if (state is GetAttendanceSuccess) {
       final attendanceData = state.attendance;
-      final records = attendanceData.attendanceRecords ?? [];
+      final allRecords = attendanceData.attendanceRecords ?? [];
+      // Filter out placeholder records with null values
+      final records = allRecords
+          .where((record) =>
+              record.id != null &&
+              record.date != null &&
+              record.type != null &&
+              record.userName != null &&
+              record.userName!.isNotEmpty)
+          .toList();
       final dates = attendanceData.attendanceDates ?? [];
 
       if (records.isEmpty) {
@@ -712,7 +723,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final members = _extractMemberNames(records);
       final attendanceMatrix = _buildAttendanceMatrix(records);
 
-      return SliverToBoxAdapter(
+      return SliverFillRemaining(
+        hasScrollBody: false,
         child: Card(
           elevation: 0,
           margin: EdgeInsets.zero,
@@ -721,12 +733,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            child: AttendanceTableWidget(
-              dates: dates,
-              members: members,
-              attendance: attendanceMatrix,
-              attendanceRecords: records,
-              onRefresh: _refreshAttendance,
+            child: Column(
+              children: [
+                _buildExportButton(records),
+                Expanded(
+                  child: AttendanceTableWidget(
+                    dates: dates,
+                    members: members,
+                    attendance: attendanceMatrix,
+                    attendanceRecords: records,
+                    onRefresh: _refreshAttendance,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -909,5 +928,186 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     } catch (e) {
       debugPrint('Error opening bulk attendance dialog: $e');
     }
+  }
+
+  Widget _buildExportButton(List<AttendanceRecord> records) {
+    if (records.isEmpty) return const SizedBox.shrink();
+
+    final hasMultipleClasses = _availableClasses.length > 1;
+    final isKhadem = _currentUser?.role == UserRole.khadem;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ElevatedButton.icon(
+        onPressed: () async {
+          if (hasMultipleClasses && isKhadem) {
+            // Show class selection dialog
+            final selectedClassIds = await showDialog<List<String>>(
+              context: context,
+              builder: (context) => ClassExportSelectionDialog(
+                availableClasses: _availableClasses
+                    .map((c) => ClassOption(id: c.id, name: c.name))
+                    .toList(),
+                title: 'اختر الفصول لتصدير الحضور',
+              ),
+            );
+
+            if (selectedClassIds == null || selectedClassIds.isEmpty) {
+              return; // User cancelled
+            }
+
+            // Fetch attendance for each selected class
+            final scaffoldMessenger = ScaffoldMessenger.of(context);
+            scaffoldMessenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                    'جاري جلب البيانات من ${selectedClassIds.length} فصل...'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+
+            final allRecords = <AttendanceRecord>[];
+            final classNamesMap = {
+              for (var classModel in _availableClasses)
+                classModel.id: classModel.name
+            };
+
+            // Fetch data for each selected class
+            final attendanceRepo = sl<IAttendanceRepository>();
+            for (final classId in selectedClassIds) {
+              final result = await attendanceRepo.fetchAttendance(
+                classId: classId,
+                khademId: _currentUser?.role == UserRole.khadem
+                    ? (_selectedKhademScope == _khademFilterAllValue
+                        ? null
+                        : (_selectedKhademId ?? _currentUser?.id))
+                    : _selectedKhademId,
+                khademScope: _currentUser?.role == UserRole.khadem
+                    ? _selectedKhademScope
+                    : null,
+              );
+
+              result.fold(
+                (error) {
+                  print('Error fetching attendance for class $classId: $error');
+                },
+                (attendanceModel) {
+                  if (attendanceModel.attendanceRecords != null) {
+                    // Filter out placeholder records with null values
+                    final validRecords = attendanceModel.attendanceRecords!
+                        .where((record) =>
+                            record.id != null &&
+                            record.date != null &&
+                            record.type != null &&
+                            record.userName != null &&
+                            record.userName!.isNotEmpty)
+                        .toList();
+                    allRecords.addAll(validRecords);
+                  }
+                },
+              );
+            }
+
+            if (allRecords.isEmpty) {
+              scaffoldMessenger.showSnackBar(
+                const SnackBar(
+                  content: Text('لا توجد سجلات حضور في الفصول المحددة'),
+                  backgroundColor: AppColors.warning,
+                ),
+              );
+              return;
+            }
+
+            scaffoldMessenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                    'جاري تصدير ${allRecords.length} سجل من ${selectedClassIds.length} فصل...'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+
+            final className = selectedClassIds.length == 1
+                ? classNamesMap[selectedClassIds.first]
+                : 'عدة_فصول';
+
+            final result = await ExcelExportService.exportAttendance(
+              allRecords,
+              className,
+              classNamesMap: selectedClassIds.length > 1 ? classNamesMap : null,
+            );
+
+            if (result != null) {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: const Text('تم تصدير البيانات بنجاح'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            } else {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: const Text('حدث خطأ أثناء التصدير'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+          } else {
+            // Single class or super admin - export current filtered data
+            final className = _selectedClassId != null
+                ? _availableClasses
+                    .firstWhere(
+                      (c) => c.id == _selectedClassId,
+                      orElse: () => ClassModel(
+                        id: '',
+                        name: '',
+                        isActive: true,
+                        createdBy: '',
+                        createdAt: DateTime.now(),
+                        updatedAt: DateTime.now(),
+                      ),
+                    )
+                    .name
+                : null;
+
+            final scaffoldMessenger = ScaffoldMessenger.of(context);
+            scaffoldMessenger.showSnackBar(
+              const SnackBar(
+                content: Text('جاري تصدير البيانات...'),
+                duration: Duration(seconds: 1),
+              ),
+            );
+
+            final result = await ExcelExportService.exportAttendance(
+              records,
+              className,
+            );
+
+            if (result != null) {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: const Text('تم تصدير البيانات بنجاح'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            } else {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: const Text('حدث خطأ أثناء التصدير'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+          }
+        },
+        icon: const Icon(Icons.download),
+        label: Text(hasMultipleClasses && isKhadem
+            ? 'تصدير إلى Excel (اختر الفصول)'
+            : 'تصدير إلى Excel'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryMaroon,
+          foregroundColor: AppColors.accentWhite,
+        ),
+      ),
+    );
   }
 }

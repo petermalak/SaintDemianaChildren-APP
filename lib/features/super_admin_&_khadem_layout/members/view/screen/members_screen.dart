@@ -7,6 +7,8 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/supe
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
+import '../../../../../core/services/excel_export_service.dart';
+import '../../../../../core/widgets/class_export_selection_dialog.dart';
 import '../../../../authentication/model/user_model.dart';
 import '../../repository/i_members_repository.dart';
 import '../widget/manage_assignments_dialog.dart';
@@ -163,6 +165,7 @@ class _MembersScreenState extends State<MembersScreen>
                   children: [
                     _buildSearchSection(filteredMembers),
                     _buildClassFilter(),
+                    _buildExportButton(filteredMembers),
                     _buildAssignmentsButton(),
                     _buildViewToggle(),
                     Expanded(
@@ -452,5 +455,161 @@ class _MembersScreenState extends State<MembersScreen>
       _membersCubit.getMembers();
       _loadClassesIfNeeded();
     }
+  }
+
+  Widget _buildExportButton(List<UserModel> members) {
+    if (members.isEmpty) return const SizedBox.shrink();
+
+    final hasMultipleClasses = _availableClasses.length > 1;
+    final currentUser = _currentUser;
+    final isKhadem = currentUser?.role == UserRole.khadem;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ElevatedButton.icon(
+        onPressed: () async {
+          if (hasMultipleClasses && isKhadem) {
+            // Show class selection dialog
+            final selectedClassIds = await showDialog<List<String>>(
+              context: context,
+              builder: (context) => ClassExportSelectionDialog(
+                availableClasses: _availableClasses
+                    .map((c) => ClassOption(id: c.id, name: c.name))
+                    .toList(),
+                title: 'اختر الفصول لتصدير الأعضاء',
+              ),
+            );
+
+            if (selectedClassIds == null || selectedClassIds.isEmpty) {
+              return; // User cancelled
+            }
+
+            // Filter members by selected classes
+            final filteredMembers = members.where((member) {
+              if (selectedClassIds.length == 1) {
+                final classId = selectedClassIds.first;
+                if (member.classes.isNotEmpty) {
+                  return member.classes.any((info) => info.classId == classId);
+                }
+                return member.classId == classId;
+              } else {
+                // Multiple classes selected
+                if (member.classes.isNotEmpty) {
+                  return member.classes
+                      .any((info) => selectedClassIds.contains(info.classId));
+                }
+                return member.classId != null &&
+                    selectedClassIds.contains(member.classId);
+              }
+            }).toList();
+
+            if (filteredMembers.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('لا توجد أعضاء في الفصول المحددة'),
+                  backgroundColor: AppColors.warning,
+                ),
+              );
+              return;
+            }
+
+            // Create class names map
+            final classNamesMap = {
+              for (var classModel in _availableClasses)
+                classModel.id: classModel.name
+            };
+
+            final scaffoldMessenger = ScaffoldMessenger.of(context);
+            scaffoldMessenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                    'جاري تصدير ${filteredMembers.length} عضو من ${selectedClassIds.length} فصل...'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+
+            final className = selectedClassIds.length == 1
+                ? classNamesMap[selectedClassIds.first]
+                : 'عدة_فصول';
+
+            final result = await ExcelExportService.exportMembers(
+              filteredMembers,
+              className,
+              classNamesMap: selectedClassIds.length > 1 ? classNamesMap : null,
+            );
+
+            if (result != null) {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: const Text('تم تصدير البيانات بنجاح'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            } else {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: const Text('حدث خطأ أثناء التصدير'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+          } else {
+            // Single class or super admin - export current filtered data
+            final className = _selectedClassId != null
+                ? _availableClasses
+                    .firstWhere(
+                      (c) => c.id == _selectedClassId,
+                      orElse: () => ClassModel(
+                        id: '',
+                        name: '',
+                        isActive: true,
+                        createdBy: '',
+                        createdAt: DateTime.now(),
+                        updatedAt: DateTime.now(),
+                      ),
+                    )
+                    .name
+                : null;
+
+            final scaffoldMessenger = ScaffoldMessenger.of(context);
+            scaffoldMessenger.showSnackBar(
+              const SnackBar(
+                content: Text('جاري تصدير البيانات...'),
+                duration: Duration(seconds: 1),
+              ),
+            );
+
+            final result = await ExcelExportService.exportMembers(
+              members,
+              className,
+            );
+
+            if (result != null) {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: const Text('تم تصدير البيانات بنجاح'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            } else {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: const Text('حدث خطأ أثناء التصدير'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+          }
+        },
+        icon: const Icon(Icons.download),
+        label: Text(hasMultipleClasses && isKhadem
+            ? 'تصدير إلى Excel (اختر الفصول)'
+            : 'تصدير إلى Excel'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryMaroon,
+          foregroundColor: AppColors.accentWhite,
+        ),
+      ),
+    );
   }
 }

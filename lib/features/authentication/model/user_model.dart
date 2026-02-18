@@ -28,6 +28,8 @@ class UserModel extends Equatable {
   final List<UserClassAssignment> classAssignments;
   bool? isPopeAthnasius;
   PopeAthnasiusMeetingData? popeAthnasiusMeetingData;
+  List<String>?
+      classIds; // Temporary field for class assignment during creation
   UserModel({
     this.id,
     this.name,
@@ -50,6 +52,7 @@ class UserModel extends Equatable {
     List<UserClassAssignment>? classAssignments,
     this.isPopeAthnasius,
     this.popeAthnasiusMeetingData,
+    this.classIds,
   })  : classes = classes ?? const [],
         classAssignments = classAssignments ?? const [];
 
@@ -166,7 +169,7 @@ class UserModel extends Equatable {
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    final json = {
       'id': id,
       'name': name,
       'email': email,
@@ -187,8 +190,38 @@ class UserModel extends Equatable {
       'fatherOfConfession': fatherOfConfession,
       'classes': classes.map((c) => c.toJson()).toList(),
       'isPopeAthnasius': isPopeAthnasius ?? false,
-      'popeAthnasiusMeetingData': popeAthnasiusMeetingData?.toJson(),
     };
+
+    // Include Pope Athanasius meeting data if provided
+    if (popeAthnasiusMeetingData != null) {
+      final meetingDataJson = popeAthnasiusMeetingData!.toJson();
+      // Extract classPhase from additionalData if present
+      int? classPhase;
+      if (meetingDataJson['additionalData'] != null) {
+        final additionalData =
+            meetingDataJson['additionalData'] as Map<String, dynamic>?;
+        if (additionalData != null &&
+            additionalData.containsKey('classPhase')) {
+          classPhase = additionalData['classPhase'] as int?;
+          // Remove classPhase from additionalData as it's stored separately
+          final updatedAdditionalData =
+              Map<String, dynamic>.from(additionalData);
+          updatedAdditionalData.remove('classPhase');
+          meetingDataJson['additionalData'] = updatedAdditionalData;
+        }
+      }
+      json['popeAthnasiusMeetingData'] = meetingDataJson;
+      if (classPhase != null) {
+        json['classPhase'] = classPhase;
+      }
+    }
+
+    // Include classIds only if provided (for user creation)
+    if (classIds != null && classIds!.isNotEmpty) {
+      json['classIds'] = classIds;
+    }
+
+    return json;
   }
 
   static String? _roleToString(UserRole? role) {
@@ -226,6 +259,7 @@ class UserModel extends Equatable {
     List<UserClassAssignment>? classAssignments,
     bool? isPopeAthnasius,
     PopeAthnasiusMeetingData? popeAthnasiusMeetingData,
+    List<String>? classIds,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -250,6 +284,7 @@ class UserModel extends Equatable {
       isPopeAthnasius: isPopeAthnasius ?? this.isPopeAthnasius,
       popeAthnasiusMeetingData:
           popeAthnasiusMeetingData ?? this.popeAthnasiusMeetingData,
+      classIds: classIds ?? this.classIds,
     );
   }
 

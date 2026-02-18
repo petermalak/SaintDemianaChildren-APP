@@ -14,6 +14,8 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/memb
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/data_refresh_cubit.dart';
+import '../../../../../core/services/excel_export_service.dart';
+import '../../../../../core/widgets/class_export_selection_dialog.dart';
 import '../../repository/i_aftekad_repository.dart';
 import '../widget/aftekad_list_tile.dart';
 
@@ -613,6 +615,10 @@ class _AftekadScreenState extends State<AftekadScreen> {
                     SliverToBoxAdapter(
                       child: _buildCompactHeader(state, viewData),
                     ),
+                    if (viewData != null && viewData.displayList.isNotEmpty)
+                      SliverToBoxAdapter(
+                        child: _buildExportButton(viewData.displayList),
+                      ),
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                       sliver: _buildAftekadSliver(state, viewData),
@@ -931,10 +937,14 @@ class _AftekadScreenState extends State<AftekadScreen> {
   ) {
     final list = members.map((member) {
       // Find all eftekads for this makhdoum and get the most recent one
-      final makhdoumEftekads = completed.where(
-        (aftekad) => aftekad.makhdoum?.id == member.id || aftekad.makhdoumId == member.id,
-      ).toList();
-      
+      final makhdoumEftekads = completed
+          .where(
+            (aftekad) =>
+                aftekad.makhdoum?.id == member.id ||
+                aftekad.makhdoumId == member.id,
+          )
+          .toList();
+
       // If multiple exist, get the most recent one (by completedDate or createdAt)
       final existing = makhdoumEftekads.isNotEmpty
           ? makhdoumEftekads.reduce((a, b) {
@@ -948,14 +958,15 @@ class _AftekadScreenState extends State<AftekadScreen> {
       if (existing != null) {
         // Ensure status is set correctly
         if (existing.status == null || existing.status == false) {
-          existing.status = true; // If it's in the completed list, it should be true
+          existing.status =
+              true; // If it's in the completed list, it should be true
         }
-        
+
         if (existing.consecutiveMissedFridays == null &&
             missedFridays.containsKey(member.id)) {
           existing.consecutiveMissedFridays = missedFridays[member.id];
         }
-        
+
         return existing;
       } else {
         // No completed eftekad found, create a pending one
@@ -1430,6 +1441,141 @@ class _AftekadScreenState extends State<AftekadScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildExportButton(List<AftekadModel> records) {
+    if (records.isEmpty) return const SizedBox.shrink();
+
+    final hasMultipleClasses = _classOptions.length > 1;
+    final isKhadem = _currentUser?.role == UserRole.khadem;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ElevatedButton.icon(
+        onPressed: () async {
+          if (hasMultipleClasses && isKhadem) {
+            // Show class selection dialog
+            final selectedClassIds = await showDialog<List<String>>(
+              context: context,
+              builder: (context) => ClassExportSelectionDialog(
+                availableClasses: _classOptions
+                    .map((c) =>
+                        ClassOption(id: c.classId, name: c.className ?? ''))
+                    .toList(),
+                title: 'اختر الفصول لتصدير الأفتقاد',
+              ),
+            );
+
+            if (selectedClassIds == null || selectedClassIds.isEmpty) {
+              return; // User cancelled
+            }
+
+            // Filter records by selected classes
+            final filteredRecords = records.where((record) {
+              return selectedClassIds.contains(record.classId);
+            }).toList();
+
+            if (filteredRecords.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('لا توجد سجلات أفتقاد في الفصول المحددة'),
+                  backgroundColor: AppColors.warning,
+                ),
+              );
+              return;
+            }
+
+            final classNamesMap = {
+              for (var classInfo in _classOptions)
+                classInfo.classId: classInfo.className ?? ''
+            };
+
+            final scaffoldMessenger = ScaffoldMessenger.of(context);
+            scaffoldMessenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                    'جاري تصدير ${filteredRecords.length} سجل من ${selectedClassIds.length} فصل...'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+
+            final className = selectedClassIds.length == 1
+                ? classNamesMap[selectedClassIds.first]
+                : 'عدة_فصول';
+
+            final result = await ExcelExportService.exportEftekad(
+              filteredRecords,
+              className,
+              classNamesMap: selectedClassIds.length > 1 ? classNamesMap : null,
+            );
+
+            if (result != null) {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: const Text('تم تصدير البيانات بنجاح'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            } else {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: const Text('حدث خطأ أثناء التصدير'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+          } else {
+            // Single class or super admin - export current filtered data
+            final className = _selectedClassId != null
+                ? _classOptions
+                    .firstWhere(
+                      (c) => c.classId == _selectedClassId,
+                      orElse: () =>
+                          const UserClassInfo(classId: '', className: ''),
+                    )
+                    .className
+                : null;
+
+            final scaffoldMessenger = ScaffoldMessenger.of(context);
+            scaffoldMessenger.showSnackBar(
+              const SnackBar(
+                content: Text('جاري تصدير البيانات...'),
+                duration: Duration(seconds: 1),
+              ),
+            );
+
+            final result = await ExcelExportService.exportEftekad(
+              records,
+              className,
+            );
+
+            if (result != null) {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: const Text('تم تصدير البيانات بنجاح'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            } else {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: const Text('حدث خطأ أثناء التصدير'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+          }
+        },
+        icon: const Icon(Icons.download),
+        label: Text(hasMultipleClasses && isKhadem
+            ? 'تصدير إلى Excel (اختر الفصول)'
+            : 'تصدير إلى Excel'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryMaroon,
+          foregroundColor: AppColors.accentWhite,
         ),
       ),
     );
