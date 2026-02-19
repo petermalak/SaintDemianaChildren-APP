@@ -8,17 +8,30 @@ import '../../../../../../core/di/service_locator.dart';
 import '../../../../../../core/utils/responsive_dialog_utils.dart';
 import '../../repository/i_class_repository.dart';
 
-class AddClassDialog extends StatelessWidget {
+class AddClassDialog extends StatefulWidget {
   const AddClassDialog({super.key, this.classModel, this.onSuccess});
   final ClassModel? classModel;
   final VoidCallback? onSuccess;
 
   @override
+  State<AddClassDialog> createState() => _AddClassDialogState();
+}
+
+class _AddClassDialogState extends State<AddClassDialog> {
+  late bool _hasShop;
+
+  @override
+  void initState() {
+    super.initState();
+    _hasShop = widget.classModel?.hasShop ?? false;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final nameController = TextEditingController(text: classModel?.name);
+    final nameController = TextEditingController(text: widget.classModel?.name);
     final locationController =
-        TextEditingController(text: classModel?.location);
-    final isUpdate = classModel != null;
+        TextEditingController(text: widget.classModel?.location);
+    final isUpdate = widget.classModel != null;
     final mediaSize = MediaQuery.of(context).size;
     final sizing = ResponsiveDialogUtils.buildSizing(
       mediaSize,
@@ -68,6 +81,26 @@ class AddClassDialog extends StatelessWidget {
                     border: OutlineInputBorder(),
                   ),
                 ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'متجر التايو لهذا الفصل',
+                        style: ResponsiveDialogTypography.merge(
+                          textTheme.titleMedium,
+                          typography.body,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    Switch(
+                      value: _hasShop,
+                      onChanged: (value) => setState(() => _hasShop = value),
+                      activeColor: AppColors.primaryMaroon,
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 24),
                 BlocProvider(
                   create: (context) => AddClassCubit(sl<IClassRepository>()),
@@ -79,7 +112,7 @@ class AddClassDialog extends StatelessWidget {
                         );
                       } else if (state is AddClassSuccess) {
                         Navigator.pop(context, true);
-                        onSuccess?.call();
+                        widget.onSuccess?.call();
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(isUpdate
@@ -123,15 +156,17 @@ class AddClassDialog extends StatelessWidget {
                                   ? await context
                                       .read<AddClassCubit>()
                                       .updateClass(
-                                        classModel!.id,
+                                        widget.classModel!.id,
                                         nameController.text.trim(),
                                         locationController.text.trim(),
+                                        hasShop: _hasShop,
                                       )
                                   : await context
                                       .read<AddClassCubit>()
                                       .addClass(
                                         nameController.text.trim(),
                                         locationController.text.trim(),
+                                        hasShop: _hasShop,
                                       );
                             },
                             child: Text(

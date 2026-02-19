@@ -1,5 +1,6 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
+import 'network_utils_stub.dart' if (dart.library.io) 'network_utils_io.dart'
+    as network_utils;
 import 'package:flutter/foundation.dart';
 import 'package:saint_demiana_children/core/constants/api_endpoints.dart';
 import 'package:saint_demiana_children/core/services/interface/i_api_service.dart';
@@ -167,27 +168,37 @@ class ApiService implements IApiService {
   }
 
   @override
-  Future<bool> hasInternet() async {
-    if (kIsWeb) {
-      try {
-        final response = await Dio().get('https://www.google.com',
-            options: Options(
-              receiveTimeout: const Duration(seconds: 10),
-              sendTimeout: const Duration(seconds: 10),
-            ));
-        return response.statusCode == 200;
-      } catch (_) {
-        return false;
-      }
+  Future<Response> postMultipart({
+    required String path,
+    String? filePath,
+    List<int>? fileBytes,
+    String fieldName = 'image',
+    String fileName = 'image.jpg',
+    String? contentType,
+  }) async {
+    assert(filePath != null || (fileBytes != null && fileBytes.isNotEmpty));
+    final MultipartFile multipartFile;
+    // On web, dart:io and MultipartFile.fromFile are not available; always use bytes.
+    if (!kIsWeb && filePath != null && filePath.isNotEmpty) {
+      multipartFile =
+          await MultipartFile.fromFile(filePath, filename: fileName);
     } else {
-      try {
-        final result = await InternetAddress.lookup('google.com')
-            .timeout(const Duration(seconds: 15));
-        return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-      } on SocketException {
-        return false;
-      }
+      multipartFile = MultipartFile.fromBytes(
+        fileBytes!,
+        filename: fileName,
+      );
     }
+    final formData = FormData.fromMap({fieldName: multipartFile});
+    final response = await _dio.post(path, data: formData);
+    if (kDebugMode) {
+      print(response.data);
+    }
+    return response;
+  }
+
+  @override
+  Future<bool> hasInternet() async {
+    return network_utils.checkNetworkConnectivity();
   }
 
   @override

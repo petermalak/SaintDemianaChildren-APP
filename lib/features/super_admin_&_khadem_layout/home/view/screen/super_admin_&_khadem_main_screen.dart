@@ -9,6 +9,9 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/atte
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/home/view/screen/home_screen.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/view/screen/members_screen.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/scoring/view/screen/khadem_scoring_screen.dart';
+import 'package:saint_demiana_children/features/shop/view/screen/khadem_shop_screen.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/model/class_model.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/utils/role_helper.dart';
@@ -41,6 +44,8 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   bool _isTabBarVisible = true;
   double _lastScrollOffset = 0;
   RoleClassSelection? _selectedRoleClass;
+  List<ClassModel> _classesForShop = [];
+  bool _classesForShopLoaded = false;
 
   @override
   void initState() {
@@ -56,6 +61,54 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     _initializeAnimations();
     _initializeScrollControllers();
     _initializeRoleSelection();
+    _loadClassesForShop();
+  }
+
+  Future<void> _loadClassesForShop() async {
+    final user = sl<IProfileRepository>().user;
+    if (user == null) return;
+    final isSuperAdmin = user.role == UserRole.superAdmin;
+    final repo = sl<IClassRepository>();
+    final result =
+        isSuperAdmin ? await repo.loadClasses() : await repo.loadMyClasses();
+    result.fold(
+      (_) => null,
+      (classes) {
+        if (mounted) {
+          setState(() {
+            _classesForShop = classes;
+            _classesForShopLoaded = true;
+          });
+        }
+      },
+    );
+  }
+
+  bool get _selectedClassHasShop {
+    if (!_classesForShopLoaded) {
+      return false;
+    }
+    // Show shop tab if ANY class has shop enabled (not just the selected one)
+    // This allows users to switch to a class with shop even when viewing a class without shop
+    return _classesForShop.any((c) => c.hasShop);
+  }
+
+  // Get the first class with shop, or the selected class if it has shop
+  String? get _shopClassId {
+    if (!_classesForShopLoaded) return null;
+    // If current class has shop, use it
+    if (_selectedRoleClass?.classId != null) {
+      final currentHasShop = _classesForShop.any(
+        (c) => c.id == _selectedRoleClass!.classId && c.hasShop,
+      );
+      if (currentHasShop) return _selectedRoleClass!.classId;
+    }
+    // Otherwise, use the first class with shop
+    final shopClass = _classesForShop.firstWhere(
+      (c) => c.hasShop,
+      orElse: () => _classesForShop.first,
+    );
+    return shopClass.id;
   }
 
   void _initializeRoleSelection() {
@@ -97,8 +150,8 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   }
 
   void _initializeScrollControllers() {
-    // Initialize 6 scroll controllers for khadem tabs (including scoring)
-    for (int i = 0; i < 6; i++) {
+    // Initialize up to 7 scroll controllers (6 khadem tabs + optional shop)
+    for (int i = 0; i < 7; i++) {
       _scrollControllers[i] = ScrollController()
         ..addListener(() => _handleScroll(i));
     }
@@ -371,6 +424,9 @@ class _KhademMainScreenState extends State<KhademMainScreen>
         _buildTabButton(4, Icons.person_search, "الأفتقاد"),
         _buildTabButton(5, Icons.emoji_events, 'التايو'),
       ]);
+      if (_selectedClassHasShop) {
+        tabs.add(_buildTabButton(6, Icons.shop, 'المتجر'));
+      }
     } else if (_isInMakhdoumMode) {
       // Makhdoum tabs - show makhdoum-specific tabs
       tabs.addAll([
@@ -389,6 +445,9 @@ class _KhademMainScreenState extends State<KhademMainScreen>
         _buildTabButton(4, Icons.person_search, "الأفتقاد"),
         _buildTabButton(5, Icons.emoji_events, 'التايو'),
       ]);
+      if (_selectedClassHasShop) {
+        tabs.add(_buildTabButton(6, Icons.shop, 'المتجر'));
+      }
     }
 
     return Container(
@@ -481,8 +540,14 @@ class _KhademMainScreenState extends State<KhademMainScreen>
         _buildTabWidget(3, _scrollControllers[3]), // Scoring
       ];
     } else {
-      // Khadem mode: show khadem screens (6 tabs including scoring)
-      return List.generate(6, (index) {
+      // Khadem mode: 6 tabs + optional Shop tab when class has shop
+      final count = _selectedClassHasShop ? 7 : 6;
+      if (_selectedTab >= count) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) setState(() => _selectedTab = count - 1);
+        });
+      }
+      return List.generate(count, (index) {
         return _buildTabWidget(index, _scrollControllers[index]);
       });
     }
@@ -555,6 +620,11 @@ class _KhademMainScreenState extends State<KhademMainScreen>
           return AftekadScreen(scrollController: scrollController);
         case 5:
           return KhademScoringScreen(scrollController: scrollController);
+        case 6:
+          return KhademShopScreen(
+            scrollController: scrollController,
+            initialClassId: _shopClassId ?? _selectedRoleClass?.classId,
+          );
         default:
           return HomeScreen(
             cardAnimation: _cardAnimation,

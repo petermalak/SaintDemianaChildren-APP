@@ -8,18 +8,18 @@ class AddClassCubit extends Cubit<AddClassState> {
   AddClassCubit(this._classRepository) : super(AddClassInitial());
   final IClassRepository _classRepository;
 
-  Future<void> addClass(String name, String location) async {
+  Future<void> addClass(String name, String location, {bool hasShop = false}) async {
     emit(AddClassLoading());
-    final result = await _classRepository.addClass(name, location);
+    final result = await _classRepository.addClass(name, location, hasShop: hasShop);
     result.fold(
       (failure) => emit(AddClassFailure(failure)),
       (_) => emit(AddClassSuccess()),
     );
   }
 
-  Future<void> updateClass(String id, String name, String location) async {
+  Future<void> updateClass(String id, String name, String location, {bool? hasShop}) async {
     emit(AddClassLoading());
-    final result = await _classRepository.updateClass(id, name, location);
+    final result = await _classRepository.updateClass(id, name, location, hasShop: hasShop);
     result.fold(
       (failure) => emit(AddClassFailure(failure)),
       (_) => emit(AddClassSuccess()),

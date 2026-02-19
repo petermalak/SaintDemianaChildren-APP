@@ -63,4 +63,33 @@ class ApiEndpoints {
   // PopeAthnasius meeting data endpoints
   static String popeAthnasiusData(String userId) =>
       "users/$userId/pope-athnasius-data";
+
+  // Shop (scoring shop) endpoints
+  static const String shop = "shop/";
+  static String shopClassGifts(String classId) => "shop/classes/$classId/gifts";
+  static String shopClassGiftsVisible(String classId) =>
+      "shop/classes/$classId/gifts/visible";
+  static String shopGift(String giftId) => "shop/gifts/$giftId";
+  static const String shopUploadGiftImage = "shop/gifts/upload-image";
+  static String shopGiftRequestPurchase(String giftId) =>
+      "shop/gifts/$giftId/request-purchase";
+  static const String shopMyPurchaseRequests = "shop/my-purchase-requests";
+  static String shopClassPurchaseRequests(String classId) =>
+      "shop/classes/$classId/purchase-requests";
+  static String shopApproveRequest(String requestId) =>
+      "shop/purchase-requests/$requestId/approve";
+  static String shopRejectRequest(String requestId) =>
+      "shop/purchase-requests/$requestId/reject";
+
+  /// App version config for force-update (public, no auth).
+  static const String appVersion = 'app-version/';
+
+  /// Returns full URL for a relative path (e.g. /uploads/shop-gifts/xxx).
+  /// Use for Image.network when the API returns a path without origin.
+  static String fullUrlForPath(String path) {
+    if (path.isEmpty) return path;
+    if (path.startsWith('http')) return path;
+    final base = baseUrl.replaceFirst(RegExp(r'/$'), '');
+    return base + (path.startsWith('/') ? path : '/$path');
+  }
 }

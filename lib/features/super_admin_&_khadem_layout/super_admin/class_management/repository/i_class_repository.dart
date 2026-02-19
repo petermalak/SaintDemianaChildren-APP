@@ -7,9 +7,10 @@ abstract class IClassRepository {
   List<ClassModel> get classes;
   Future<Either<String, List<ClassModel>>> loadMyClasses();
   List<ClassModel> get myClasses;
-  Future<Either<String, Unit>> addClass(String name, String location);
+  Future<Either<String, Unit>> addClass(String name, String location,
+      {bool hasShop = false});
   Future<Either<String, Unit>> updateClass(
-      String id, String name, String location);
+      String id, String name, String location, {bool? hasShop});
   void removeUserFromClass(String classId, String userId);
   void deleteClass(String classId);
   Future<Either<String, ClassAssignmentsModel>> loadClassAssignments(

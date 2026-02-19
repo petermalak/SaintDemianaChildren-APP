@@ -1,8 +1,12 @@
 import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:saint_demiana_children/core/constants/api_endpoints.dart';
+import 'package:saint_demiana_children/core/di/service_locator.dart';
+import 'package:saint_demiana_children/core/services/interface/i_api_service.dart';
 import 'package:saint_demiana_children/core/services/interface/i_update_service.dart';
 import 'package:saint_demiana_children/core/services/logging_service.dart';
+import 'package:saint_demiana_children/core/utils/version_utils.dart';
 
 // Conditional import for Shorebird - use stub for web, real package for mobile
 // Temporarily using stub only to fix build issues
@@ -52,9 +56,6 @@ class UpdateService implements IUpdateService {
         ));
       }
 
-      // Get current patch number
-      final currentPatchNumber = await getCurrentPatchNumber();
-      
       // Get the latest patch info
       final patchInfo = await _shorebirdCodePush.currentPatchNumber();
       
@@ -154,24 +155,9 @@ class UpdateService implements IUpdateService {
         return false;
       }
 
-      // You can customize this logic:
-      // 1. Check backend API for force update flag
-      // 2. Check patch metadata from Shorebird
-      // 3. Compare patch numbers to determine if critical
-      
-      // For now, we'll use a simple heuristic:
-      // If update is available and patch number is significantly higher, it's a force update
-      final currentPatch = await getCurrentPatchNumber();
-      
-      // Example: If patch number difference is > 5, consider it force update
-      // You can adjust this logic based on your needs
-      // Or integrate with your backend API to get force update flag
-      
-      // For now, return false (optional update)
-      // You can change this to true if you want all updates to be forced
-      // Or implement backend API check here
-      
-      return false; // Change this based on your requirements
+      // Prefer server-driven force update: if minimum version check says update required, it's force
+      final minResult = await checkMinimumVersion();
+      return minResult.fold((_) => false, (info) => info.isForceUpdate);
     } catch (e) {
       _logger.error(
         'Error checking force update requirement',
@@ -179,6 +165,50 @@ class UpdateService implements IUpdateService {
         error: e,
       );
       return false;
+    }
+  }
+
+  @override
+  Future<Either<String, UpdateInfo>> checkMinimumVersion() async {
+    try {
+      final current = await getCurrentVersion();
+      final response = await sl<IApiService>().get(path: ApiEndpoints.appVersion);
+      final data = response.data;
+      if (data is! Map || data['success'] != true) {
+        return const Right(UpdateInfo(isUpdateAvailable: false, isForceUpdate: false));
+      }
+      final payload = data['data'];
+      if (payload is! Map) {
+        return const Right(UpdateInfo(isUpdateAvailable: false, isForceUpdate: false));
+      }
+      final minRequired = payload['minRequiredVersion'] as String?;
+      if (minRequired == null || minRequired.isEmpty) {
+        return const Right(UpdateInfo(isUpdateAvailable: false, isForceUpdate: false));
+      }
+      final latestVersion = payload['latestVersion'] as String? ?? minRequired;
+      final androidStoreUrl = payload['storeUrlAndroid'] as String?;
+      final iosStoreUrl = payload['storeUrlIos'] as String?;
+      final needUpdate = isVersionLessThan(current, minRequired);
+      if (needUpdate) {
+        _logger.info(
+          'Force update required: current=$current, minRequired=$minRequired',
+          tag: _tag,
+        );
+        return Right(UpdateInfo(
+          isUpdateAvailable: true,
+          isForceUpdate: true,
+          updateVersion: latestVersion,
+          androidStoreUrl: androidStoreUrl,
+          iosStoreUrl: iosStoreUrl,
+        ));
+      }
+      return const Right(UpdateInfo(isUpdateAvailable: false, isForceUpdate: false));
+    } catch (e) {
+      _logger.warning(
+        'Minimum version check failed (allowing app to run): $e',
+        tag: _tag,
+      );
+      return const Right(UpdateInfo(isUpdateAvailable: false, isForceUpdate: false));
     }
   }
 

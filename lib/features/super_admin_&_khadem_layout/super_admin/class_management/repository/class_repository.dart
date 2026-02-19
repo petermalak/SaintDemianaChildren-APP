@@ -30,12 +30,19 @@ class ClassRepository implements IClassRepository {
   }
 
   @override
-  Future<Either<String, Unit>> addClass(String name, String location) async {
+  Future<Either<String, Unit>> addClass(String name, String location,
+      {bool hasShop = false}) async {
     try {
-      final response = await _apiService.post(
-          path: ApiEndpoints.classes,
-          body: {"name": name, "location": location});
-      _classes.add(ClassModel.fromJson(response.data));
+      final response =
+          await _apiService.post(path: ApiEndpoints.classes, body: {
+        "name": name,
+        "location": location,
+        "hasShop": hasShop,
+      });
+      final data = response.data is Map
+          ? response.data as Map<String, dynamic>
+          : response.data;
+      _classes.add(ClassModel.fromJson(data));
       return const Right(unit);
     } on DioException catch (e) {
       return Left(_apiService.handleError(e));
@@ -54,14 +61,47 @@ class ClassRepository implements IClassRepository {
   Future<Either<String, List<ClassModel>>> loadMyClasses() async {
     try {
       final response = await _apiService.get(path: ApiEndpoints.myClasses);
-      _myClasses = (response.data as List)
-          .map<ClassModel>((json) => ClassModel.fromJson(json))
-          .toList();
+
+      print(
+          '📦 [ClassRepo] loadMyClasses: Response type: ${response.data.runtimeType}');
+      print('📦 [ClassRepo] loadMyClasses: Response data: ${response.data}');
+
+      // Handle different response formats
+      final rawList = response.data is List
+          ? response.data
+          : (response.data is Map && response.data['data'] != null
+              ? response.data['data']
+              : response.data);
+
+      if (rawList is! List) {
+        print(
+            '❌ [ClassRepo] loadMyClasses: Response is not a list: ${rawList.runtimeType}, value: $rawList');
+        return const Left('Invalid response format');
+      }
+
+      print('📦 [ClassRepo] loadMyClasses: Received ${rawList.length} classes');
+      for (var i = 0; i < rawList.length; i++) {
+        final item = rawList[i];
+        print('  [$i] Class JSON: ${item.toString()}');
+        print(
+            '  [$i] Class name: ${item['name']}, hasShop: ${item['hasShop']} (type: ${item['hasShop']?.runtimeType}, value: ${item['hasShop']})');
+      }
+
+      _myClasses = rawList.map<ClassModel>((json) {
+        final model = ClassModel.fromJson(json);
+        print(
+            '  ✅ Parsed ClassModel: ${model.name}, hasShop: ${model.hasShop}');
+        return model;
+      }).toList();
       return Right(_myClasses);
     } on DioException catch (e) {
+      print('❌ [ClassRepo] loadMyClasses DioException: ${e.message}');
+      print('❌ [ClassRepo] Response: ${e.response?.data}');
       return Left(_apiService.handleError(e));
-    } catch (e) {
-      return const Left('An unexpected error occurred');
+    } catch (e, stackTrace) {
+      print('❌ [ClassRepo] loadMyClasses error: $e');
+      print('❌ [ClassRepo] Stack trace: $stackTrace');
+      return Left('An unexpected error occurred: $e');
     }
   }
 
@@ -73,14 +113,18 @@ class ClassRepository implements IClassRepository {
 
   @override
   Future<Either<String, Unit>> updateClass(
-      String id, String name, String location) async {
+      String id, String name, String location,
+      {bool? hasShop}) async {
     try {
-      await _apiService.put(
-          path: ApiEndpoints.classes + id,
-          body: {"name": name, "location": location});
+      final body = <String, dynamic>{"name": name, "location": location};
+      if (hasShop != null) body["hasShop"] = hasShop;
+      await _apiService.put(path: ApiEndpoints.classes + id, body: body);
       final index = _classes.indexWhere((c) => c.id == id);
-      _classes[index].name = name;
-      _classes[index].location = location;
+      _classes[index] = _classes[index].copyWith(
+        name: name,
+        location: location,
+        hasShop: hasShop ?? _classes[index].hasShop,
+      );
       return const Right(unit);
     } on DioException catch (e) {
       return Left(_apiService.handleError(e));

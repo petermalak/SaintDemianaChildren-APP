@@ -134,9 +134,6 @@ class UserModel extends Equatable {
                 .toList()
             : const <UserClassAssignment>[];
 
-    print('🔍 [UserModel] Extracted classId: $extractedClassId from JSON');
-    print('🔍 [UserModel] classMemberships: ${json['classMemberships']}');
-
     return UserModel(
       id: json['id'] ?? '',
       name: json['name'] ?? '',

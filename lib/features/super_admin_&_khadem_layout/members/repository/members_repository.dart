@@ -26,8 +26,14 @@ class MembersRepository implements IMembersRepository {
         path: isSuperAdmin ? ApiEndpoints.users : ApiEndpoints.members,
         queryParameters: queryParams,
       );
-      final members = (response.data as List)
-          .map((memberJson) => UserModel.fromJson(memberJson))
+      // Backend returns { success: true, data: [...] } for GET /users/
+      final rawList = response.data is Map && response.data['data'] != null
+          ? response.data['data']
+          : response.data;
+      final list = rawList is List ? rawList : <dynamic>[];
+      final members = list
+          .map((memberJson) => UserModel.fromJson(
+              memberJson is Map<String, dynamic> ? memberJson : Map<String, dynamic>.from(memberJson as Map)))
           .toList();
       this.members = members;
       return right(members);

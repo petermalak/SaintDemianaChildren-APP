@@ -29,6 +29,8 @@ import '../../features/notifications/repository/i_notification_repository.dart';
 import '../../features/notifications/repository/notification_repository.dart';
 import '../../features/scoring/repository/i_scoring_repository.dart';
 import '../../features/scoring/repository/scoring_repository.dart';
+import '../../features/shop/repository/i_shop_repository.dart';
+import '../../features/shop/repository/shop_repository.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/notification_service.dart';
@@ -80,6 +82,8 @@ Future<void> setupServiceLocator() async {
       () => NotificationRepository(sl<IApiService>()));
   sl.registerLazySingleton<IScoringRepository>(
       () => ScoringRepository(sl<IApiService>()));
+  sl.registerLazySingleton<IShopRepository>(
+      () => ShopRepository(sl<IApiService>()));
 
   print('✅ [ServiceLocator] All services registered');
 }

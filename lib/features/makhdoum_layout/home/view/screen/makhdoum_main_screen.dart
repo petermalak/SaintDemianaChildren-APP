@@ -16,6 +16,9 @@ import '../../../../feed/view/screen/feed_screen.dart';
 import '../../../../feed/viewmodel/get_feed/get_feed_cubit.dart';
 import '../../../../feed/viewmodel/add_feed/add_feed_cubit.dart';
 import '../../../../feed/repository/i_feed_repository.dart';
+import '../../../../shop/view/screen/makhdoum_shop_screen.dart';
+import '../../../../super_admin_&_khadem_layout/super_admin/class_management/model/class_model.dart';
+import '../../../../super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
 
 class MakhdoumMainScreen extends StatefulWidget {
   const MakhdoumMainScreen({super.key});
@@ -35,6 +38,8 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
   double _lastScrollOffset = 0;
   List<UserClassInfo> _makhdoumClasses = const [];
   String? _selectedMakhdoumClassId;
+  List<ClassModel> _classesForShop = [];
+  bool _classesForShopLoaded = false;
 
   @override
   void initState() {
@@ -43,22 +48,95 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
     _initializeAnimations();
     _initializeScrollControllers();
     _checkAndRefreshUser();
+    _loadClassesForShop();
+  }
+
+  Future<void> _loadClassesForShop() async {
+    final result = await sl<IClassRepository>().loadMyClasses();
+    result.fold(
+      (error) {
+        print('❌ [MakhdoumMain] Error loading classes for shop: $error');
+      },
+      (classes) {
+        print(
+            '✅ [MakhdoumMain] Loaded ${classes.length} classes for shop check');
+        classes.forEach((c) {
+          print('  - Class: ${c.name}, hasShop: ${c.hasShop}');
+        });
+        if (mounted) {
+          // Check if any class has shop
+          final hasShop = classes.any((c) => c.hasShop == true);
+          // Calculate tab count: base 4 tabs + 1 shop tab if hasShop
+          final newTabCount = hasShop ? 5 : 4;
+
+          setState(() {
+            _classesForShop = classes;
+            _classesForShopLoaded = true;
+            // Ensure selected tab is still valid after adding/removing shop tab
+            if (_selectedTab >= newTabCount) {
+              _selectedTab = newTabCount - 1;
+            }
+          });
+
+          print(
+              '🔄 [MakhdoumMain] Classes loaded. Tab count: $newTabCount, hasShop: $hasShop');
+        }
+      },
+    );
+  }
+
+  bool get _selectedClassHasShop {
+    if (!_classesForShopLoaded) {
+      print('⚠️ [MakhdoumMain] Classes not loaded yet for shop check');
+      return false;
+    }
+    // Show shop tab if ANY of the makhdoum's classes has shop enabled
+    // This ensures the shop tab appears even if the class data isn't fully loaded yet
+    final hasShop = _classesForShop.any((c) => c.hasShop == true);
+    print(
+        '🔍 [MakhdoumMain] Shop tab visibility: $hasShop (${_classesForShop.length} classes checked)');
+    return hasShop;
+  }
+
+  // Get the first class with shop, or the effective class if it has shop
+  String? get _shopClassId {
+    if (!_classesForShopLoaded) return _effectiveMakhdoumClassId;
+    // If current class has shop, use it
+    if (_effectiveMakhdoumClassId != null) {
+      final currentHasShop = _classesForShop.any(
+        (c) => c.id == _effectiveMakhdoumClassId && c.hasShop == true,
+      );
+      if (currentHasShop) return _effectiveMakhdoumClassId;
+    }
+    // Otherwise, use the first class with shop
+    try {
+      final shopClass = _classesForShop.firstWhere((c) => c.hasShop == true);
+      return shopClass.id;
+    } catch (e) {
+      // No class with shop found, fall back to effective class or first class
+      if (_classesForShop.isNotEmpty) {
+        return _classesForShop.first.id;
+      }
+      return _effectiveMakhdoumClassId;
+    }
   }
 
   void _checkAndRefreshUser() async {
     final profileRepo = sl<IProfileRepository>();
     final user = profileRepo.user;
-    
+
     // If user has no classId, refresh from API
     if (user != null && (user.classId == null || user.classId!.isEmpty)) {
-      print('🔄 [MakhdoumMain] User classId is null, refreshing user profile...');
+      print(
+          '🔄 [MakhdoumMain] User classId is null, refreshing user profile...');
       final result = await profileRepo.refreshUser();
       result.fold(
         (error) {
           print('❌ [MakhdoumMain] Failed to refresh user: $error');
         },
         (refreshedUser) {
-          print('✅ [MakhdoumMain] User refreshed, classId: ${refreshedUser.classId}');
+          print(
+              '✅ [MakhdoumMain] User refreshed, classId: ${refreshedUser.classId}');
           setState(() {
             _hydrateMakhdoumClasses();
           });
@@ -79,7 +157,7 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
   }
 
   void _initializeScrollControllers() {
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
       _scrollControllers[i] = ScrollController()
         ..addListener(() => _handleScroll(i));
     }
@@ -192,21 +270,15 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
                   ),
                   Expanded(
                     child: PageView(
+                      key: ValueKey(
+                          'pageview_${_selectedClassHasShop}_${_classesForShopLoaded}'),
                       controller: _pageController,
                       onPageChanged: (index) {
                         setState(() {
                           _selectedTab = index;
                         });
                       },
-                      children: [
-                        HomeScreen(scrollController: _scrollControllers[0]),
-                        AttendanceScreen(
-                          scrollController: _scrollControllers[1],
-                          initialClassId: _effectiveMakhdoumClassId,
-                        ),
-                        _buildFeedsTab(),
-                        _buildScoringTab(),
-                      ],
+                      children: _buildPageViewChildren(),
                     ),
                   ),
                 ],
@@ -217,6 +289,8 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
                 left: 0,
                 right: 0,
                 child: AnimatedSlide(
+                  key: ValueKey(
+                      'tab_slide_${_selectedClassHasShop}_${_classesForShopLoaded}'),
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeInOut,
                   offset: _isTabBarVisible ? Offset.zero : const Offset(0, -1),
@@ -336,7 +410,8 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
         ),
         // Role switcher for users with mixed roles
         if (RoleHelper.hasMixedRoles(sl<IProfileRepository>().user) &&
-            RoleHelper.canAccessKhademFeatures(sl<IProfileRepository>().user)) ...[
+            RoleHelper.canAccessKhademFeatures(
+                sl<IProfileRepository>().user)) ...[
           const PopupMenuDivider(),
           const PopupMenuItem(
             value: 'switch-to-khadem',
@@ -365,7 +440,10 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
   }
 
   Widget _buildTabNavigation() {
+    // Use key to force rebuild when shop tab visibility changes
     return Container(
+      key:
+          ValueKey('tab_nav_${_selectedClassHasShop}_${_classesForShopLoaded}'),
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
@@ -384,6 +462,7 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
           _buildTabButton(1, Icons.event_note, 'الحضور'),
           _buildTabButton(2, Icons.feed, 'الأخبار'),
           _buildTabButton(3, Icons.emoji_events, 'التايو'),
+          if (_selectedClassHasShop) _buildTabButton(4, Icons.shop, 'المتجر'),
         ],
       ),
     );
@@ -442,12 +521,37 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
     );
   }
 
+  List<Widget> _buildPageViewChildren() {
+    final children = <Widget>[
+      HomeScreen(scrollController: _scrollControllers[0]),
+      AttendanceScreen(
+        scrollController: _scrollControllers[1],
+        initialClassId: _effectiveMakhdoumClassId,
+      ),
+      _buildFeedsTab(),
+      _buildScoringTab(),
+    ];
+
+    // Add shop tab if available
+    if (_selectedClassHasShop) {
+      children.add(_buildShopTab());
+    }
+
+    return children;
+  }
+
   void _onTabSelected(int index) {
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
+    // Ensure index is within bounds
+    final maxIndex = _buildPageViewChildren().length - 1;
+    final safeIndex = index.clamp(0, maxIndex);
+
+    if (_selectedTab != safeIndex) {
+      _pageController.animateToPage(
+        safeIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
   }
 
   Widget _buildFeedsTab() {
@@ -480,8 +584,8 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
             key: ValueKey('makhdoum_feed_$classId'),
             providers: [
               BlocProvider(
-                create: (context) =>
-                    GetFeedCubit(sl<IFeedRepository>())..getFeedsByClass(classId),
+                create: (context) => GetFeedCubit(sl<IFeedRepository>())
+                  ..getFeedsByClass(classId),
               ),
               BlocProvider(
                 create: (context) => AddFeedCubit(sl<IFeedRepository>()),
@@ -545,7 +649,8 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
     if (!hasMultiple) {
       return ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-        leading: const Icon(Icons.class_rounded, color: AppColors.primaryMaroon),
+        leading:
+            const Icon(Icons.class_rounded, color: AppColors.primaryMaroon),
         title: Text(title),
         subtitle: Text(className),
       );
@@ -587,6 +692,17 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildShopTab() {
+    final classId = _shopClassId ?? _effectiveMakhdoumClassId;
+    if (classId == null || classId.isEmpty) return _buildNoClassAssigned();
+    final className = _getClassNameById(classId) ?? 'فصلي';
+    return MakhdoumShopScreen(
+      scrollController: _scrollControllers[4],
+      classId: classId,
+      className: className,
     );
   }
 

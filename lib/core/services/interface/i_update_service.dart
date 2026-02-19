@@ -7,6 +7,10 @@ class UpdateInfo {
   final String? updateVersion;
   final String? releaseNotes;
   final int? patchNumber;
+  /// Store URL for Android (force update).
+  final String? androidStoreUrl;
+  /// Store URL for iOS (force update).
+  final String? iosStoreUrl;
 
   const UpdateInfo({
     required this.isUpdateAvailable,
@@ -14,6 +18,8 @@ class UpdateInfo {
     this.updateVersion,
     this.releaseNotes,
     this.patchNumber,
+    this.androidStoreUrl,
+    this.iosStoreUrl,
   });
 }
 
@@ -37,4 +43,8 @@ abstract class IUpdateService {
   /// Checks if update is mandatory (force update)
   /// This can be configured via backend API or Shorebird metadata
   Future<bool> isForceUpdateRequired();
+
+  /// Checks minimum required version from backend. Works on all platforms (incl. web).
+  /// Returns force-update info if current version is below server's minRequiredVersion.
+  Future<Either<String, UpdateInfo>> checkMinimumVersion();
 }

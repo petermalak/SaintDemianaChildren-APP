@@ -126,6 +126,29 @@ class _ScoringConfigScreenState extends State<ScoringConfigScreen> {
               return const Center(child: CircularProgressIndicator());
             }
 
+            if (state is ConfigError && _config == null) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 48, color: Colors.red),
+                    const SizedBox(height: 16),
+                    Text(
+                      state.message,
+                      style: const TextStyle(color: Colors.red),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => _loadConfig(),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              );
+            }
+
             if (_config == null) {
               return const Center(child: Text('No configuration available'));
             }
@@ -138,6 +161,9 @@ class _ScoringConfigScreenState extends State<ScoringConfigScreen> {
   }
 
   Widget _buildConfigContent() {
+    if (_config == null) {
+      return const Center(child: Text('No configuration available'));
+    }
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -158,6 +184,7 @@ class _ScoringConfigScreenState extends State<ScoringConfigScreen> {
   }
 
   Widget _buildSystemNameSection() {
+    if (_config == null) return const SizedBox.shrink();
     return Card(
       child: ListTile(
         title: const Text('System Name'),
@@ -295,6 +322,7 @@ class _ScoringConfigScreenState extends State<ScoringConfigScreen> {
   }
 
   Widget _buildAttendancePointsSection() {
+    if (_config == null) return const SizedBox.shrink();
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -555,6 +583,7 @@ class _ScoringConfigScreenState extends State<ScoringConfigScreen> {
   }
 
   Widget _buildToggleScoringSection() {
+    if (_config == null) return const SizedBox.shrink();
     return Card(
       child: SwitchListTile(
         title: const Text('Enable Scoring'),
