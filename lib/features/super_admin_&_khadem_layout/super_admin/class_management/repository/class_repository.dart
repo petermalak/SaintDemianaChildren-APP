@@ -4,6 +4,7 @@ import 'package:saint_demiana_children/core/constants/api_endpoints.dart';
 import 'package:saint_demiana_children/core/services/interface/i_api_service.dart';
 
 import '../model/class_assignment_model.dart';
+import '../model/class_members_response.dart';
 import '../model/class_model.dart';
 import 'i_class_repository.dart';
 
@@ -134,10 +135,59 @@ class ClassRepository implements IClassRepository {
   }
 
   @override
-  void removeUserFromClass(String classId, String userId) {
-    final classModel = _classes.firstWhere((c) => c.id == classId);
-    classModel.memberships?.removeWhere((m) => m.userId == userId);
-    _apiService.delete(path: '${ApiEndpoints.classes}$classId/members/$userId');
+  Future<Either<String, Unit>> removeUserFromClass(
+      String classId, String userId) async {
+    try {
+      await _apiService.delete(
+          path: '${ApiEndpoints.classMembers(classId)}/$userId');
+      return const Right(unit);
+    } on DioException catch (e) {
+      return Left(_apiService.handleError(e));
+    } catch (e) {
+      return Left('An unexpected error occurred');
+    }
+  }
+
+  @override
+  Future<Either<String, ClassMembersResponse>> getClassMembers(
+      String classId) async {
+    try {
+      final response =
+          await _apiService.get(path: ApiEndpoints.classMembers(classId));
+      final data = response.data is Map<String, dynamic>
+          ? response.data as Map<String, dynamic>
+          : <String, dynamic>{};
+      return Right(ClassMembersResponse.fromJson(data));
+    } on DioException catch (e) {
+      return Left(_apiService.handleError(e));
+    } catch (e) {
+      return Left('An unexpected error occurred');
+    }
+  }
+
+  @override
+  Future<Either<String, Unit>> addClassMember(
+    String classId,
+    String userId,
+    String role, {
+    String? notes,
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        'userId': userId,
+        'role': role,
+      };
+      if (notes != null && notes.isNotEmpty) body['notes'] = notes;
+      await _apiService.post(
+        path: ApiEndpoints.classMembers(classId),
+        body: body,
+      );
+      return const Right(unit);
+    } on DioException catch (e) {
+      return Left(_apiService.handleError(e));
+    } catch (e) {
+      return Left('An unexpected error occurred');
+    }
   }
 
   @override

@@ -3,7 +3,7 @@ description: A Flutter app for Saint Demiana Church data collection and manageme
 
 publish_to: 'none'
 
-version: 1.0.6+6
+version: 1.0.11+11
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

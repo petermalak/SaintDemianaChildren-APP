@@ -263,10 +263,41 @@ class _AddUserDialogState extends State<AddUserDialog> {
                                   currentUser.email = _emailController.text;
                                   currentUser.role = _selectedRole;
 
-                                  // Set classIds if khadem is creating makhdoum
-                                  if (_shouldShowClassSelection() &&
-                                      _selectedClassIds.isNotEmpty) {
-                                    currentUser.classIds = _selectedClassIds;
+                                  // Ensure khadem creator can relate new makhdoum to their classes
+                                  final creator = sl<IProfileRepository>().user;
+                                  final isKhademCreator = creator != null &&
+                                      RoleHelper.hasRole(
+                                          creator, UserRole.khadem);
+
+                                  List<String> effectiveClassIds = [];
+
+                                  // Primary path: explicit class selection UI
+                                  if (_shouldShowClassSelection()) {
+                                    if (_selectedClassIds.isNotEmpty) {
+                                      effectiveClassIds =
+                                          List<String>.from(_selectedClassIds);
+                                    } else if (isKhademCreator &&
+                                        _selectedRole == UserRole.makhdoum) {
+                                      // Fallback: if nothing was selected, default to all khadem classes
+                                      final khademClasses =
+                                          RoleHelper.getKhademClasses(creator);
+                                      effectiveClassIds = khademClasses
+                                          .map((c) => c.classId)
+                                          .toList();
+                                    }
+                                  } else if (isKhademCreator &&
+                                      _selectedRole == UserRole.makhdoum) {
+                                    // Safety fallback: even if the selector is hidden for some reason,
+                                    // still relate the new makhdoum to all classes where creator is khadem.
+                                    final khademClasses =
+                                        RoleHelper.getKhademClasses(creator);
+                                    effectiveClassIds = khademClasses
+                                        .map((c) => c.classId)
+                                        .toList();
+                                  }
+
+                                  if (effectiveClassIds.isNotEmpty) {
+                                    currentUser.classIds = effectiveClassIds;
                                   }
 
                                   // Set Pope Athanasius data if applicable

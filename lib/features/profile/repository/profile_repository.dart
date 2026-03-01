@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:saint_demiana_children/core/constants/api_endpoints.dart';
 import 'package:saint_demiana_children/core/services/interface/i_api_service.dart';
 import 'package:saint_demiana_children/core/services/interface/i_storage_service.dart';
+import 'package:saint_demiana_children/core/utils/jwt_helper.dart';
 import 'package:saint_demiana_children/features/authentication/model/user_model.dart';
 import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
 
@@ -27,6 +28,12 @@ class ProfileRepository implements IProfileRepository {
     _user = await _storageService.getProfile();
 
     if (_user != null) {
+      if (JwtHelper.isExpired(_user!.token)) {
+        print('⏰ [ProfileRepository] Token expired - clearing session');
+        _user = null;
+        await _storageService.deleteProfile();
+        return null;
+      }
       print('✅ [ProfileRepository] User loaded: ${_user?.name}');
       print('👤 [ProfileRepository] User role: ${_user?.role}');
       print('🏫 [ProfileRepository] User classId: ${_user?.classId}');

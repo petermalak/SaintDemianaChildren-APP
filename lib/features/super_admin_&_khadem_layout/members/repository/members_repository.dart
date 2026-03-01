@@ -18,6 +18,32 @@ class MembersRepository implements IMembersRepository {
   }
 
   @override
+  Future<Either<String, List<UserModel>>> fetchClassMembers(
+      String classId) async {
+    try {
+      final response = await _apiService.get(
+        path: ApiEndpoints.classMembers(classId),
+      );
+      final data =
+          response.data is Map ? response.data as Map<String, dynamic> : null;
+      if (data == null) return left('Invalid response');
+      final makhdoum = data['makhdoum'] as List<dynamic>? ?? [];
+      final khadem = data['khadem'] as List<dynamic>? ?? [];
+      final list = [...makhdoum, ...khadem];
+      final members = list
+          .map((e) => UserModel.fromJson(e is Map<String, dynamic>
+              ? e
+              : Map<String, dynamic>.from(e as Map)))
+          .toList();
+      return right(members);
+    } on DioException catch (e) {
+      return left(_apiService.handleError(e));
+    } catch (e) {
+      return left(e.toString());
+    }
+  }
+
+  @override
   Future<Either<String, List<UserModel>>> fetchMembers(bool isSuperAdmin,
       {String? classId}) async {
     try {
@@ -33,7 +59,9 @@ class MembersRepository implements IMembersRepository {
       final list = rawList is List ? rawList : <dynamic>[];
       final members = list
           .map((memberJson) => UserModel.fromJson(
-              memberJson is Map<String, dynamic> ? memberJson : Map<String, dynamic>.from(memberJson as Map)))
+              memberJson is Map<String, dynamic>
+                  ? memberJson
+                  : Map<String, dynamic>.from(memberJson as Map)))
           .toList();
       this.members = members;
       return right(members);

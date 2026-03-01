@@ -6,7 +6,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../features/authentication/model/user_model.dart';
-import 'web_download_stub.dart' if (dart.library.html) 'web_download_web.dart' as web_download;
+import 'web_download_stub.dart' if (dart.library.html) 'web_download_web.dart'
+    as web_download;
 import '../../features/super_admin_&_khadem_layout/attendance/model/attendance_model.dart';
 import '../../features/super_admin_&_khadem_layout/aftekad/model/aftekad_model.dart';
 import '../../features/scoring/model/scoring_models.dart';
@@ -88,8 +89,9 @@ class ExcelExportService {
           memberClassName = classNamesMap[member.classId] ?? memberClassName;
         }
 
-        final additionalData =
-            member.popeAthnasiusMeetingData?.additionalData;
+        // Use full Pope Athanasius data for export (additionalData + classPhase)
+        final popeData = member.popeAthnasiusMeetingData;
+        final additionalData = popeData?.exportMap ?? popeData?.additionalData;
         final baseRow = [
           TextCellValue('$rowNum'),
           TextCellValue(member.name ?? ''),
@@ -360,21 +362,10 @@ class ExcelExportService {
         final uint8List = Uint8List.fromList(bytes);
 
         if (kIsWeb) {
-          // For web: try Share first; on permission denied use direct download
-          try {
-            final xfile = XFile.fromData(
-              uint8List,
-              mimeType:
-                  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-              name: fileName,
-            );
-            await Share.shareXFiles([xfile], text: fileName);
-            return fileName;
-          } catch (e) {
-            // NotAllowedError / Permission denied: fallback to programmatic download
-            web_download.downloadFileOnWeb(uint8List, fileName);
-            return fileName;
-          }
+          // On web use a single download path to avoid two files (Share can trigger
+          // a download and then throw, causing fallback to download again).
+          web_download.downloadFileOnWeb(uint8List, fileName);
+          return fileName;
         } else {
           // For mobile/desktop, save to file system
           final directory = await getApplicationDocumentsDirectory();
@@ -401,7 +392,8 @@ class ExcelExportService {
   /// Build export filename: date and time first, then suitable name for the export.
   static String _getExportFileName(
       String timestamp, String exportTypeLabel, String? className) {
-    final safeClass = (className ?? 'الفصل').replaceAll(' ', '_').replaceAll('/', '-');
+    final safeClass =
+        (className ?? 'الفصل').replaceAll(' ', '_').replaceAll('/', '-');
     return '${timestamp}_${exportTypeLabel}_$safeClass.xlsx';
   }
 
@@ -429,6 +421,7 @@ class ExcelExportService {
       if (v is bool) return v ? 'نعم' : 'لا';
       return v.toString();
     }
+
     return [
       TextCellValue(str(additionalData['registrationDate'])),
       TextCellValue(str(additionalData['regularChurch'])),

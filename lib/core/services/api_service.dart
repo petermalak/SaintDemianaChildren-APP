@@ -74,7 +74,7 @@ class ApiService implements IApiService {
 
           handler.next(response);
         },
-        onError: (error, handler) {
+        onError: (error, handler) async {
           // Log the error
           _logger.error(
             'API Error: ${error.message}',
@@ -83,8 +83,13 @@ class ApiService implements IApiService {
             stackTrace: error.stackTrace,
           );
 
-          // Handle common errors
-          if (error.response?.statusCode == 401) {}
+          // Token expired or invalid: clear session so user must login again
+          if (error.response?.statusCode == 401) {
+            sl<IProfileRepository>().user = null;
+            if (kDebugMode) {
+              print('🔐 [API] 401 Unauthorized - session cleared');
+            }
+          }
 
           handler.next(error);
         },

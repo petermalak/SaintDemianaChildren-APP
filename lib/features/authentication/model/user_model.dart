@@ -547,6 +547,7 @@ class PopeAthnasiusMeetingData extends Equatable {
   final String? id;
   final String? userId;
   final Map<String, dynamic>? additionalData;
+  final int? classPhase;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -554,15 +555,37 @@ class PopeAthnasiusMeetingData extends Equatable {
     this.id,
     this.userId,
     this.additionalData,
+    this.classPhase,
     this.createdAt,
     this.updatedAt,
   });
 
   factory PopeAthnasiusMeetingData.fromJson(Map<String, dynamic> json) {
+    int? classPhase;
+    if (json['classPhase'] != null) {
+      final v = json['classPhase'];
+      if (v is int) {
+        classPhase = v;
+      } else if (v is num) {
+        classPhase = v.toInt();
+      } else {
+        classPhase = int.tryParse(v.toString());
+      }
+    }
+    Map<String, dynamic>? additionalData;
+    final raw = json['additionalData'];
+    if (raw != null) {
+      if (raw is Map<String, dynamic>) {
+        additionalData = raw;
+      } else if (raw is Map) {
+        additionalData = Map<String, dynamic>.from(raw);
+      }
+    }
     return PopeAthnasiusMeetingData(
       id: json['id']?.toString(),
       userId: json['userId']?.toString(),
-      additionalData: json['additionalData'] as Map<String, dynamic>?,
+      additionalData: additionalData,
+      classPhase: classPhase,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
           : null,
@@ -577,9 +600,17 @@ class PopeAthnasiusMeetingData extends Equatable {
       'id': id,
       'userId': userId,
       'additionalData': additionalData,
+      'classPhase': classPhase,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
     };
+  }
+
+  /// All Pope Athanasius fields merged for export (additionalData + classPhase).
+  Map<String, dynamic> get exportMap {
+    final map = Map<String, dynamic>.from(additionalData ?? {});
+    if (classPhase != null) map['classPhase'] = classPhase;
+    return map;
   }
 
   @override
@@ -587,6 +618,7 @@ class PopeAthnasiusMeetingData extends Equatable {
         id,
         userId,
         additionalData,
+        classPhase,
         createdAt,
         updatedAt,
       ];

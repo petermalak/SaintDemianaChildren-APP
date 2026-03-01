@@ -11,10 +11,10 @@ class ApiEndpoints {
   static const String changePassword = 'auth/change-password/';
 
   // PRODUCTION - Your domain configuration
-  static const String baseUrl = "https://www.saint-demiana.com/api/";
+  // static const String baseUrl = "https://www.saint-demiana.com/api/";
 
   // DEVELOPMENT - Keep these commented for reference
-  // static const String baseUrl = "http://localhost:7000/";
+  static const String baseUrl = "http://localhost:7000/";
   // static const String baseUrl = "http://192.168.1.11:7000/";
   // static const String baseUrl = "http://172.20.10.5:7000/";
   // static const String baseUrl = "http://192.168.1.112:7000/";
@@ -38,6 +38,8 @@ class ApiEndpoints {
 
   static const String classes = "classes/";
   static const String myClasses = "classes/my-classes/";
+  static String classById(String classId) => "classes/$classId";
+  static String classMembers(String classId) => "classes/$classId/members";
   static String classAssignments(String classId) =>
       "classes/$classId/assignments";
 
@@ -47,7 +49,9 @@ class ApiEndpoints {
 
   // Scoring endpoints
   static const String scoring = "scoring/";
-  static const String scoringConfig = "scoring/config/";
+
+  /// No trailing slash to avoid redirect on production (preserves Authorization header).
+  static const String scoringConfig = "scoring/config";
   static const String scoringTiers = "scoring/tiers/";
   static const String scoringTierById = "scoring/tiers/tier/";
   static const String scoreDefinitions = "scoring/scores/definitions";

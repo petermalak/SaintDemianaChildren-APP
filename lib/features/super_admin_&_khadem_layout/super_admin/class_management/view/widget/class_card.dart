@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/view/widget/add_class_dialog.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/view/widget/class_members_dialog.dart';
 
 import '../../../../../../core/constants/app_colors.dart';
 import '../../../../../../core/di/service_locator.dart';
 import '../../../../../authentication/model/user_model.dart';
+import '../../../../../profile/repository/i_profile_repository.dart';
 import '../../../../../scoring/view/screen/scoring_config_screen.dart';
 import '../../../../../scoring/repository/i_scoring_repository.dart';
 import '../../../../../scoring/viewmodel/config_cubit/config_cubit.dart';
 import '../../../../../scoring/viewmodel/score_definition_cubit/score_definition_cubit.dart';
-import '../../model/class_membership_model.dart';
 import '../../model/class_model.dart';
 import '../../repository/i_class_repository.dart';
 import '../../viewmodel/get_classes/get_classes_cubit.dart';
@@ -315,7 +316,7 @@ class _ClassCardState extends State<ClassCard> {
         );
         break;
       case 'members':
-        _showClassMembersDialog(classItem, context);
+        _showManageClassMembersDialog(classItem, context);
         break;
       case 'scoring':
         _navigateToScoringConfig(classItem, context);
@@ -349,65 +350,21 @@ class _ClassCardState extends State<ClassCard> {
     );
   }
 
-  void _showClassMembersDialog(ClassModel classItem, BuildContext context) {
-    final memberships = classItem.memberships ?? [];
+  void _showManageClassMembersDialog(
+      ClassModel classItem, BuildContext context) {
+    final currentUser = sl<IProfileRepository>().user;
+    final isSuperAdmin = currentUser?.role == UserRole.superAdmin;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('أعضاء ${classItem.name}'),
-        content: SizedBox(
-            width: double.maxFinite,
-            height: 400,
-            child: (memberships.isEmpty)
-                ? const Center(
-                    child: Text('لا يوجد أعضاء في هذا الفصل'),
-                  )
-                : Builder(builder: (context) {
-                    return ListView.builder(
-                      itemCount: memberships.length,
-                      itemBuilder: (context, index) {
-                        final membership = memberships[index];
-                        final user = membership.user;
-                        if (user == null) return const SizedBox.shrink();
-                        return ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: _getRoleColor(user.role!)
-                                .withValues(alpha: 0.1),
-                            child: Icon(
-                              _getRoleIcon(user.role!),
-                              color: _getRoleColor(user.role!),
-                            ),
-                          ),
-                          title: Text(user.name!),
-                          subtitle: Text(user.email!),
-                          trailing: PopupMenuButton<String>(
-                            onSelected: (value) => _handleMembershipAction(
-                                value, membership, classItem, context),
-                            itemBuilder: (context) => [
-                              const PopupMenuItem(
-                                value: 'remove',
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.remove_circle,
-                                        color: AppColors.error),
-                                    SizedBox(width: 8),
-                                    Text('إزالة من الفصل'),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  })),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
-          ),
-        ],
+      builder: (context) => ClassMembersDialog(
+        classId: classItem.id,
+        className: classItem.name,
+        isSuperAdmin: isSuperAdmin,
+        onMembersUpdated: () {
+          context.read<GetClassesCubit>().refreshClasses();
+          setState(() {});
+        },
       ),
     );
   }
@@ -440,75 +397,6 @@ class _ClassCardState extends State<ClassCard> {
               foregroundColor: AppColors.accentWhite,
             ),
             child: const Text('حذف'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _handleMembershipAction(String action, ClassMembershipModel membership,
-      ClassModel classItem, BuildContext context) {
-    switch (action) {
-      case 'remove':
-        _showRemoveMemberDialog(membership, classItem, context);
-        break;
-    }
-  }
-
-  Color _getRoleColor(UserRole role) {
-    switch (role) {
-      case UserRole.khadem:
-        return AppColors.accentGold;
-      case UserRole.makhdoum:
-        return AppColors.primaryBrown;
-      case UserRole.superAdmin:
-        return AppColors.primaryBlue;
-    }
-  }
-
-  IconData _getRoleIcon(UserRole role) {
-    switch (role) {
-      case UserRole.khadem:
-        return Icons.person;
-      case UserRole.makhdoum:
-        return Icons.child_care;
-      case UserRole.superAdmin:
-        return Icons.supervisor_account;
-    }
-  }
-
-  void _showRemoveMemberDialog(ClassMembershipModel membership,
-      ClassModel classItem, BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('إزالة عضو من الفصل'),
-        content: Text(
-            'هل أنت متأكد من إزالة ${membership.user?.name ?? 'هذا العضو'} من "${classItem.name}"؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              sl<IClassRepository>()
-                  .removeUserFromClass(classItem.id, membership.userId);
-              Navigator.pop(context);
-              setState(() {});
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                      'تم إزالة ${membership.user?.name ?? 'العضو'} من "${classItem.name}"'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: AppColors.accentWhite,
-            ),
-            child: const Text('إزالة'),
           ),
         ],
       ),

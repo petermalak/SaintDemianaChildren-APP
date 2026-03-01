@@ -457,17 +457,39 @@ class _MembersScreenState extends State<MembersScreen>
     }
   }
 
+  /// Re-fetch members from API (so Pope Athanasius and other full profile data is included) then run export.
+  /// When [classId] is set, uses GET class members (includes Pope data); otherwise uses GET users/members.
+  Future<List<UserModel>?> _fetchFreshMembersForExport(
+      {String? classId}) async {
+    if (classId != null && classId.isNotEmpty) {
+      final result = await sl<IMembersRepository>().fetchClassMembers(classId);
+      return result.fold((_) => null, (list) => list);
+    }
+    final isSuperAdmin = _currentUser?.role == UserRole.superAdmin;
+    final result = await sl<IMembersRepository>()
+        .fetchMembers(isSuperAdmin, classId: classId);
+    return result.fold((_) => null, (list) => list);
+  }
+
   Widget _buildExportButton(List<UserModel> members) {
     if (members.isEmpty) return const SizedBox.shrink();
 
     final hasMultipleClasses = _availableClasses.length > 1;
     final currentUser = _currentUser;
     final isKhadem = currentUser?.role == UserRole.khadem;
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: ElevatedButton.icon(
         onPressed: () async {
+          scaffoldMessenger.showSnackBar(
+            const SnackBar(
+              content: Text('جاري تحميل البيانات للتصدير...'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+
           if (hasMultipleClasses && isKhadem) {
             // Show class selection dialog
             final selectedClassIds = await showDialog<List<String>>(
@@ -484,27 +506,41 @@ class _MembersScreenState extends State<MembersScreen>
               return; // User cancelled
             }
 
-            // Filter members by selected classes
-            final filteredMembers = members.where((member) {
+            // Re-fetch fresh members (with Pope Athanasius data) for selected class(es)
+            final classIdForFetch =
+                selectedClassIds.length == 1 ? selectedClassIds.first : null;
+            final freshList =
+                await _fetchFreshMembersForExport(classId: classIdForFetch);
+            if (freshList == null) {
+              scaffoldMessenger.showSnackBar(
+                const SnackBar(
+                  content: Text('حدث خطأ أثناء تحميل البيانات'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+              return;
+            }
+
+            final filteredMembers = freshList
+                .where((member) => member.id != currentUser?.id)
+                .where((member) {
               if (selectedClassIds.length == 1) {
                 final classId = selectedClassIds.first;
                 if (member.classes.isNotEmpty) {
                   return member.classes.any((info) => info.classId == classId);
                 }
                 return member.classId == classId;
-              } else {
-                // Multiple classes selected
-                if (member.classes.isNotEmpty) {
-                  return member.classes
-                      .any((info) => selectedClassIds.contains(info.classId));
-                }
-                return member.classId != null &&
-                    selectedClassIds.contains(member.classId);
               }
+              if (member.classes.isNotEmpty) {
+                return member.classes
+                    .any((info) => selectedClassIds.contains(info.classId));
+              }
+              return member.classId != null &&
+                  selectedClassIds.contains(member.classId);
             }).toList();
 
             if (filteredMembers.isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              scaffoldMessenger.showSnackBar(
                 const SnackBar(
                   content: Text('لا توجد أعضاء في الفصول المحددة'),
                   backgroundColor: AppColors.warning,
@@ -513,13 +549,11 @@ class _MembersScreenState extends State<MembersScreen>
               return;
             }
 
-            // Create class names map
             final classNamesMap = {
               for (var classModel in _availableClasses)
                 classModel.id: classModel.name
             };
 
-            final scaffoldMessenger = ScaffoldMessenger.of(context);
             scaffoldMessenger.showSnackBar(
               SnackBar(
                 content: Text(
@@ -540,21 +574,46 @@ class _MembersScreenState extends State<MembersScreen>
 
             if (result != null) {
               scaffoldMessenger.showSnackBar(
-                SnackBar(
+                const SnackBar(
                   content: const Text('تم تصدير البيانات بنجاح'),
                   backgroundColor: AppColors.success,
                 ),
               );
             } else {
               scaffoldMessenger.showSnackBar(
-                SnackBar(
+                const SnackBar(
                   content: const Text('حدث خطأ أثناء التصدير'),
                   backgroundColor: AppColors.error,
                 ),
               );
             }
           } else {
-            // Single class or super admin - export current filtered data
+            // Single class or super admin: re-fetch fresh members (with Pope data) then export
+            final freshList =
+                await _fetchFreshMembersForExport(classId: _selectedClassId);
+            if (freshList == null) {
+              scaffoldMessenger.showSnackBar(
+                const SnackBar(
+                  content: Text('حدث خطأ أثناء تحميل البيانات'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+              return;
+            }
+
+            var membersToExport = freshList
+                .where((member) => member.id != currentUser?.id)
+                .toList();
+            if (_selectedClassId != null) {
+              membersToExport = membersToExport.where((member) {
+                if (member.classes.isNotEmpty) {
+                  return member.classes
+                      .any((info) => info.classId == _selectedClassId);
+                }
+                return member.classId == _selectedClassId;
+              }).toList();
+            }
+
             final className = _selectedClassId != null
                 ? _availableClasses
                     .firstWhere(
@@ -571,7 +630,6 @@ class _MembersScreenState extends State<MembersScreen>
                     .name
                 : null;
 
-            final scaffoldMessenger = ScaffoldMessenger.of(context);
             scaffoldMessenger.showSnackBar(
               const SnackBar(
                 content: Text('جاري تصدير البيانات...'),
@@ -580,20 +638,20 @@ class _MembersScreenState extends State<MembersScreen>
             );
 
             final result = await ExcelExportService.exportMembers(
-              members,
+              membersToExport,
               className,
             );
 
             if (result != null) {
               scaffoldMessenger.showSnackBar(
-                SnackBar(
+                const SnackBar(
                   content: const Text('تم تصدير البيانات بنجاح'),
                   backgroundColor: AppColors.success,
                 ),
               );
             } else {
               scaffoldMessenger.showSnackBar(
-                SnackBar(
+                const SnackBar(
                   content: const Text('حدث خطأ أثناء التصدير'),
                   backgroundColor: AppColors.error,
                 ),

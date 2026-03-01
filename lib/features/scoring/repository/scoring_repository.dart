@@ -14,7 +14,7 @@ class ScoringRepository implements IScoringRepository {
   Future<Either<String, ScoringConfigModel>> getConfig(String? classId) async {
     try {
       final endpoint = classId != null
-          ? '${ApiEndpoints.scoringConfig}$classId'
+          ? '${ApiEndpoints.scoringConfig}/$classId'
           : ApiEndpoints.scoringConfig;
 
       final response = await _apiService.get(path: endpoint);
@@ -38,8 +38,8 @@ class ScoringRepository implements IScoringRepository {
   ) async {
     try {
       final endpoint = classId != null
-          ? '${ApiEndpoints.scoringConfig}$classId/name'
-          : '${ApiEndpoints.scoringConfig}name';
+          ? '${ApiEndpoints.scoringConfig}/$classId/name'
+          : '${ApiEndpoints.scoringConfig}/name';
 
       final response = await _apiService.put(
         path: endpoint,
@@ -67,8 +67,8 @@ class ScoringRepository implements IScoringRepository {
   ) async {
     try {
       final endpoint = classId != null
-          ? '${ApiEndpoints.scoringConfig}$classId/attendance-points'
-          : '${ApiEndpoints.scoringConfig}attendance-points';
+          ? '${ApiEndpoints.scoringConfig}/$classId/attendance-points'
+          : '${ApiEndpoints.scoringConfig}/attendance-points';
 
       final response = await _apiService.put(
         path: endpoint,
@@ -98,7 +98,7 @@ class ScoringRepository implements IScoringRepository {
   ) async {
     try {
       final response = await _apiService.put(
-        path: '${ApiEndpoints.scoringConfig}$classId/toggle',
+        path: '${ApiEndpoints.scoringConfig}/$classId/toggle',
         body: {'enabled': enabled},
       );
 

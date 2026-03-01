@@ -18,7 +18,8 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.saint_demiana.services"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"
+    // Omit ndkVersion so AGP uses installed NDK (avoids strip failure when exact version missing)
+    // ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -36,6 +37,10 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Ensure Flutter native libs (libflutter.so) are included for all ARM architectures in release
+        ndk {
+            abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
+        }
     }
 
     signingConfigs {
@@ -53,7 +58,6 @@ android {
         release {
             signingConfig = signingConfigs.getByName("release")
             // Disable minification to avoid R8 issues with Flutter
-            // Can be enabled later with proper ProGuard rules
             isMinifyEnabled = false
             isShrinkResources = false
         }
@@ -75,6 +79,10 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
         incremental = false
     }
 }
+
+// IMPORTANT: Do NOT disable strip tasks. Disabling them can prevent libflutter.so from being
+// packaged in the AAB, causing MissingLibraryException on release (e.g. 1.0.7). Install the NDK
+// via Android Studio (SDK Manager → NDK Side by side) so strip runs successfully. See ANDROID_NDK_FIX.md.
 
 flutter {
     source = "../.."
