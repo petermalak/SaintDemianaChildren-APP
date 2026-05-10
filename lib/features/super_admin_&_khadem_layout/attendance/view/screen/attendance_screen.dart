@@ -17,6 +17,8 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/memb
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/model/class_assignment_model.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/model/class_model.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/attendance_qr/constants.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/attendance_qr/view/screen/qr_attendance_screen.dart';
 
 class AttendanceScreen extends StatefulWidget {
   final ScrollController? scrollController;
@@ -31,6 +33,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   late final GetAttendanceCubit _attendanceCubit;
   UserModel? _currentUser;
   String? _selectedClassId;
+  String? _popeAthanasiusClassId;
   bool _isLoadingClasses = false;
   List<ClassModel> _availableClasses = const [];
   List<AssignmentUser> _khademOptions = const [];
@@ -113,6 +116,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         if (!mounted) return;
         setState(() {
           _availableClasses = classes;
+          String? resolvedPopeId;
+          try {
+            resolvedPopeId = classes
+                .firstWhere((c) => isPopeAthanasiusClassName(c.name))
+                .id;
+          } catch (_) {
+            resolvedPopeId = null;
+          }
+          _popeAthanasiusClassId = resolvedPopeId ??
+              (classes.any((c) => c.id == kLegacyPopeAthanasiusClassId)
+                  ? kLegacyPopeAthanasiusClassId
+                  : null);
           if (_selectedClassId != null &&
               !_availableClasses.any((c) => c.id == _selectedClassId)) {
             _selectedClassId = null;
@@ -849,19 +864,92 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     return result;
   }
 
+  bool get _showQrAttendanceFab {
+    return _currentUser?.role == UserRole.khadem &&
+        _popeAthanasiusClassId != null &&
+        _popeAthanasiusClassId!.isNotEmpty;
+  }
+
   Widget _buildFloatingActionButton(BuildContext context) {
-    return FloatingActionButton.extended(
-      onPressed: () => _showBulkAttendanceDialog(context),
-      backgroundColor: AppColors.primaryMaroon,
-      foregroundColor: AppColors.accentWhite,
-      elevation: 6,
-      heroTag: 'attendanceFAB',
-      icon: const Icon(Icons.group_add),
-      label: const Text(
-        'تسجيل حضور',
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (_showQrAttendanceFab) ...[
+          FloatingActionButton.extended(
+            onPressed: () => _openQrAttendanceScreen(context),
+            backgroundColor: AppColors.primaryMaroon.withValues(alpha: 0.92),
+            foregroundColor: AppColors.accentWhite,
+            elevation: 6,
+            heroTag: 'attendanceQrFAB',
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text(
+              'تسجيل حضور بالـ QR',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        FloatingActionButton.extended(
+          onPressed: () => _showBulkAttendanceDialog(context),
+          backgroundColor: AppColors.primaryMaroon,
+          foregroundColor: AppColors.accentWhite,
+          elevation: 6,
+          heroTag: 'attendanceFAB',
+          icon: const Icon(Icons.group_add),
+          label: const Text(
+            'تسجيل حضور',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openQrAttendanceScreen(BuildContext context) async {
+    final classId = _popeAthanasiusClassId;
+    if (classId == null || classId.isEmpty) return;
+    String? className;
+    try {
+      className = _availableClasses.firstWhere((c) => c.id == classId).name;
+    } catch (_) {
+      className = null;
+    }
+
+    final result = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => QrAttendanceScreen(
+          classId: classId,
+          className: className,
+        ),
       ),
     );
+
+    if (result == true && context.mounted) {
+      sl<DataRefreshCubit>().refreshMultiple({
+        RefreshType.attendance,
+        RefreshType.stats,
+        RefreshType.eftekad,
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('تم تسجيل الحضور بنجاح'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      final isKhadem = _currentUser?.role == UserRole.khadem;
+      final khademId =
+          isKhadem && _selectedKhademScope == _khademFilterAllValue
+              ? null
+              : (isKhadem
+                  ? (_selectedKhademId ?? _currentUser?.id)
+                  : _selectedKhademId);
+      await _attendanceCubit.fetchAttendance(
+        classId: classId,
+        khademId: khademId,
+        khademScope: isKhadem ? _selectedKhademScope : null,
+      );
+    }
   }
 
   @override

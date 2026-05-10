@@ -15,13 +15,11 @@ class JwtHelper {
       final payload = parts[1];
       final normalized = base64Url.normalize(payload);
       final resp = utf8.decode(base64Url.decode(normalized));
-      final payloadMap = json.decode(resp);
-
-      if (payloadMap is! Map<String, dynamic>) {
+      final decoded = json.decode(resp);
+      if (decoded is! Map) {
         return null;
       }
-
-      return payloadMap;
+      return Map<String, dynamic>.from(decoded);
     } catch (e) {
       print('Error decoding JWT: $e');
       return null;
@@ -50,16 +48,27 @@ class JwtHelper {
     return payload['classId'] as String?;
   }
 
-  /// Returns true if the token is expired (or missing/invalid).
-  /// Uses [expiryBufferSeconds] so the token is treated as expired shortly before actual exp.
+  /// Parses JWT `exp` claim (seconds since epoch). Returns null if missing or invalid.
+  static int? _expiryUnixSeconds(Map<String, dynamic> payload) {
+    final exp = payload['exp'];
+    if (exp == null) return null;
+    if (exp is int) return exp;
+    if (exp is num) return exp.toInt();
+    if (exp is String) return int.tryParse(exp);
+    return null;
+  }
+
+  /// Returns true only when we can read a well-formed JWT with [exp] and that time has passed.
+  ///
+  /// If the string is not a JWT, has no [exp], or cannot be decoded, returns **false** so we do
+  /// not clear a valid session locally; the API still returns 401 when the token is invalid.
+  /// Uses [expiryBufferSeconds] so we treat the token as expired shortly before actual exp.
   static bool isExpired(String? token) {
     if (token == null || token.isEmpty) return true;
     final payload = decodeToken(token);
-    if (payload == null) return true;
-    final exp = payload['exp'];
-    if (exp == null) return true;
-    final expSeconds = exp is int ? exp : (exp is num ? exp.toInt() : null);
-    if (expSeconds == null) return true;
+    if (payload == null) return false;
+    final expSeconds = _expiryUnixSeconds(payload);
+    if (expSeconds == null) return false;
     final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     return nowSeconds >= (expSeconds - expiryBufferSeconds);
   }

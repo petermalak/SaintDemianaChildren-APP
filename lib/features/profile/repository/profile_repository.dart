@@ -72,8 +72,13 @@ class ProfileRepository implements IProfileRepository {
   @override
   Future<Either<String, Unit>> updateProfile(UserModel user) async {
     try {
-      await _apiService.put(path: ApiEndpoints.myProfile, body: user.toJson());
-      await _storageService.updateProfile(user);
+      final merged = (user.token == null || user.token!.isEmpty)
+          ? user.copyWith(token: _user?.token)
+          : user;
+      await _apiService.put(
+          path: ApiEndpoints.myProfile, body: merged.toJson());
+      await _storageService.updateProfile(merged);
+      _user = merged;
       return right(unit);
     } on DioException catch (e) {
       return left(_apiService.handleError(e));

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import 'dart:convert';
 
 enum UserRole {
   khadem, // خادم (Servant/Admin)
@@ -579,6 +580,18 @@ class PopeAthnasiusMeetingData extends Equatable {
         additionalData = raw;
       } else if (raw is Map) {
         additionalData = Map<String, dynamic>.from(raw);
+      } else if (raw is String) {
+        // Some backends/DB drivers may serialize JSON as a string.
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is Map<String, dynamic>) {
+            additionalData = decoded;
+          } else if (decoded is Map) {
+            additionalData = Map<String, dynamic>.from(decoded);
+          }
+        } catch (_) {
+          // If parsing fails, leave additionalData as null
+        }
       }
     }
     return PopeAthnasiusMeetingData(

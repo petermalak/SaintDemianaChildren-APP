@@ -51,6 +51,9 @@
 	<!-- Biometric Authentication Permission -->
 	<key>NSFaceIDUsageDescription</key>
 	<string>Use Face ID or Touch ID to securely login to your account</string>
+	<!-- QR attendance (camera) -->
+	<key>NSCameraUsageDescription</key>
+	<string>This app uses the camera to scan member QR codes for attendance.</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>tel</string>

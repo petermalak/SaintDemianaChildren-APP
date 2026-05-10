@@ -15,6 +15,18 @@ import '../../features/scoring/model/scoring_models.dart';
 class ExcelExportService {
   static final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
   static final DateFormat _dateTimeFormat = DateFormat('yyyy-MM-dd HH:mm');
+  static const Map<String, String> _attendanceCategoryNames = {
+    'praise': 'تسبحة',
+    'mass': 'قداس',
+    'generalMeeting': 'عام',
+    'specialMeeting': 'خاص',
+  };
+  static const List<String> _attendanceCategories = [
+    'praise',
+    'mass',
+    'generalMeeting',
+    'specialMeeting',
+  ];
 
   /// Export members list to Excel (supports multiple classes)
   static Future<String?> exportMembers(
@@ -140,55 +152,220 @@ class ExcelExportService {
       final excel = Excel.createExcel();
       final sheet = excel['الحضور'];
 
-      // Header row
-      final headers = [
-        'الترتيب',
-        'الاسم',
-        'الفصل',
-        'التاريخ',
-        'النوع',
-        'ملاحظات',
-        'إضافة نقاط',
-        'تاريخ الإنشاء',
-      ];
+      final cleanRecords = records
+          .where((r) =>
+              (r.userName != null && r.userName!.isNotEmpty) &&
+              (r.date != null && r.date!.isNotEmpty) &&
+              (r.type != null && r.type!.isNotEmpty))
+          .toList();
 
-      sheet.appendRow(headers.map((h) => TextCellValue(h)).toList());
+      // Build ordered members list (same behavior as UI: first-seen order).
+      final memberSet = <String>{};
+      for (final r in cleanRecords) {
+        memberSet.add(r.userName!);
+      }
+      final members = memberSet.toList();
 
-      // Style header row
+      // Build unique dates list, sorted ascending.
+      final dateSet = <String>{};
+      for (final r in cleanRecords) {
+        dateSet.add(r.date!);
+      }
+      final dates = dateSet.toList()
+        ..sort((a, b) {
+          try {
+            return DateTime.parse(a).compareTo(DateTime.parse(b));
+          } catch (_) {
+            return a.compareTo(b);
+          }
+        });
+
+      // Build attendance matrix: member -> date -> type -> present
+      final attendance =
+          <String, Map<String, Map<String, bool>>>{}; // same shape as UI
+      for (final r in cleanRecords) {
+        final member = r.userName!;
+        final date = r.date!;
+        final type = r.type!;
+        final memberMap =
+            attendance.putIfAbsent(member, () => <String, Map<String, bool>>{});
+        final dateMap = memberMap.putIfAbsent(date, () => <String, bool>{});
+        dateMap[type] = true;
+      }
+
+      // Two-row header like the UI (date row + category row).
+      final headerRow1 = <TextCellValue>[TextCellValue('الاسم')];
+      for (final date in dates) {
+        for (int i = 0; i < _attendanceCategories.length; i++) {
+          headerRow1.add(TextCellValue(date));
+        }
+      }
+      // Totals columns (same for all rows)
+      for (final _ in _attendanceCategories) {
+        headerRow1.add(TextCellValue('الإجمالي'));
+        headerRow1.add(TextCellValue('النسبة'));
+      }
+      headerRow1.add(TextCellValue('الإجمالي'));
+      headerRow1.add(TextCellValue('النسبة'));
+
+      final headerRow2 = <TextCellValue>[TextCellValue('')];
+      for (final _ in dates) {
+        for (final cat in _attendanceCategories) {
+          headerRow2.add(TextCellValue(_attendanceCategoryNames[cat] ?? cat));
+        }
+      }
+      for (final cat in _attendanceCategories) {
+        headerRow2.add(TextCellValue('${_attendanceCategoryNames[cat] ?? cat}'));
+        headerRow2.add(TextCellValue('${_attendanceCategoryNames[cat] ?? cat}'));
+      }
+      headerRow2.add(TextCellValue('كل الاجتماعات'));
+      headerRow2.add(TextCellValue('كل الاجتماعات'));
+
+      sheet.appendRow(headerRow1);
+      sheet.appendRow(headerRow2);
+
       final headerStyle = CellStyle(
         bold: true,
         backgroundColorHex: ExcelColor.lightBlue,
         fontColorHex: ExcelColor.white,
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+        textWrapping: TextWrapping.WrapText,
       );
-      for (int i = 0; i < headers.length; i++) {
+      final subHeaderStyle = CellStyle(
+        bold: true,
+        backgroundColorHex: ExcelColor.lightBlue,
+        fontColorHex: ExcelColor.white,
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+        textWrapping: TextWrapping.WrapText,
+      );
+      final cellCenterStyle = CellStyle(
+        horizontalAlign: HorizontalAlign.Center,
+        verticalAlign: VerticalAlign.Center,
+      );
+
+      final totalColumns = 1 +
+          (dates.length * _attendanceCategories.length) +
+          (_attendanceCategories.length * 2) +
+          2;
+
+      // Make header rows taller for readability.
+      sheet.setRowHeight(0, 28);
+      sheet.setRowHeight(1, 24);
+
+      for (int col = 0; col < totalColumns; col++) {
         sheet
-            .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: 0))
+            .cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 0))
             .cellStyle = headerStyle;
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: 1))
+            .cellStyle = subHeaderStyle;
       }
 
-      // Data rows
-      for (int i = 0; i < records.length; i++) {
-        final record = records[i];
-        // Get class name - use className if single class, or try to get from map
-        String recordClassName = className ?? '';
-        // Note: AttendanceRecord doesn't have classId, so we use the provided className
-        // If multiple classes, className will be 'عدة_فصول' and we can't determine per record
-        final row = [
-          TextCellValue('${i + 1}'),
-          TextCellValue(record.userName ?? ''),
-          TextCellValue(recordClassName),
-          TextCellValue(record.date ?? ''),
-          TextCellValue(_getAttendanceTypeName(record.type)),
-          TextCellValue(record.notes ?? ''),
-          TextCellValue(record.shouldAddScore == true ? 'نعم' : 'لا'),
-          TextCellValue(''), // createdAt not in model
-        ];
+      // Merge the first header row groups (each date spans 4 columns).
+      // Also merge each totals group (الإجمالي/النسبة) and the final overall totals.
+      int colCursor = 1; // 0 is "الاسم"
+      for (final _ in dates) {
+        final start = colCursor;
+        final end = colCursor + _attendanceCategories.length - 1;
+        if (start < end) {
+          sheet.merge(
+            CellIndex.indexByColumnRow(columnIndex: start, rowIndex: 0),
+            CellIndex.indexByColumnRow(columnIndex: end, rowIndex: 0),
+          );
+        }
+        colCursor += _attendanceCategories.length;
+      }
+      // Totals per category (each spans 2 columns)
+      for (final cat in _attendanceCategories) {
+        final start = colCursor;
+        final end = colCursor + 1;
+        if (start < end) {
+          sheet.merge(
+            CellIndex.indexByColumnRow(columnIndex: start, rowIndex: 0),
+            CellIndex.indexByColumnRow(columnIndex: end, rowIndex: 0),
+          );
+        }
+        // Put the category name in the merged cell for clarity
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: start, rowIndex: 0))
+            .value = TextCellValue(_attendanceCategoryNames[cat] ?? cat);
+        colCursor += 2;
+      }
+      // Overall totals (2 columns)
+      final overallStart = colCursor;
+      final overallEnd = colCursor + 1;
+      if (overallStart < overallEnd) {
+        sheet.merge(
+          CellIndex.indexByColumnRow(columnIndex: overallStart, rowIndex: 0),
+          CellIndex.indexByColumnRow(columnIndex: overallEnd, rowIndex: 0),
+        );
+      }
+      sheet
+          .cell(CellIndex.indexByColumnRow(
+              columnIndex: overallStart, rowIndex: 0))
+          .value = TextCellValue('كل الاجتماعات');
+
+      // Data rows: one row per member, one cell per (date, category)
+      for (int memberIndex = 0; memberIndex < members.length; memberIndex++) {
+        final member = members[memberIndex];
+        final row = <TextCellValue>[TextCellValue(member)];
+
+        final totalsByCat = <String, int>{
+          for (final cat in _attendanceCategories) cat: 0,
+        };
+        int totalAttendedAll = 0;
+
+        for (final date in dates) {
+          for (final cat in _attendanceCategories) {
+            final present = attendance[member]?[date]?[cat] == true;
+            if (present) {
+              totalsByCat[cat] = (totalsByCat[cat] ?? 0) + 1;
+              totalAttendedAll += 1;
+            }
+            // Absent cells should be blank (no ✗)
+            row.add(TextCellValue(present ? '✓' : ''));
+          }
+        }
+
+        final possiblePerCat = dates.length;
+        final possibleAll = dates.length * _attendanceCategories.length;
+
+        for (final cat in _attendanceCategories) {
+          final attended = totalsByCat[cat] ?? 0;
+          final pct = possiblePerCat == 0
+              ? 0.0
+              : (attended / possiblePerCat) * 100.0;
+          row.add(TextCellValue(attended.toString()));
+          row.add(TextCellValue('${pct.toStringAsFixed(0)}%'));
+        }
+
+        final pctAll =
+            possibleAll == 0 ? 0.0 : (totalAttendedAll / possibleAll) * 100.0;
+        row.add(TextCellValue(totalAttendedAll.toString()));
+        row.add(TextCellValue('${pctAll.toStringAsFixed(0)}%'));
+
         sheet.appendRow(row);
+
+        // Center-align all cells in this data row.
+        final rowIndex = 2 + memberIndex;
+        for (int col = 0; col < totalColumns; col++) {
+          sheet
+              .cell(CellIndex.indexByColumnRow(
+                  columnIndex: col, rowIndex: rowIndex))
+              .cellStyle = cellCenterStyle;
+        }
       }
 
-      // Auto-size columns
-      for (int i = 0; i < headers.length; i++) {
-        sheet.setColumnWidth(i, 20);
+      // Set column widths: name wider, attendance columns compact
+      sheet.setColumnWidth(0, 28);
+      final attendanceCols = dates.length * _attendanceCategories.length;
+      for (int i = 1; i <= attendanceCols; i++) {
+        sheet.setColumnWidth(i, 10);
+      }
+      for (int i = attendanceCols + 1; i < totalColumns; i++) {
+        sheet.setColumnWidth(i, 14);
       }
 
       final timestamp = _getTimestamp();
@@ -423,40 +600,44 @@ class ExcelExportService {
     }
 
     return [
-      TextCellValue(str(additionalData['registrationDate'])),
-      TextCellValue(str(additionalData['regularChurch'])),
-      TextCellValue(str(additionalData['previousServices'])),
-      TextCellValue(str(additionalData['currentService'])),
-      TextCellValue(str(additionalData['yearsOfService'])),
-      TextCellValue(str(additionalData['profession'])),
-      TextCellValue(str(additionalData['maritalStatus'])),
-      TextCellValue(str(additionalData['meetingEmail'])),
-      TextCellValue(str(additionalData['interestedBible'])),
-      TextCellValue(str(additionalData['interestedTheology'])),
-      TextCellValue(str(additionalData['interestedComparativeTheology'])),
-      TextCellValue(str(additionalData['interestedApologetics'])),
-      TextCellValue(str(additionalData['interestedHistory'])),
-      TextCellValue(str(additionalData['interestedPatristics'])),
-      TextCellValue(str(additionalData['previousCourses'])),
-      TextCellValue(str(additionalData['needToKnow'])),
-      TextCellValue(str(additionalData['wantExam'])),
-      TextCellValue(str(additionalData['classPhase'])),
+      TextCellValue(str(
+          additionalData['registrationDate'] ?? additionalData['تاريخ التسجيل'])),
+      TextCellValue(str(additionalData['regularChurch'] ??
+          additionalData['الكنيسه المواظب عليها'])),
+      TextCellValue(str(additionalData['previousServices'] ??
+          additionalData['خدمات سابقه'])),
+      TextCellValue(str(
+          additionalData['currentService'] ?? additionalData['الخدمه الحاليه'])),
+      TextCellValue(str(additionalData['yearsOfService'] ??
+          additionalData['عدد سنين الخدمه'])),
+      TextCellValue(
+          str(additionalData['profession'] ?? additionalData['الوظيفه'])),
+      TextCellValue(str(additionalData['maritalStatus'] ??
+          additionalData['الحاله الاجتماعيه'])),
+      TextCellValue(
+          str(additionalData['meetingEmail'] ?? additionalData['الايميل'])),
+      TextCellValue(str(additionalData['interestedBible'] ??
+          additionalData['اهتم بدارسه - الكتاب المقدس'])),
+      TextCellValue(str(additionalData['interestedTheology'] ??
+          additionalData['اهتم بدارسه - العقيده'])),
+      TextCellValue(str(additionalData['interestedComparativeTheology'] ??
+          additionalData['اهتم بدارسه - اللاهوت المقارن'])),
+      TextCellValue(str(additionalData['interestedApologetics'] ??
+          additionalData['اهتم بدارسه - الدفاعيات'])),
+      TextCellValue(str(additionalData['interestedHistory'] ??
+          additionalData['اهتم بدارسه - التاريخ'])),
+      TextCellValue(str(additionalData['interestedPatristics'] ??
+          additionalData['اهتم بدارسه - ابائيات'])),
+      TextCellValue(str(
+          additionalData['previousCourses'] ?? additionalData['كورسات سابقه'])),
+      TextCellValue(
+          str(additionalData['needToKnow'] ?? additionalData['محتاج اعرف'])),
+      TextCellValue(str(
+          additionalData['wantExam'] ?? additionalData['ارغب في الامتحان'])),
+      TextCellValue(str(additionalData['classPhase'] ??
+          additionalData['Class Phase'] ??
+          additionalData['class_phase'])),
     ];
-  }
-
-  static String _getAttendanceTypeName(String? type) {
-    switch (type) {
-      case 'mass':
-        return 'قداس';
-      case 'specialMeeting':
-        return 'اجتماع خاص';
-      case 'generalMeeting':
-        return 'اجتماع عام';
-      case 'praise':
-        return 'تسبحة';
-      default:
-        return type ?? '';
-    }
   }
 
   static String _getEftekadTypeName(AftekadType? type) {

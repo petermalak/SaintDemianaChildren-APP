@@ -79,5 +79,4 @@ class AddAttendanceCubit extends Cubit<AddAttendanceState> {
       },
     );
   }
-
 }
