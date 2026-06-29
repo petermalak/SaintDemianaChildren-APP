@@ -21,6 +21,9 @@ import 'features/makhdoum_layout/home/view/screen/makhdoum_main_screen.dart';
 import 'features/super_admin_&_khadem_layout/super_admin/class_management/view/screen/class_management_screen.dart';
 import 'features/profile/view/screen/profile_screen.dart';
 import 'features/profile/repository/i_profile_repository.dart';
+import 'features/coptic_quest/view/screen/hub_screen.dart';
+import 'features/coptic_quest/view/screen/path_map_screen.dart';
+import 'features/coptic_quest/view/screen/lesson_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -292,6 +295,29 @@ final GoRouter _router = GoRouter(
       builder: (context, state) {
         return const ProfileScreen();
       },
+    ),
+    GoRoute(
+      path: '/coptic-quest',
+      builder: (context, state) => const HubScreen(),
+      routes: [
+        GoRoute(
+          path: ':pathId',
+          builder: (context, state) {
+            final pathId = state.pathParameters['pathId']!;
+            return PathMapScreen(pathId: pathId);
+          },
+          routes: [
+            GoRoute(
+              path: ':levelId',
+              builder: (context, state) {
+                final pathId = state.pathParameters['pathId']!;
+                final levelId = state.pathParameters['levelId']!;
+                return LessonScreen(pathId: pathId, levelId: levelId);
+              },
+            ),
+          ],
+        ),
+      ],
     ),
   ],
 );

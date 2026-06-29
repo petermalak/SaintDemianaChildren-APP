@@ -11,10 +11,12 @@ class AttendanceCubit extends Cubit<AttendanceState> {
   AttendanceCubit(this._attendanceRepository) : super(AttendanceInitial());
 
   Future<void> fetchAttendance({String? classId}) async {
+    if (isClosed) return;
     emit(AttendanceLoading());
 
     final result = await _attendanceRepository.fetchAttendance(classId: classId);
 
+    if (isClosed) return;
     result.fold(
       (error) => emit(AttendanceFailure(error)),
       (attendanceModel) => emit(AttendanceSuccess(attendanceModel)),

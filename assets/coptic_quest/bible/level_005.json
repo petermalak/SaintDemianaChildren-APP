@@ -1,0 +1,68 @@
+{
+  "id": "bible_005",
+  "path": "bible",
+  "order": 5,
+  "title": { "en": "Moses & the Exodus", "ar": "موسى والخروج" },
+  "hook": {
+    "en": "God used Moses to free His people!",
+    "ar": "استخدم الله موسى لتحرير شعبه!"
+  },
+  "tiers": {
+    "T1": {
+      "slides": [
+        {
+          "text": {
+            "en": "God called Moses from a burning bush.",
+            "ar": "دعا الله موسى من العليقة المشتعلة."
+          }
+        },
+        {
+          "text": {
+            "en": "Moses asked Pharaoh to let God's people go.",
+            "ar": "طلب موسى من فرعون أن يترك شعب الله يذهب."
+          }
+        },
+        {
+          "text": {
+            "en": "God parted the Red Sea so Israel could cross safely.",
+            "ar": "شق الله البحر الأحمر ليعبر بنو إسرائيل بسلام."
+          }
+        }
+      ]
+    },
+    "T2": { "slides": [] },
+    "T3": { "slides": [] }
+  },
+  "practice": {
+    "type": "matching",
+    "pairs": [
+      {
+        "left": { "en": "Burning bush", "ar": "العليقة المشتعلة" },
+        "right": { "en": "God calls Moses", "ar": "الله يدعو موسى" }
+      },
+      {
+        "left": { "en": "Red Sea", "ar": "البحر الأحمر" },
+        "right": { "en": "People cross safely", "ar": "الشعب يعبر بسلام" }
+      }
+    ]
+  },
+  "quiz": [
+    {
+      "question": { "en": "Who did God call at the burning bush?", "ar": "من دعا الله عند العليقة المشتعلة؟" },
+      "options": [
+        { "text": { "en": "Moses", "ar": "موسى" } },
+        { "text": { "en": "David", "ar": "داود" } }
+      ],
+      "answerIndex": 0
+    },
+    {
+      "question": { "en": "What sea did God part?", "ar": "أي بحر شقه الله؟" },
+      "options": [
+        { "text": { "en": "Red Sea", "ar": "البحر الأحمر" } },
+        { "text": { "en": "Nile River", "ar": "نهر النيل" } }
+      ],
+      "answerIndex": 0
+    }
+  ],
+  "rewards": { "starThresholds": [0.5, 0.75, 1.0], "stickerId": "moses_icon" }
+}

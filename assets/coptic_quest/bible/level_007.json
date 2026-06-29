@@ -1,0 +1,68 @@
+{
+  "id": "bible_007",
+  "path": "bible",
+  "order": 7,
+  "title": { "en": "Miracles of Jesus", "ar": "معجزات السيد المسيح" },
+  "hook": {
+    "en": "Jesus showed God's power through wonderful miracles!",
+    "ar": "أظهر يسوع قوة الله بمعجزات عجيبة!"
+  },
+  "tiers": {
+    "T1": {
+      "slides": [
+        {
+          "text": {
+            "en": "At Cana, Jesus turned water into wine at a wedding.",
+            "ar": "في قانا حوّل يسوع الماء إلى خمر في عرس."
+          }
+        },
+        {
+          "text": {
+            "en": "Jesus fed five thousand people with five loaves and two fish.",
+            "ar": "أشبع يسوع خمسة آلاف شخص بخمسة أرغفة وسمكتين."
+          }
+        },
+        {
+          "text": {
+            "en": "Jesus healed the sick and showed God's love.",
+            "ar": "شفى يسوع المرضى وأظهر محبة الله."
+          }
+        }
+      ]
+    },
+    "T2": { "slides": [] },
+    "T3": { "slides": [] }
+  },
+  "practice": {
+    "type": "matching",
+    "pairs": [
+      {
+        "left": { "en": "Wedding at Cana", "ar": "عرس قانا" },
+        "right": { "en": "Water to wine", "ar": "ماء إلى خمر" }
+      },
+      {
+        "left": { "en": "Five loaves", "ar": "خمسة أرغفة" },
+        "right": { "en": "Fed 5000 people", "ar": "أشبع 5000 شخص" }
+      }
+    ]
+  },
+  "quiz": [
+    {
+      "question": { "en": "What did Jesus do at Cana?", "ar": "ماذا فعل يسوع في قانا؟" },
+      "options": [
+        { "text": { "en": "Turned water to wine", "ar": "حوّل الماء إلى خمر" } },
+        { "text": { "en": "Built a temple", "ar": "بنى هيكلاً" } }
+      ],
+      "answerIndex": 0
+    },
+    {
+      "question": { "en": "How many people did Jesus feed with loaves and fish?", "ar": "كم شخص أشبع يسوع بالأرغفة والسمك؟" },
+      "options": [
+        { "text": { "en": "About 5000", "ar": "حوالي 5000" } },
+        { "text": { "en": "About 50", "ar": "حوالي 50" } }
+      ],
+      "answerIndex": 0
+    }
+  ],
+  "rewards": { "starThresholds": [0.5, 0.75, 1.0], "stickerId": "miracles_icon" }
+}

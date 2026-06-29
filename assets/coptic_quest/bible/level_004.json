@@ -1,0 +1,63 @@
+{
+  "id": "bible_004",
+  "path": "bible",
+  "order": 4,
+  "title": { "en": "Joseph", "ar": "يوسف الصديق" },
+  "hook": {
+    "en": "Joseph forgave his brothers — let's learn his story!",
+    "ar": "سامح يوسف إخوته — هيا نتعلم قصته!"
+  },
+  "tiers": {
+    "T1": {
+      "slides": [
+        {
+          "text": {
+            "en": "Joseph was sold by his brothers but God was with him.",
+            "ar": "باع إخوة يوسف يوسف لكن الله كان معه."
+          }
+        },
+        {
+          "text": {
+            "en": "In Egypt, Joseph became a wise leader.",
+            "ar": "في مصر أصبح يوسف قائداً حكيماً."
+          }
+        },
+        {
+          "text": {
+            "en": "When his brothers came hungry, Joseph forgave them.",
+            "ar": "عندما جاء إخوته جائعين سامحهم يوسف."
+          }
+        }
+      ]
+    },
+    "T2": { "slides": [] },
+    "T3": { "slides": [] }
+  },
+  "practice": {
+    "type": "sequence",
+    "items": [
+      { "text": { "en": "Brothers sell Joseph", "ar": "الإخوة يبيعون يوسف" } },
+      { "text": { "en": "Joseph serves in Egypt", "ar": "يوسف يخدم في مصر" } },
+      { "text": { "en": "Joseph forgives his brothers", "ar": "يوسف يسامح إخوته" } }
+    ]
+  },
+  "quiz": [
+    {
+      "question": { "en": "Where did Joseph become a leader?", "ar": "أين أصبح يوسف قائداً؟" },
+      "options": [
+        { "text": { "en": "Egypt", "ar": "مصر" } },
+        { "text": { "en": "Rome", "ar": "روما" } }
+      ],
+      "answerIndex": 0
+    },
+    {
+      "question": { "en": "What did Joseph show his brothers?", "ar": "ماذا أظهر يوسف لإخوته؟" },
+      "options": [
+        { "text": { "en": "Forgiveness", "ar": "مغفرة" } },
+        { "text": { "en": "Anger only", "ar": "غضباً فقط" } }
+      ],
+      "answerIndex": 0
+    }
+  ],
+  "rewards": { "starThresholds": [0.5, 0.75, 1.0], "stickerId": "joseph_icon" }
+}

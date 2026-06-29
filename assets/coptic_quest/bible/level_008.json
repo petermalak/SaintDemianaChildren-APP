@@ -1,0 +1,77 @@
+{
+  "id": "bible_008",
+  "path": "bible",
+  "order": 8,
+  "title": { "en": "Passion & Resurrection", "ar": "الآلام والقيامة" },
+  "hook": {
+    "en": "Jesus loves us so much He died and rose for us!",
+    "ar": "يسوع أحبنا حتى مات وقام من أجلنا!"
+  },
+  "tiers": {
+    "T1": {
+      "slides": [
+        {
+          "text": {
+            "en": "Jesus entered Jerusalem and people welcomed Him.",
+            "ar": "دخل يسوع أورشليم واستقبله الناس."
+          }
+        },
+        {
+          "text": {
+            "en": "Jesus suffered on the cross for our sins.",
+            "ar": "تألم يسوع على الصليب من أجل خطايانا."
+          }
+        },
+        {
+          "text": {
+            "en": "On the third day, Jesus rose from the dead!",
+            "ar": "في اليوم الثالث قام يسوع من بين الأموات!"
+          }
+        },
+        {
+          "text": {
+            "en": "Because Jesus rose, we have hope and eternal life.",
+            "ar": "لأن يسوع قام لنا رجاء وحياة أبدية."
+          }
+        }
+      ]
+    },
+    "T2": { "slides": [] },
+    "T3": { "slides": [] }
+  },
+  "practice": {
+    "type": "sequence",
+    "items": [
+      { "text": { "en": "Jesus enters Jerusalem", "ar": "يسوع يدخل أورشليم" } },
+      { "text": { "en": "Jesus on the cross", "ar": "يسوع على الصليب" } },
+      { "text": { "en": "Jesus rises on the third day", "ar": "يسوع يقوم في اليوم الثالث" } }
+    ]
+  },
+  "quiz": [
+    {
+      "question": { "en": "When did Jesus rise from the dead?", "ar": "متى قام يسوع من بين الأموات؟" },
+      "options": [
+        { "text": { "en": "On the third day", "ar": "في اليوم الثالث" } },
+        { "text": { "en": "After one year", "ar": "بعد سنة" } }
+      ],
+      "answerIndex": 0
+    },
+    {
+      "question": { "en": "Why did Jesus suffer on the cross?", "ar": "لماذا تألم يسوع على الصليب؟" },
+      "options": [
+        { "text": { "en": "For our sins", "ar": "من أجل خطايانا" } },
+        { "text": { "en": "For a crown", "ar": "من أجل تاج" } }
+      ],
+      "answerIndex": 0
+    },
+    {
+      "question": { "en": "What do we have because Jesus rose?", "ar": "ماذا لدينا لأن يسوع قام؟" },
+      "options": [
+        { "text": { "en": "Hope and eternal life", "ar": "رجاء وحياة أبدية" } },
+        { "text": { "en": "Only sadness", "ar": "حزناً فقط" } }
+      ],
+      "answerIndex": 0
+    }
+  ],
+  "rewards": { "starThresholds": [0.5, 0.75, 1.0], "stickerId": "resurrection_icon" }
+}

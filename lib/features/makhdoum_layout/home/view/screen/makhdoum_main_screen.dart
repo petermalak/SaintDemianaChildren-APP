@@ -40,6 +40,7 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
   String? _selectedMakhdoumClassId;
   List<ClassModel> _classesForShop = [];
   bool _classesForShopLoaded = false;
+  bool _hasShopTab = false;
 
   @override
   void initState() {
@@ -72,6 +73,7 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
           setState(() {
             _classesForShop = classes;
             _classesForShopLoaded = true;
+            _hasShopTab = hasShop;
             // Ensure selected tab is still valid after adding/removing shop tab
             if (_selectedTab >= newTabCount) {
               _selectedTab = newTabCount - 1;
@@ -86,16 +88,8 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
   }
 
   bool get _selectedClassHasShop {
-    if (!_classesForShopLoaded) {
-      print('⚠️ [MakhdoumMain] Classes not loaded yet for shop check');
-      return false;
-    }
-    // Show shop tab if ANY of the makhdoum's classes has shop enabled
-    // This ensures the shop tab appears even if the class data isn't fully loaded yet
-    final hasShop = _classesForShop.any((c) => c.hasShop == true);
-    print(
-        '🔍 [MakhdoumMain] Shop tab visibility: $hasShop (${_classesForShop.length} classes checked)');
-    return hasShop;
+    if (!_classesForShopLoaded) return false;
+    return _hasShopTab;
   }
 
   // Get the first class with shop, or the effective class if it has shop

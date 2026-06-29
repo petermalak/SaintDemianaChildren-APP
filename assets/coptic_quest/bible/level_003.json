@@ -1,0 +1,68 @@
+{
+  "id": "bible_003",
+  "path": "bible",
+  "order": 3,
+  "title": { "en": "Abraham's Faith", "ar": "إيمان إبراهيم" },
+  "hook": {
+    "en": "Abraham trusted God even when it was hard!",
+    "ar": "إبراهيم وثق بالله حتى عندما كان الأمر صعباً!"
+  },
+  "tiers": {
+    "T1": {
+      "slides": [
+        {
+          "text": {
+            "en": "Abraham loved God and obeyed Him.",
+            "ar": "أحب إبراهيم الله وأطاعه."
+          }
+        },
+        {
+          "text": {
+            "en": "God promised Abraham many descendants.",
+            "ar": "وعد الله إبراهيم بنسل كثير."
+          }
+        },
+        {
+          "text": {
+            "en": "Abraham left his home to follow God's call.",
+            "ar": "ترك إبراهيم بيته ليتبع دعوة الله."
+          }
+        }
+      ]
+    },
+    "T2": { "slides": [] },
+    "T3": { "slides": [] }
+  },
+  "practice": {
+    "type": "matching",
+    "pairs": [
+      {
+        "left": { "en": "Abraham", "ar": "إبراهيم" },
+        "right": { "en": "Trusted God", "ar": "وثق بالله" }
+      },
+      {
+        "left": { "en": "God's promise", "ar": "وعد الله" },
+        "right": { "en": "Many descendants", "ar": "نسل كثير" }
+      }
+    ]
+  },
+  "quiz": [
+    {
+      "question": { "en": "What did God promise Abraham?", "ar": "ماذا وعد الله إبراهيم؟" },
+      "options": [
+        { "text": { "en": "Many descendants", "ar": "نسلاً كثيراً" } },
+        { "text": { "en": "A golden city", "ar": "مدينة من ذهب" } }
+      ],
+      "answerIndex": 0
+    },
+    {
+      "question": { "en": "Abraham showed great...", "ar": "أظهر إبراهيم... عظيمة" },
+      "options": [
+        { "text": { "en": "Faith", "ar": "إيماناً" } },
+        { "text": { "en": "Fear", "ar": "خوفاً" } }
+      ],
+      "answerIndex": 0
+    }
+  ],
+  "rewards": { "starThresholds": [0.5, 0.75, 1.0], "stickerId": "abraham_icon" }
+}

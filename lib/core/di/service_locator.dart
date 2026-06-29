@@ -31,6 +31,9 @@ import '../../features/scoring/repository/i_scoring_repository.dart';
 import '../../features/scoring/repository/scoring_repository.dart';
 import '../../features/shop/repository/i_shop_repository.dart';
 import '../../features/shop/repository/shop_repository.dart';
+import '../../features/coptic_quest/repository/coptic_quest_repository.dart';
+import '../../features/coptic_quest/repository/i_coptic_quest_repository.dart';
+import '../../features/coptic_quest/repository/lesson_content_loader.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/notification_service.dart';
@@ -84,6 +87,11 @@ Future<void> setupServiceLocator() async {
       () => ScoringRepository(sl<IApiService>()));
   sl.registerLazySingleton<IShopRepository>(
       () => ShopRepository(sl<IApiService>()));
+  sl.registerLazySingleton<LessonContentLoader>(() => LessonContentLoader());
+  sl.registerLazySingleton<ICopticQuestRepository>(() => CopticQuestRepository(
+        sl<LessonContentLoader>(),
+        sl<IProfileRepository>(),
+      ));
 
   print('✅ [ServiceLocator] All services registered');
 }

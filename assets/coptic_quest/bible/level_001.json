@@ -1,0 +1,86 @@
+{
+  "id": "bible_001",
+  "path": "bible",
+  "order": 1,
+  "title": { "en": "Creation", "ar": "الخليقة" },
+  "hook": {
+    "en": "Let's see how everything began!",
+    "ar": "هيا نرى كيف بدأ كل شيء!"
+  },
+  "tiers": {
+    "T1": {
+      "slides": [
+        {
+          "text": {
+            "en": "In the beginning, God created the heavens and the earth.",
+            "ar": "في البدء خلق الله السماوات والأرض."
+          }
+        },
+        {
+          "text": {
+            "en": "God said, 'Let there be light,' and there was light.",
+            "ar": "قال الله: ليكن نور، فكان نور."
+          }
+        },
+        {
+          "text": {
+            "en": "God made the sun, moon, stars, animals, and people.",
+            "ar": "خلق الله الشمس والقمر والنجوم والحيوانات والبشر."
+          }
+        },
+        {
+          "text": {
+            "en": "God saw everything He made, and it was very good.",
+            "ar": "ورأى الله كل ما عمله فإذا هو جيد جداً."
+          }
+        }
+      ]
+    },
+    "T2": { "slides": [] },
+    "T3": { "slides": [] }
+  },
+  "practice": {
+    "type": "matching",
+    "pairs": [
+      {
+        "left": { "en": "Light", "ar": "النور" },
+        "right": { "en": "First day", "ar": "اليوم الأول" }
+      },
+      {
+        "left": { "en": "Sun and moon", "ar": "الشمس والقمر" },
+        "right": { "en": "Fourth day", "ar": "اليوم الرابع" }
+      },
+      {
+        "left": { "en": "People", "ar": "البشر" },
+        "right": { "en": "Sixth day", "ar": "اليوم السادس" }
+      }
+    ]
+  },
+  "quiz": [
+    {
+      "question": { "en": "Who created the world?", "ar": "من خلق العالم؟" },
+      "options": [
+        { "text": { "en": "God", "ar": "الله" } },
+        { "text": { "en": "An angel", "ar": "ملاك" } }
+      ],
+      "answerIndex": 0
+    },
+    {
+      "question": { "en": "What did God create first according to our story?", "ar": "ماذا خلق الله أولاً في قصتنا؟" },
+      "options": [
+        { "text": { "en": "Light", "ar": "النور" } },
+        { "text": { "en": "Fish", "ar": "السمك" } }
+      ],
+      "answerIndex": 0
+    },
+    {
+      "question": { "en": "How did God see His creation?", "ar": "كيف رأى الله خلقه؟" },
+      "options": [
+        { "text": { "en": "Very good", "ar": "جيد جداً" } },
+        { "text": { "en": "Not finished", "ar": "غير مكتمل" } }
+      ],
+      "answerIndex": 0
+    }
+  ],
+  "rewards": { "starThresholds": [0.5, 0.75, 1.0], "stickerId": "creation_icon" }
+}

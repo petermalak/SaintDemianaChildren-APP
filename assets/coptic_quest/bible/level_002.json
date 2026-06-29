@@ -1,0 +1,78 @@
+{
+  "id": "bible_002",
+  "path": "bible",
+  "order": 2,
+  "title": { "en": "Noah & the Ark", "ar": "نوح والفلك" },
+  "hook": {
+    "en": "Let's meet someone brave who trusted God!",
+    "ar": "هيا نتعرف على شخص شجاع وثق بالله!"
+  },
+  "tiers": {
+    "T1": {
+      "slides": [
+        {
+          "text": {
+            "en": "Noah was a good man who loved God.",
+            "ar": "كان نوح رجلاً صالحاً يحب الله."
+          }
+        },
+        {
+          "text": {
+            "en": "God told Noah to build a big ark.",
+            "ar": "أخبر الله نوحاً أن يبني فلكاً عظيماً."
+          }
+        },
+        {
+          "text": {
+            "en": "Noah's family and animals went inside the ark.",
+            "ar": "دخلت عائلة نوح والحيوانات إلى الفلك."
+          }
+        },
+        {
+          "text": {
+            "en": "After the flood, God put a rainbow in the sky as a promise.",
+            "ar": "بعد الطوفان وضع الله قوس قزح في السماء كوعد."
+          }
+        }
+      ]
+    },
+    "T2": { "slides": [] },
+    "T3": { "slides": [] }
+  },
+  "practice": {
+    "type": "sequence",
+    "items": [
+      { "text": { "en": "God tells Noah to build an ark", "ar": "الله يأمر نوحاً ببناء الفلك" } },
+      { "text": { "en": "Animals enter the ark", "ar": "الحيوانات تدخل الفلك" } },
+      { "text": { "en": "The rain falls", "ar": "ينزل المطر" } },
+      { "text": { "en": "God sends a rainbow", "ar": "الله يرسل قوس قزح" } }
+    ]
+  },
+  "quiz": [
+    {
+      "question": { "en": "What did Noah build?", "ar": "ماذا بنى نوح؟" },
+      "options": [
+        { "text": { "en": "An ark", "ar": "فلكاً" } },
+        { "text": { "en": "A tower", "ar": "برجاً" } }
+      ],
+      "answerIndex": 0
+    },
+    {
+      "question": { "en": "What sign did God give after the flood?", "ar": "ما العلامة التي أعطاها الله بعد الطوفان؟" },
+      "options": [
+        { "text": { "en": "A rainbow", "ar": "قوس قزح" } },
+        { "text": { "en": "A star", "ar": "نجمة" } }
+      ],
+      "answerIndex": 0
+    },
+    {
+      "question": { "en": "Who went into the ark?", "ar": "من دخل الفلك؟" },
+      "options": [
+        { "text": { "en": "Noah's family and animals", "ar": "عائلة نوح والحيوانات" } },
+        { "text": { "en": "Only Noah", "ar": "نوح فقط" } }
+      ],
+      "answerIndex": 0
+    }
+  ],
+  "rewards": { "starThresholds": [0.5, 0.75, 1.0], "stickerId": "noah_icon" }
+}

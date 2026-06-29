@@ -63,7 +63,9 @@ class ApiService implements IApiService {
           handler.next(options);
         },
         onResponse: (response, handler) {
-          print(response.data);
+          if (kDebugMode) {
+            _debugPrintResponse(response);
+          }
           // Log the response
           _logger.logResponse(
             response.requestOptions.method,
@@ -97,16 +99,35 @@ class ApiService implements IApiService {
     );
   }
 
+  /// Avoid printing huge JSON blobs on the UI thread (causes jank / skipped frames).
+  void _debugPrintResponse(Response<dynamic> response) {
+    final path = response.requestOptions.path;
+    final data = response.data;
+    if (data is List) {
+      print('[HTTP RESPONSE] ${response.requestOptions.method} $path — ${data.length} items');
+      return;
+    }
+    if (data is Map) {
+      final preview = data.toString();
+      if (preview.length > 500) {
+        print(
+          '[HTTP RESPONSE] ${response.requestOptions.method} $path — '
+          '${preview.substring(0, 500)}… (${preview.length} chars)',
+        );
+      } else {
+        print('[HTTP RESPONSE] ${response.requestOptions.method} $path — $preview');
+      }
+      return;
+    }
+    print('[HTTP RESPONSE] ${response.requestOptions.method} $path — $data');
+  }
+
   @override
   Future<Response> get({
     required String path,
     Map<String, dynamic>? queryParameters,
   }) async {
-    final response = await _dio.get(path, queryParameters: queryParameters);
-    if (kDebugMode) {
-      print(response.data);
-    }
-    return response;
+    return _dio.get(path, queryParameters: queryParameters);
   }
 
   @override
@@ -114,11 +135,7 @@ class ApiService implements IApiService {
       {required String path,
       Map<String, dynamic>? queryParameters,
       body}) async {
-    final response = await _dio.patch(path, queryParameters: queryParameters);
-    if (kDebugMode) {
-      print(response.data);
-    }
-    return response;
+    return _dio.patch(path, queryParameters: queryParameters);
   }
 
   @override
@@ -127,15 +144,11 @@ class ApiService implements IApiService {
     Map<String, dynamic>? queryParameters,
     dynamic body,
   }) async {
-    final response = await _dio.put(
+    return _dio.put(
       path,
       queryParameters: queryParameters,
       data: body,
     );
-    if (kDebugMode) {
-      print(response.data);
-    }
-    return response;
   }
 
   @override
@@ -144,15 +157,11 @@ class ApiService implements IApiService {
     Map<String, dynamic>? queryParameters,
     dynamic body,
   }) async {
-    final response = await _dio.delete(
+    return _dio.delete(
       path,
       queryParameters: queryParameters,
       data: body,
     );
-    if (kDebugMode) {
-      print(response.data);
-    }
-    return response;
   }
 
   @override
@@ -161,15 +170,11 @@ class ApiService implements IApiService {
     Map<String, dynamic>? queryParameters,
     dynamic body,
   }) async {
-    final response = await _dio.post(
+    return _dio.post(
       path,
       queryParameters: queryParameters,
       data: body,
     );
-    if (kDebugMode) {
-      print(response.data);
-    }
-    return response;
   }
 
   @override
@@ -194,11 +199,7 @@ class ApiService implements IApiService {
       );
     }
     final formData = FormData.fromMap({fieldName: multipartFile});
-    final response = await _dio.post(path, data: formData);
-    if (kDebugMode) {
-      print(response.data);
-    }
-    return response;
+    return _dio.post(path, data: formData);
   }
 
   @override

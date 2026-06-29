@@ -1,0 +1,63 @@
+{
+  "id": "bible_006",
+  "path": "bible",
+  "order": 6,
+  "title": { "en": "The Nativity", "ar": "الميلاد المجيد" },
+  "hook": {
+    "en": "Jesus our Savior was born — the best gift ever!",
+    "ar": "ولد يسوع مخلصنا — أجمل هدية على الإطلاق!"
+  },
+  "tiers": {
+    "T1": {
+      "slides": [
+        {
+          "text": {
+            "en": "The Virgin Mary was chosen to be the mother of Jesus.",
+            "ar": "اختيرت العذراء مريم لتكون أم يسوع."
+          }
+        },
+        {
+          "text": {
+            "en": "Jesus was born in Bethlehem in a humble manger.",
+            "ar": "ولد يسوع في بيت لحم في مذود بسيط."
+          }
+        },
+        {
+          "text": {
+            "en": "Angels announced: Glory to God in the highest!",
+            "ar": "أعلن الملائكة: المجد لله في الأعالي!"
+          }
+        }
+      ]
+    },
+    "T2": { "slides": [] },
+    "T3": { "slides": [] }
+  },
+  "practice": {
+    "type": "sequence",
+    "items": [
+      { "text": { "en": "Mary is chosen", "ar": "اختيرت مريم" } },
+      { "text": { "en": "Jesus is born in Bethlehem", "ar": "ولد يسوع في بيت لحم" } },
+      { "text": { "en": "Angels praise God", "ar": "الملائكة تسبح الله" } }
+    ]
+  },
+  "quiz": [
+    {
+      "question": { "en": "Where was Jesus born?", "ar": "أين ولد يسوع؟" },
+      "options": [
+        { "text": { "en": "Bethlehem", "ar": "بيت لحم" } },
+        { "text": { "en": "Alexandria", "ar": "الإسكندرية" } }
+      ],
+      "answerIndex": 0
+    },
+    {
+      "question": { "en": "Who was Jesus' mother?", "ar": "من كانت أم يسوع؟" },
+      "options": [
+        { "text": { "en": "The Virgin Mary", "ar": "العذراء مريم" } },
+        { "text": { "en": "Sarah", "ar": "سارة" } }
+      ],
+      "answerIndex": 0
+    }
+  ],
+  "rewards": { "starThresholds": [0.5, 0.75, 1.0], "stickerId": "nativity_icon" }
+}

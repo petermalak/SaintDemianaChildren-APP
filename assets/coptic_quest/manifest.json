@@ -1,0 +1,40 @@
+{
+  "paths": [
+    {
+      "id": "bible",
+      "title": { "en": "Bible & Saints", "ar": "الكتاب المقدس والقديسين" },
+      "description": {
+        "en": "Stories from the Bible and lives of saints",
+        "ar": "قصص من الكتاب المقدس وحياة القديسين"
+      },
+      "icon": "book",
+      "enabled": true,
+      "levels": [
+        { "id": "bible_001", "file": "bible/level_001.json", "order": 1, "title": { "en": "Creation", "ar": "الخليقة" } },
+        { "id": "bible_002", "file": "bible/level_002.json", "order": 2, "title": { "en": "Noah & the Ark", "ar": "نوح والفلك" } },
+        { "id": "bible_003", "file": "bible/level_003.json", "order": 3, "title": { "en": "Abraham's Faith", "ar": "إيمان إبراهيم" } },
+        { "id": "bible_004", "file": "bible/level_004.json", "order": 4, "title": { "en": "Joseph", "ar": "يوسف" } },
+        { "id": "bible_005", "file": "bible/level_005.json", "order": 5, "title": { "en": "Moses & the Exodus", "ar": "موسى والخروج" } },
+        { "id": "bible_006", "file": "bible/level_006.json", "order": 6, "title": { "en": "The Nativity", "ar": "الميلاد المجيد" } },
+        { "id": "bible_007", "file": "bible/level_007.json", "order": 7, "title": { "en": "Miracles of Jesus", "ar": "معجزات السيد المسيح" } },
+        { "id": "bible_008", "file": "bible/level_008.json", "order": 8, "title": { "en": "Passion & Resurrection", "ar": "الآلام والقيامة" } }
+      ]
+    },
+    {
+      "id": "letters",
+      "title": { "en": "Coptic Letters", "ar": "الحروف القبطية" },
+      "description": { "en": "Learn the Coptic alphabet", "ar": "تعلّم الحروف القبطية" },
+      "icon": "scroll",
+      "enabled": false,
+      "levels": []
+    },
+    {
+      "id": "prayers",
+      "title": { "en": "Prayers & Creed", "ar": "الصلوات والإيمان" },
+      "description": { "en": "Learn prayers and the Creed", "ar": "تعلّم الصلوات والإيمان" },
+      "icon": "prayer",
+      "enabled": false,
+      "levels": []
+    }
+  ]
+}

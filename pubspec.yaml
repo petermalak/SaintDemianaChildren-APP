@@ -72,6 +72,11 @@ dependencies:
   package_info_plus: ^8.0.0
   mobile_scanner: ^7.2.0
 
+  # Coptic Quest
+  just_audio: ^0.9.42
+  shared_preferences: ^2.3.3
+  flutter_animate: ^4.5.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -84,6 +89,10 @@ flutter:
   assets:
     - assets/images/
     - shorebird.yaml
+    - assets/coptic_quest/
+    - assets/coptic_quest/bible/
+    - assets/coptic_quest/audio/
+    - assets/coptic_quest/images/
   
   # App icon configuration
   # flutter_icons:
