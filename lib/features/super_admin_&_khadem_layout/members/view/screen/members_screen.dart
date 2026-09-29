@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
@@ -9,6 +11,7 @@ import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/excel_export_service.dart';
 import '../../../../../core/widgets/class_export_selection_dialog.dart';
+import '../../../../../core/widgets/state_views.dart';
 import '../../../../authentication/model/user_model.dart';
 import '../../repository/i_members_repository.dart';
 import '../widget/manage_assignments_dialog.dart';
@@ -31,7 +34,11 @@ class MembersScreen extends StatefulWidget {
 class _MembersScreenState extends State<MembersScreen>
     with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
-  List<UserModel> _searchMembers = [];
+  String _searchQuery = '';
+  Timer? _searchDebounce;
+
+  /// userId -> lowercase name/email/phone, so typing does not rebuild these strings.
+  final Map<String, String> _searchIndex = {};
   final List<UserModel> _selectedMembers = [];
   late GetMembersCubit _membersCubit;
   bool _isGridView = true; // true for grid, false for list
@@ -118,6 +125,35 @@ class _MembersScreenState extends State<MembersScreen>
     }).toList();
   }
 
+  String _searchTextFor(UserModel member) {
+    final id = member.id ?? '';
+    final cached = _searchIndex[id];
+    if (cached != null) return cached;
+    final text = [member.name, member.email, member.phoneNumber]
+        .whereType<String>()
+        .join(' ')
+        .toLowerCase();
+    if (id.isNotEmpty) _searchIndex[id] = text;
+    return text;
+  }
+
+  List<UserModel> _applySearch(List<UserModel> members) {
+    if (_searchQuery.isEmpty) return members;
+    final query = _searchQuery.toLowerCase();
+    return members
+        .where((member) => _searchTextFor(member).contains(query))
+        .toList();
+  }
+
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    // Wait for a pause in typing: filtering rebuilds every visible member card.
+    _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      setState(() => _searchQuery = value.trim());
+    });
+  }
+
   bool get _canManageAssignments {
     final user = _currentUser;
     if (user == null) return false;
@@ -126,6 +162,7 @@ class _MembersScreenState extends State<MembersScreen>
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _membersCubit.close();
     super.dispose();
@@ -139,23 +176,22 @@ class _MembersScreenState extends State<MembersScreen>
       child: BlocBuilder<GetMembersCubit, GetMembersState>(
         builder: (context, state) {
           if (state is GetMembersLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const AppLoadingView(message: 'جاري تحميل الأعضاء...');
           } else if (state is GetMembersFailure) {
-            return Center(
-              child: Text(
-                state.errorMessage,
-                style: const TextStyle(color: AppColors.error),
-              ),
+            return AppErrorView(
+              title: 'تعذر تحميل الأعضاء',
+              message: state.errorMessage,
+              onRetry: () => _membersCubit.getMembers(forceRefresh: true),
             );
           } else if (state is GetMembersSuccess) {
             // Filter out current user
             final currentUser = sl<IProfileRepository>().user;
-            var filteredMembers = state.members
+            final classMembers = _filterMembersByClass(state.members
                 .where((member) => member.id != currentUser?.id)
-                .toList();
+                .toList());
 
-            // Filter by class if selected
-            filteredMembers = _filterMembersByClass(filteredMembers);
+            // The lists show the search results; export stays on the whole class.
+            final filteredMembers = _applySearch(classMembers);
 
             return RefreshIndicator(
                 onRefresh: () async {
@@ -163,58 +199,36 @@ class _MembersScreenState extends State<MembersScreen>
                 },
                 child: Column(
                   children: [
-                    _buildSearchSection(filteredMembers),
+                    _buildSearchSection(),
                     _buildClassFilter(),
-                    _buildExportButton(filteredMembers),
+                    _buildExportButton(classMembers),
                     _buildAssignmentsButton(),
                     _buildViewToggle(),
                     Expanded(
                       child: filteredMembers.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.search_off,
-                                    size: 64,
-                                    color: AppColors.primaryMaroon
-                                        .withValues(alpha: 0.3.clamp(0.0, 1.0)),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    _searchController.text.isEmpty
-                                        ? 'لا يوجد أعضاء'
-                                        : 'لا توجد نتائج للبحث',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      color: AppColors.primaryMaroon.withValues(
-                                          alpha: 0.7.clamp(0.0, 1.0)),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                          ? AppEmptyView(
+                              icon: Icons.search_off,
+                              title: _searchController.text.isEmpty
+                                  ? 'لا يوجد أعضاء'
+                                  : 'لا توجد نتائج للبحث',
                             )
                           : _isGridView
                               ? GridView.builder(
                                   controller: widget.scrollController,
+                                  cacheExtent: 400,
                                   gridDelegate:
-                                      SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount:
-                                        MediaQuery.of(context).size.width ~/
-                                            180,
+                                      const SliverGridDelegateWithMaxCrossAxisExtent(
+                                    maxCrossAxisExtent: 200,
+                                    mainAxisExtent: 176,
                                     mainAxisSpacing: 12,
                                     crossAxisSpacing: 12,
-                                    childAspectRatio: 1.2,
                                   ),
                                   padding: const EdgeInsets.all(16),
-                                  itemCount: _searchController.text.isEmpty
-                                      ? filteredMembers.length
-                                      : _searchMembers.length,
+                                  itemCount: filteredMembers.length,
                                   itemBuilder: (context, index) {
-                                    final user = _searchController.text.isEmpty
-                                        ? filteredMembers[index]
-                                        : _searchMembers[index];
+                                    final user = filteredMembers[index];
                                     return StatefulBuilder(
+                                        key: ValueKey(user.id),
                                         builder: (context, set) {
                                       return MemberCard(
                                           selectedList: _selectedMembers,
@@ -235,15 +249,13 @@ class _MembersScreenState extends State<MembersScreen>
                                 )
                               : ListView.builder(
                                   controller: widget.scrollController,
+                                  cacheExtent: 400,
                                   padding: const EdgeInsets.all(16),
-                                  itemCount: _searchController.text.isEmpty
-                                      ? filteredMembers.length
-                                      : _searchMembers.length,
+                                  itemCount: filteredMembers.length,
                                   itemBuilder: (context, index) {
-                                    final user = _searchController.text.isEmpty
-                                        ? filteredMembers[index]
-                                        : _searchMembers[index];
+                                    final user = filteredMembers[index];
                                     return StatefulBuilder(
+                                        key: ValueKey(user.id),
                                         builder: (context, set) {
                                       return MemberCard(
                                           selectedList: _selectedMembers,
@@ -273,7 +285,7 @@ class _MembersScreenState extends State<MembersScreen>
     );
   }
 
-  Widget _buildSearchSection(List<UserModel> members) {
+  Widget _buildSearchSection() {
     return Container(
       margin: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -299,24 +311,14 @@ class _MembersScreenState extends State<MembersScreen>
                       color: AppColors.primaryMaroon
                           .withValues(alpha: 0.7.clamp(0.0, 1.0))),
                   onPressed: () {
+                    _searchDebounce?.cancel();
                     _searchController.clear();
-                    setState(() {});
+                    setState(() => _searchQuery = '');
                   },
                 )
               : null,
         ),
-        onChanged: (value) {
-          setState(() {
-            _searchMembers = members
-                .where((member) =>
-                    member.name!.toLowerCase().contains(value.toLowerCase()) ||
-                    member.email!.toLowerCase().contains(value.toLowerCase()) ||
-                    member.phoneNumber!
-                        .toLowerCase()
-                        .contains(value.toLowerCase()))
-                .toList();
-          });
-        },
+        onChanged: _onSearchChanged,
       ),
     );
   }

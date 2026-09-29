@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saint_demiana_children/core/constants/api_endpoints.dart';
 import 'package:saint_demiana_children/core/constants/app_colors.dart';
 import 'package:saint_demiana_children/core/di/service_locator.dart';
+import 'package:saint_demiana_children/core/widgets/remote_image.dart';
 import 'package:saint_demiana_children/features/shop/model/shop_gift_model.dart';
 import 'package:saint_demiana_children/features/shop/model/shop_purchase_request_model.dart';
 import 'package:saint_demiana_children/features/shop/repository/i_shop_repository.dart';
@@ -310,20 +311,11 @@ class _KhademShopScreenState extends State<KhademShopScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        leading: g.imageUrl != null && g.imageUrl!.isNotEmpty
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  ApiEndpoints.fullUrlForPath(g.imageUrl!),
-                  width: 48,
-                  height: 48,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Icon(Icons.card_giftcard),
-                ),
-              )
-            : const CircleAvatar(
-                child: Icon(Icons.card_giftcard),
-              ),
+        leading: RemoteImage(
+          path: g.imageUrl,
+          size: 48,
+          fallbackIcon: Icons.card_giftcard,
+        ),
         title: Text(
           g.title,
           style: TextStyle(

@@ -5,6 +5,7 @@ import 'package:saint_demiana_children/features/authentication/model/user_model.
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/repository/i_members_repository.dart';
 
 import '../../../../core/constants/api_endpoints.dart';
+import '../../../../core/services/sync_queue_service.dart';
 
 class MembersRepository implements IMembersRepository {
   final IApiService _apiService;
@@ -43,8 +44,22 @@ class MembersRepository implements IMembersRepository {
     }
   }
 
+  Future<Either<String, List<UserModel>>>? _inFlightFetch;
+
+  /// Startup and the members screen can ask for the list at the same time;
+  /// they share one request instead of both hitting the server.
   @override
   Future<Either<String, List<UserModel>>> fetchMembers(bool isSuperAdmin,
+      {String? classId}) {
+    if (classId != null) return _fetchMembers(isSuperAdmin, classId: classId);
+    final existing = _inFlightFetch;
+    if (existing != null) return existing;
+    final future = _fetchMembers(isSuperAdmin);
+    _inFlightFetch = future;
+    return future.whenComplete(() => _inFlightFetch = null);
+  }
+
+  Future<Either<String, List<UserModel>>> _fetchMembers(bool isSuperAdmin,
       {String? classId}) async {
     try {
       final queryParams = classId != null ? {'classId': classId} : null;
@@ -63,7 +78,7 @@ class MembersRepository implements IMembersRepository {
                   ? memberJson
                   : Map<String, dynamic>.from(memberJson as Map)))
           .toList();
-      this.members = members;
+      if (classId == null) this.members = members;
       return right(members);
       // return right([
       //   UserModel(
@@ -103,6 +118,7 @@ class MembersRepository implements IMembersRepository {
       final response =
           await _apiService.post(path: ApiEndpoints.users, body: user.toJson());
       print("xxxxxxxxxxxxxxxxxxx");
+      if (response.isQueued) return left(kQueuedOperationMessage);
       members.add(UserModel.fromJson(response.data));
       return right(unit);
       //TODO:refresh members list and stats
@@ -119,7 +135,7 @@ class MembersRepository implements IMembersRepository {
       final response = await _apiService.put(
           path: ApiEndpoints.users + user.id!, body: user.toJson());
       members.removeWhere((element) => element.id == user.id);
-      members.add(UserModel.fromJson(response.data));
+      members.add(response.isQueued ? user : UserModel.fromJson(response.data));
       return right(unit);
       //TODO:refresh members list and stats
     } on DioException catch (e) {

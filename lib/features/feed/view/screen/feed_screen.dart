@@ -287,6 +287,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       },
                       child: ListView.separated(
                         controller: _scrollController,
+                        cacheExtent: 480,
                         padding: const EdgeInsets.all(AppSpacing.md),
                         itemBuilder: (context, index) {
                           if (index == feeds.length && state.hasMore) {
@@ -297,7 +298,8 @@ class _FeedScreenState extends State<FeedScreen> {
                               ),
                             );
                           }
-                          return FeedCard(
+                          return RepaintBoundary(
+                            child: FeedCard(
                             feed: feeds[index],
                             isKhadem: isKhadem,
                             onDelete: (feedId) {
@@ -322,6 +324,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                 }
                               });
                             },
+                          ),
                           );
                         },
                         separatorBuilder: (_, __) =>
@@ -338,9 +341,11 @@ class _FeedScreenState extends State<FeedScreen> {
                       },
                       child: ListView.separated(
                         controller: _scrollController,
+                        cacheExtent: 480,
                         padding: const EdgeInsets.all(AppSpacing.md),
                         itemBuilder: (context, index) {
-                          return FeedCard(
+                          return RepaintBoundary(
+                            child: FeedCard(
                             feed: state.feeds[index],
                             isKhadem: isKhadem,
                             onDelete: (feedId) {
@@ -365,6 +370,7 @@ class _FeedScreenState extends State<FeedScreen> {
                                 }
                               });
                             },
+                          ),
                           );
                         },
                         separatorBuilder: (_, __) =>

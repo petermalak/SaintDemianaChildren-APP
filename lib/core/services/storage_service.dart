@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:hive_flutter/adapters.dart';
@@ -15,6 +17,9 @@ class StorageService implements IStorageService {
 
   final String _userBox = 'userBox';
   final String _userKey = 'user_profile';
+  final String _loginTimeKey = 'last_login_at';
+  final String _lastCacheAtKey = 'last_api_cache_at';
+  final String _apiCacheBox = 'apiCacheBox';
   static const String _authTokenKey = 'auth_access_token';
 
   final FlutterSecureStorage? _secureStorage = kIsWeb
@@ -41,13 +46,79 @@ class StorageService implements IStorageService {
   Future<void> init() async {
     await Hive.initFlutter();
     await Hive.openBox(_userBox);
+    await Hive.openBox(_apiCacheBox);
   }
 
   @override
   Future<void> deleteProfile() async {
     final box = Hive.box(_userBox);
     await box.delete(_userKey);
+    await box.delete(_loginTimeKey);
+    await box.delete(_lastCacheAtKey);
     await _persistAuthToken(null);
+    await clearResponseCache();
+  }
+
+  @override
+  Future<void> saveLoginTime(DateTime time) async {
+    await Hive.box(_userBox).put(_loginTimeKey, time.toIso8601String());
+  }
+
+  @override
+  DateTime? getLoginTime() {
+    final raw = Hive.box(_userBox).get(_loginTimeKey);
+    return raw is String ? DateTime.tryParse(raw) : null;
+  }
+
+  @override
+  Future<void> cacheResponse(String key, dynamic data) async {
+    try {
+      final savedAt = DateTime.now().toUtc();
+      await Hive.box(_apiCacheBox).put(
+        key,
+        jsonEncode({
+          'savedAt': savedAt.toIso8601String(),
+          'data': data,
+        }),
+      );
+      await Hive.box(_userBox).put(_lastCacheAtKey, savedAt.toIso8601String());
+    } catch (e) {
+      print('⚠️ [StorageService] Could not cache response for $key: $e');
+    }
+  }
+
+  Map<String, dynamic>? _readCacheEnvelope(String key) {
+    final raw = Hive.box(_apiCacheBox).get(key);
+    if (raw is! String) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map && decoded.containsKey('data')) {
+        return Map<String, dynamic>.from(decoded);
+      }
+      return {'data': decoded};
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  dynamic getCachedResponse(String key) => _readCacheEnvelope(key)?['data'];
+
+  @override
+  DateTime? getCacheSavedAt(String key) {
+    final savedAt = _readCacheEnvelope(key)?['savedAt'];
+    return savedAt is String ? DateTime.tryParse(savedAt) : null;
+  }
+
+  @override
+  DateTime? getLastCacheTime() {
+    final raw = Hive.box(_userBox).get(_lastCacheAtKey);
+    return raw is String ? DateTime.tryParse(raw) : null;
+  }
+
+  @override
+  Future<void> clearResponseCache() async {
+    await Hive.box(_apiCacheBox).clear();
   }
 
   @override

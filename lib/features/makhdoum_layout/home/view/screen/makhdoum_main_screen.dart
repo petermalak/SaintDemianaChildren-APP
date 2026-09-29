@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:saint_demiana_children/features/makhdoum_layout/home/view/screen/home_screen.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
+import '../../../../../core/widgets/app_shell.dart';
 import '../../../../../core/utils/role_helper.dart';
 import '../../../../authentication/repository/i_authentication_repository.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
@@ -34,8 +35,6 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
   final TextEditingController _searchController = TextEditingController();
   late AnimationController _cardAnimationController;
   final Map<int, ScrollController> _scrollControllers = {};
-  bool _isTabBarVisible = true;
-  double _lastScrollOffset = 0;
   List<UserClassInfo> _makhdoumClasses = const [];
   String? _selectedMakhdoumClassId;
   List<ClassModel> _classesForShop = [];
@@ -158,8 +157,7 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
 
   void _initializeScrollControllers() {
     for (int i = 0; i < 5; i++) {
-      _scrollControllers[i] = ScrollController()
-        ..addListener(() => _handleScroll(i));
+      _scrollControllers[i] = ScrollController();
     }
   }
 
@@ -212,33 +210,6 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
     }
   }
 
-  void _handleScroll(int index) {
-    if (index != _selectedTab) return;
-
-    final controller = _scrollControllers[index];
-    if (controller == null || !controller.hasClients) return;
-
-    final currentOffset = controller.offset;
-    final delta = currentOffset - _lastScrollOffset;
-
-    // Only react to significant scroll changes
-    if (delta.abs() < 5) return;
-
-    if (delta > 0 && _isTabBarVisible && currentOffset > 50) {
-      // Scrolling down - hide tab bar
-      setState(() {
-        _isTabBarVisible = false;
-      });
-    } else if (delta < 0 && !_isTabBarVisible) {
-      // Scrolling up - show tab bar
-      setState(() {
-        _isTabBarVisible = true;
-      });
-    }
-
-    _lastScrollOffset = currentOffset;
-  }
-
   @override
   void dispose() {
     _pageController.dispose();
@@ -250,121 +221,54 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppColors.backgroundGradient,
-        ),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  const SizedBox(height: 90), // Space for app bar
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    height: _isTabBarVisible ? 80 : 0,
-                    curve: Curves.easeInOut,
-                  ),
-                  Expanded(
-                    child: PageView(
-                      key: ValueKey(
-                          'pageview_${_selectedClassHasShop}_${_classesForShopLoaded}'),
-                      controller: _pageController,
-                      onPageChanged: (index) {
-                        setState(() {
-                          _selectedTab = index;
-                        });
-                      },
-                      children: _buildPageViewChildren(),
-                    ),
-                  ),
-                ],
-              ),
-              // Tab navigation (middle layer)
-              Positioned(
-                top: 90, // Below app bar
-                left: 0,
-                right: 0,
-                child: AnimatedSlide(
-                  key: ValueKey(
-                      'tab_slide_${_selectedClassHasShop}_${_classesForShopLoaded}'),
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  offset: _isTabBarVisible ? Offset.zero : const Offset(0, -1),
-                  child: _buildTabNavigation(),
-                ),
-              ),
-              // App bar on top (highest z-index)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: _buildEnhancedAppBar(),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  List<AppTabItem> _tabItems() {
+    return [
+      const AppTabItem(icon: Icons.home_rounded, label: 'الرئيسية'),
+      const AppTabItem(icon: Icons.event_note_rounded, label: 'الحضور'),
+      const AppTabItem(icon: Icons.newspaper_rounded, label: 'الأخبار'),
+      const AppTabItem(icon: Icons.emoji_events_rounded, label: 'التايو'),
+      if (_selectedClassHasShop)
+        const AppTabItem(icon: Icons.storefront_rounded, label: 'المتجر'),
+    ];
   }
 
-  Widget _buildEnhancedAppBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1.clamp(0.0, 1.0)),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color:
-                  AppColors.accentWhite.withValues(alpha: 0.2.clamp(0.0, 1.0)),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.person,
-              color: AppColors.accentWhite,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'لوحة التحكم',
-                  style: TextStyle(
-                    color: AppColors.accentWhite,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'مرحباً بك أيها المخدوم',
-                  style: TextStyle(
-                    color: AppColors.accentWhite
-                        .withValues(alpha: 0.9.clamp(0.0, 1.0)),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _buildProfileMenu(),
-        ],
+  @override
+  Widget build(BuildContext context) {
+    final user = sl<IProfileRepository>().user;
+    final name = firstNameOf(user?.name, fallback: 'المخدوم');
+    final tabs = _tabItems();
+    return AppShell(
+      title: 'مرحباً $name',
+      subtitle: 'كنيسة القديسة دميانة',
+      headerIcon: Icons.church,
+      actions: [_buildProfileMenu()],
+      tabs: tabs,
+      selectedIndex: _selectedTab.clamp(0, tabs.length - 1),
+      onTabSelected: _onTabSelected,
+      body: PageView.builder(
+        controller: _pageController,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: tabs.length,
+        onPageChanged: (index) => setState(() => _selectedTab = index),
+        itemBuilder: (context, index) {
+          switch (index) {
+            case 0:
+              return HomeScreen(scrollController: _scrollControllers[0]);
+            case 1:
+              return AttendanceScreen(
+                scrollController: _scrollControllers[1],
+                initialClassId: _effectiveMakhdoumClassId,
+              );
+            case 2:
+              return _buildFeedsTab();
+            case 3:
+              return _buildScoringTab();
+            case 4:
+              return _buildShopTab();
+            default:
+              return HomeScreen(scrollController: _scrollControllers[0]);
+          }
+        },
       ),
     );
   }
@@ -439,117 +343,14 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
     );
   }
 
-  Widget _buildTabNavigation() {
-    // Use key to force rebuild when shop tab visibility changes
-    return Container(
-      key:
-          ValueKey('tab_nav_${_selectedClassHasShop}_${_classesForShopLoaded}'),
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08.clamp(0.0, 1.0)),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          _buildTabButton(0, Icons.home, 'الرئيسية'),
-          _buildTabButton(1, Icons.event_note, 'الحضور'),
-          _buildTabButton(2, Icons.feed, 'الأخبار'),
-          _buildTabButton(3, Icons.emoji_events, 'التايو'),
-          if (_selectedClassHasShop) _buildTabButton(4, Icons.shop, 'المتجر'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabButton(int index, IconData icon, String label) {
-    final isSelected = _selectedTab == index;
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _onTabSelected(index),
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primaryMaroon
-                        : AppColors.primaryMaroon
-                            .withValues(alpha: 0.08.clamp(0.0, 1.0)),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: isSelected
-                        ? AppColors.accentWhite
-                        : AppColors.primaryMaroon
-                            .withValues(alpha: 0.6.clamp(0.0, 1.0)),
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: isSelected
-                        ? AppColors.primaryMaroon
-                        : AppColors.textSecondary,
-                    fontSize: 10,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  List<Widget> _buildPageViewChildren() {
-    final children = <Widget>[
-      HomeScreen(scrollController: _scrollControllers[0]),
-      AttendanceScreen(
-        scrollController: _scrollControllers[1],
-        initialClassId: _effectiveMakhdoumClassId,
-      ),
-      _buildFeedsTab(),
-      _buildScoringTab(),
-    ];
-
-    // Add shop tab if available
-    if (_selectedClassHasShop) {
-      children.add(_buildShopTab());
-    }
-
-    return children;
-  }
-
   void _onTabSelected(int index) {
-    // Ensure index is within bounds
-    final maxIndex = _buildPageViewChildren().length - 1;
-    final safeIndex = index.clamp(0, maxIndex);
+    final safeIndex = index.clamp(0, _tabItems().length - 1);
 
     if (_selectedTab != safeIndex) {
       _pageController.animateToPage(
         safeIndex,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
       );
     }
   }

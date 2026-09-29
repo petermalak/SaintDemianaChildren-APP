@@ -24,7 +24,6 @@ class StatsModel {
   });
 
   factory StatsModel.fromJson(Map<String, dynamic> json) {
-    print('📊 Parsing stats from JSON: $json'); // Debug
 
     // Handle nested structure: data.overview contains the stats
     final overview = json['overview'] ?? json;

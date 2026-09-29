@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saint_demiana_children/core/constants/api_endpoints.dart';
 import 'package:saint_demiana_children/core/constants/app_colors.dart';
 import 'package:saint_demiana_children/core/di/service_locator.dart';
+import 'package:saint_demiana_children/core/widgets/remote_image.dart';
 import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
 import 'package:saint_demiana_children/features/scoring/repository/i_scoring_repository.dart';
 import 'package:saint_demiana_children/features/shop/model/shop_gift_model.dart';
@@ -249,23 +250,11 @@ class _MakhdoumShopScreenState extends State<MakhdoumShopScreen> {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              if (g.imageUrl != null && g.imageUrl!.isNotEmpty)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    ApiEndpoints.fullUrlForPath(g.imageUrl!),
-                    width: 64,
-                    height: 64,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        const Icon(Icons.card_giftcard, size: 48),
-                  ),
-                )
-              else
-                const CircleAvatar(
-                  radius: 32,
-                  child: Icon(Icons.card_giftcard, size: 32),
-                ),
+              RemoteImage(
+                path: g.imageUrl,
+                size: 64,
+                fallbackIcon: Icons.card_giftcard,
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(

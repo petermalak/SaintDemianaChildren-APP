@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:saint_demiana_children/core/constants/api_endpoints.dart';
 import 'package:saint_demiana_children/core/services/interface/i_api_service.dart';
 import 'package:saint_demiana_children/core/services/interface/i_biometric_service.dart';
+import 'package:saint_demiana_children/core/services/interface/i_storage_service.dart';
+import 'package:saint_demiana_children/core/services/sync_queue_service.dart';
 
 import 'package:saint_demiana_children/features/authentication/model/user_model.dart';
 import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
@@ -16,13 +18,15 @@ class AuthenticationRepository implements IAuthenticationRepository {
   final IProfileRepository _profileRepository;
   final IMembersRepository _membersRepository;
   final IBiometricService _biometricService;
+  final IStorageService _storageService;
   AuthenticationRepository(this._apiService, this._profileRepository,
-      this._membersRepository, this._biometricService);
+      this._membersRepository, this._biometricService, this._storageService);
 
   @override
   void logout() {
     _profileRepository.user = null;
     _apiService.post(path: ApiEndpoints.logout);
+    SyncQueueService.instance.onUserChanged();
   }
 
   @override
@@ -85,6 +89,8 @@ class AuthenticationRepository implements IAuthenticationRepository {
 
       // This setter saves to storage
       _profileRepository.user = user;
+      await _storageService.saveLoginTime(DateTime.now());
+      SyncQueueService.instance.onUserChanged();
 
       print('💾 [AuthRepo] User saved to ProfileRepository');
 
@@ -104,16 +110,16 @@ class AuthenticationRepository implements IAuthenticationRepository {
         }
       }
 
+      // Warm the members list in the background: login should not wait for it,
+      // and the members screen loads it itself when needed.
       if (_profileRepository.user?.role != UserRole.makhdoum) {
-        print("=============================================");
-        print('🔄 [AuthRepo] Fetching members...');
-        (await _membersRepository.fetchMembers(
-                _profileRepository.user?.role == UserRole.superAdmin))
-            .fold((error) {
-          throw error;
-        }, (_) {});
-        print('✅ [AuthRepo] Members fetched');
-        print("=============================================");
+        _membersRepository
+            .fetchMembers(
+                _profileRepository.user?.role == UserRole.superAdmin)
+            .then((result) => result.fold(
+                  (error) => print('⚠️ [AuthRepo] Members preload: $error'),
+                  (_) => print('✅ [AuthRepo] Members preloaded'),
+                ));
       }
       return right(_profileRepository.user!);
     } on DioException catch (e) {

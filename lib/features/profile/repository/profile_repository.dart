@@ -7,6 +7,8 @@ import 'package:saint_demiana_children/core/utils/jwt_helper.dart';
 import 'package:saint_demiana_children/features/authentication/model/user_model.dart';
 import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
 
+const Duration offlineSessionDuration = Duration(days: 30);
+
 class ProfileRepository implements IProfileRepository {
   final IApiService _apiService;
   final IStorageService _storageService;
@@ -28,8 +30,16 @@ class ProfileRepository implements IProfileRepository {
     _user = await _storageService.getProfile();
 
     if (_user != null) {
-      if (JwtHelper.isExpired(_user!.token)) {
-        print('⏰ [ProfileRepository] Token expired - clearing session');
+      // The session stays usable (including offline) for [offlineSessionDuration]
+      // after the last online login. The server still rejects an expired token
+      // with 401 once the device is back online.
+      final loginTime = _storageService.getLoginTime() ??
+          JwtHelper.issuedAt(_user!.token);
+      final sessionExpired = loginTime == null
+          ? JwtHelper.isExpired(_user!.token)
+          : DateTime.now().difference(loginTime) > offlineSessionDuration;
+      if (sessionExpired) {
+        print('⏰ [ProfileRepository] Session older than allowed - clearing session');
         _user = null;
         await _storageService.deleteProfile();
         return null;

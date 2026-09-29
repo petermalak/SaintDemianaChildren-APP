@@ -340,25 +340,28 @@ class _KhademScoringScreenState extends State<KhademScoringScreen> {
                 ],
               )
             : null,
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '${entry.totalPoints}',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+        trailing: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${entry.totalPoints}',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const Text(
-              'نقطة',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
+              const Text(
+                'نقطة',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

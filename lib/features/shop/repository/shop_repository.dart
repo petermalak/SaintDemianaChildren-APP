@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:saint_demiana_children/core/constants/api_endpoints.dart';
 import 'package:saint_demiana_children/core/services/interface/i_api_service.dart';
+import 'package:saint_demiana_children/core/services/sync_queue_service.dart';
 import '../model/shop_gift_model.dart';
 import '../model/shop_purchase_request_model.dart';
 import 'i_shop_repository.dart';
@@ -155,6 +156,7 @@ class ShopRepository implements IShopRepository {
           'isVisible': isVisible,
         },
       );
+      if (response.isQueued) return const Left(kQueuedOperationMessage);
       if (response.data['success'] == true && response.data['data'] != null) {
         return Right(
           ShopGiftModel.fromJson(
@@ -192,6 +194,7 @@ class ShopRepository implements IShopRepository {
         path: ApiEndpoints.shopGift(giftId),
         body: body,
       );
+      if (response.isQueued) return const Left(kQueuedOperationMessage);
       if (response.data['success'] == true && response.data['data'] != null) {
         return Right(
           ShopGiftModel.fromJson(
@@ -213,6 +216,7 @@ class ShopRepository implements IShopRepository {
       final response = await _apiService.delete(
         path: ApiEndpoints.shopGift(giftId),
       );
+      if (response.isQueued) return const Left(kQueuedOperationMessage);
       if (response.data['success'] == true) {
         return const Right(null);
       }
@@ -232,6 +236,7 @@ class ShopRepository implements IShopRepository {
       final response = await _apiService.post(
         path: ApiEndpoints.shopGiftRequestPurchase(giftId),
       );
+      if (response.isQueued) return const Left(kQueuedOperationMessage);
       if (response.data['success'] == true && response.data['data'] != null) {
         return Right(
           ShopPurchaseRequestModel.fromJson(
@@ -305,6 +310,7 @@ class ShopRepository implements IShopRepository {
       final response = await _apiService.post(
         path: ApiEndpoints.shopApproveRequest(requestId),
       );
+      if (response.isQueued) return const Left(kQueuedOperationMessage);
       if (response.data['success'] == true && response.data['data'] != null) {
         return Right(
           ShopPurchaseRequestModel.fromJson(
@@ -330,6 +336,7 @@ class ShopRepository implements IShopRepository {
         path: ApiEndpoints.shopRejectRequest(requestId),
         body: reason != null ? {'reason': reason} : null,
       );
+      if (response.isQueued) return const Left(kQueuedOperationMessage);
       if (response.data['success'] == true && response.data['data'] != null) {
         return Right(
           ShopPurchaseRequestModel.fromJson(

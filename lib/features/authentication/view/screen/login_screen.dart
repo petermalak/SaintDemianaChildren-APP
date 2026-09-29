@@ -92,8 +92,10 @@ class _LoginScreenState extends State<LoginScreen>
 
   /// Starts the login screen animations in sequence.
   Future<void> _startAnimations() async {
-    await _backgroundController.forward();
-    await _logoController.forward();
+    _backgroundController.forward();
+    _logoController.forward();
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!mounted) return;
     await _formController.forward();
   }
 

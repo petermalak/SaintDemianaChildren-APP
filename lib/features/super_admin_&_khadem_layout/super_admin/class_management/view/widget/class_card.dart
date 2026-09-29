@@ -290,6 +290,8 @@ class _ClassCardState extends State<ClassCard> {
           const SizedBox(width: 4),
           Text(
             '$value $label',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,

@@ -8,11 +8,14 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 //     if (dart.library.io) 'package:shorebird_code_push/shorebird_code_push.dart';
 
 import 'core/di/service_locator.dart';
+import 'core/services/api_service.dart';
 import 'core/services/storage_service.dart';
+import 'core/services/sync_queue_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/update_service.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/notification_listener_wrapper.dart';
+import 'core/widgets/sync_status_banner.dart';
 import 'core/widgets/update_checker.dart';
 import 'features/splash_screen/view/screen/splash_screen.dart';
 import 'features/authentication/view/screen/login_screen.dart';
@@ -115,6 +118,8 @@ class _SaintDemianaAppState extends State<SaintDemianaApp> {
       if (kDebugMode) {
         print('✅ [main] User loaded');
       }
+
+      await SyncQueueService.instance.init(ApiService.instance.dio);
 
       if (!mounted) return;
       setState(() {
@@ -251,7 +256,12 @@ class _SaintDemianaAppState extends State<SaintDemianaApp> {
         builder: (context, child) => Directionality(
           textDirection: TextDirection.rtl,
           child: NotificationListenerWrapper(
-            child: child ?? const SizedBox.shrink(),
+            child: Column(
+              children: [
+                Expanded(child: child ?? const SizedBox.shrink()),
+                SyncStatusBanner(navigatorKey: _rootNavigatorKey),
+              ],
+            ),
           ),
         ),
         debugShowCheckedModeBanner: false,
@@ -262,7 +272,10 @@ class _SaintDemianaAppState extends State<SaintDemianaApp> {
   }
 }
 
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final GoRouter _router = GoRouter(
+  navigatorKey: _rootNavigatorKey,
   initialLocation: '/splash',
   routes: [
     GoRoute(

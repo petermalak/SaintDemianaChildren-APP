@@ -4,9 +4,11 @@ import 'network_utils_stub.dart' if (dart.library.io) 'network_utils_io.dart'
 import 'package:flutter/foundation.dart';
 import 'package:saint_demiana_children/core/constants/api_endpoints.dart';
 import 'package:saint_demiana_children/core/services/interface/i_api_service.dart';
+import 'package:saint_demiana_children/core/services/interface/i_storage_service.dart';
 import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
 import '../di/service_locator.dart';
 import 'logging_service.dart';
+import 'sync_queue_service.dart';
 
 class ApiService implements IApiService {
   late Dio _dio;
@@ -15,7 +17,7 @@ class ApiService implements IApiService {
   ApiService._() {
     _dio = Dio(BaseOptions(
       baseUrl: ApiEndpoints.baseUrl,
-      connectTimeout: const Duration(seconds: 45),
+      connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 45),
       sendTimeout: const Duration(seconds: 45),
       headers: {
@@ -32,6 +34,9 @@ class ApiService implements IApiService {
     _instance ??= ApiService._();
     return _instance!;
   }
+
+  /// The configured client (auth, logging, offline cache), used to replay queued writes.
+  Dio get dio => _dio;
 
   void _setupInterceptors() {
     _dio.interceptors.add(
@@ -52,6 +57,16 @@ class ApiService implements IApiService {
             options.headers['Authorization'] = 'Bearer $token';
           }
 
+          final queue = SyncQueueService.instance;
+          if (queue.isQueueable(options)) {
+            queue.tagRequest(options);
+            // Earlier operations are still waiting: queue behind them to keep order.
+            if (queue.hasPendingForCurrentUser()) {
+              await queue.enqueue(options);
+              return handler.resolve(queue.queuedResponse(options));
+            }
+          }
+
           // Log the request
           _logger.logRequest(
             options.method,
@@ -63,13 +78,25 @@ class ApiService implements IApiService {
           handler.next(options);
         },
         onResponse: (response, handler) {
-          print(response.data);
+          final status = response.statusCode ?? 0;
+          final fromCache = response.extra['fromCache'] == true;
+          final queued = response.isQueued;
+          if (fromCache) {
+            SyncQueueService.instance.noteOffline(usingCache: true);
+          } else if (!queued && status < 400) {
+            SyncQueueService.instance.noteOnline();
+            if (response.requestOptions.method == 'GET' &&
+                (response.data is Map || response.data is List)) {
+              sl<IStorageService>().cacheResponse(
+                  _cacheKey(response.requestOptions), response.data);
+            }
+          }
           // Log the response
           _logger.logResponse(
             response.requestOptions.method,
             '${response.requestOptions.baseUrl}${response.requestOptions.path}',
             response.statusCode ?? 0,
-            body: response.data,
+            body: _responseSummary(response.data),
           );
 
           handler.next(response);
@@ -91,10 +118,61 @@ class ApiService implements IApiService {
             }
           }
 
+          // Offline: serve the last successful response for this GET, if any
+          if (error.requestOptions.method == 'GET' && _isOfflineError(error)) {
+            SyncQueueService.instance.noteOffline();
+            final cacheKey = _cacheKey(error.requestOptions);
+            final cached = sl<IStorageService>().getCachedResponse(cacheKey);
+            if (cached != null) {
+              if (kDebugMode) {
+                print('📴 [API] Offline - serving cached ${error.requestOptions.path}');
+              }
+              return handler.resolve(Response(
+                requestOptions: error.requestOptions,
+                data: cached,
+                statusCode: 200,
+                extra: {'fromCache': true},
+              ));
+            }
+          }
+
+          // Offline write: keep it on the device and send it when the connection is back
+          final queue = SyncQueueService.instance;
+          if (_isOfflineError(error)) queue.noteOffline();
+          if (_isOfflineError(error) && queue.isQueueable(error.requestOptions)) {
+            await queue.enqueue(error.requestOptions);
+            return handler.resolve(queue.queuedResponse(error.requestOptions));
+          }
+
           handler.next(error);
         },
       ),
     );
+  }
+
+  String _responseSummary(dynamic data) {
+    if (data is List) return 'list of ${data.length}';
+    if (data is Map) return 'map keys: ${data.keys.take(8).join(', ')}';
+    return data.runtimeType.toString();
+  }
+
+  String _cacheKey(RequestOptions options) {
+    final userId = sl<IProfileRepository>().user?.id ?? '';
+    return '$userId|${options.uri}';
+  }
+
+  bool _isOfflineError(DioException error) {
+    switch (error.type) {
+      case DioExceptionType.connectionError:
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return true;
+      case DioExceptionType.unknown:
+        return error.response == null;
+      default:
+        return false;
+    }
   }
 
   @override
@@ -103,9 +181,6 @@ class ApiService implements IApiService {
     Map<String, dynamic>? queryParameters,
   }) async {
     final response = await _dio.get(path, queryParameters: queryParameters);
-    if (kDebugMode) {
-      print(response.data);
-    }
     return response;
   }
 
@@ -114,10 +189,8 @@ class ApiService implements IApiService {
       {required String path,
       Map<String, dynamic>? queryParameters,
       body}) async {
-    final response = await _dio.patch(path, queryParameters: queryParameters);
-    if (kDebugMode) {
-      print(response.data);
-    }
+    final response =
+        await _dio.patch(path, queryParameters: queryParameters, data: body);
     return response;
   }
 
@@ -132,9 +205,6 @@ class ApiService implements IApiService {
       queryParameters: queryParameters,
       data: body,
     );
-    if (kDebugMode) {
-      print(response.data);
-    }
     return response;
   }
 
@@ -149,9 +219,6 @@ class ApiService implements IApiService {
       queryParameters: queryParameters,
       data: body,
     );
-    if (kDebugMode) {
-      print(response.data);
-    }
     return response;
   }
 
@@ -166,9 +233,6 @@ class ApiService implements IApiService {
       queryParameters: queryParameters,
       data: body,
     );
-    if (kDebugMode) {
-      print(response.data);
-    }
     return response;
   }
 
@@ -195,9 +259,6 @@ class ApiService implements IApiService {
     }
     final formData = FormData.fromMap({fieldName: multipartFile});
     final response = await _dio.post(path, data: formData);
-    if (kDebugMode) {
-      print(response.data);
-    }
     return response;
   }
 
@@ -208,7 +269,9 @@ class ApiService implements IApiService {
 
   @override
   String handleError(DioException error) {
-    print(error.response?.data);
+    if (kDebugMode) {
+      print('🔐 [API] Error ${error.response?.statusCode} ${error.requestOptions.path}');
+    }
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:

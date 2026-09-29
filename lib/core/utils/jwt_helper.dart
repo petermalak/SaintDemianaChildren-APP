@@ -58,6 +58,16 @@ class JwtHelper {
     return null;
   }
 
+  /// Reads the JWT `iat` claim as a [DateTime]. Returns null if missing or invalid.
+  static DateTime? issuedAt(String? token) {
+    if (token == null || token.isEmpty) return null;
+    final payload = decodeToken(token);
+    final iat = payload?['iat'];
+    final seconds = iat is num ? iat.toInt() : int.tryParse('$iat');
+    if (seconds == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+  }
+
   /// Returns true only when we can read a well-formed JWT with [exp] and that time has passed.
   ///
   /// If the string is not a JWT, has no [exp], or cannot be decoded, returns **false** so we do

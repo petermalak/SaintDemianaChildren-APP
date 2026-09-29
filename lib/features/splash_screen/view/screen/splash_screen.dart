@@ -5,6 +5,7 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/memb
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/di/service_locator.dart';
+import '../../../../core/services/data_refresh_cubit.dart';
 import '../../../../core/utils/role_helper.dart';
 import '../../../authentication/model/user_model.dart';
 import '../../../profile/repository/i_profile_repository.dart';
@@ -32,18 +33,19 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
 
+    // Kept short on purpose: the animations run before the app decides where to go.
     _logoController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 800),
       vsync: this,
     );
 
     _textController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 500),
       vsync: this,
     );
 
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 300),
       vsync: this,
     );
 
@@ -79,195 +81,74 @@ class _SplashScreenState extends State<SplashScreen>
       curve: Curves.easeIn,
     ));
 
-    _startAnimations();
+    _startStartup();
   }
 
-  void _startAnimations() async {
-    await _logoController.forward();
+  /// Load the saved session while the logo animates so the user is not waiting twice.
+  void _startStartup() async {
+    UserModel? user;
+    Future<void> loadUser() async {
+      user = await sl<IProfileRepository>().loadUser();
+    }
 
-    await _textController.forward();
-
-    await _fadeController.forward();
-
-    await Future.delayed(const Duration(milliseconds: 1000));
-
-    _checkAuthentication();
+    _fadeController.forward();
+    await Future.wait<void>([
+      _logoController.forward(),
+      _textController.forward(),
+      loadUser(),
+    ]);
+    if (!mounted) return;
+    _navigateForUser(user);
   }
 
-  void _checkAuthentication() async {
-    // sl<IProfileRepository>().user = UserModel(
-    //     id: "1",
-    //     role: UserRole.superAdmin,
-    //     name: "felo",
-    //     token:
-    //         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjA0OTBlOTk3LWQ5N2QtNDhlNC04NzFlLTQyYjhmM2FhNGU0ZSIsIm5hbWUiOiJTdXBlciBBZG1pbiIsImVtYWlsIjoic3VwZXJhZG1pbkB0ZXN0LmNvbSIsInBob25lTnVtYmVyIjoiKzEyMzQ1Njc4OTAiLCJyb2xlIjoic3VwZXJfYWRtaW4iLCJwcm9maWxlSW1hZ2UiOm51bGwsInBhc3N3b3JkSGFzaCI6IiQyYiQxMCRTdWZEdy51cjVHM0dXVEtleGVPR1JPaXY1aUouODZmRmQ5aGguRC50S3VoQUZabEQ4U0NycSIsImZhdGhlcnNQaG9uZU51bWJlciI6bnVsbCwibW90aGVyc1Bob25lTnVtYmVyIjpudWxsLCJiaXJ0aGRhdGUiOm51bGwsImFkZHJlc3MiOiIxMjMgU3VwZXIgQWRtaW4gU3QiLCJhZGRyZXNzTG9jYXRpb25MaW5rIjpudWxsLCJmYXRoZXJPZkNvbmZlc3Npb24iOm51bGwsImNyZWF0ZWRBdCI6IjIwMjUtMTAtMDFUMTE6NTE6MjAuMDAwWiIsInVwZGF0ZWRBdCI6IjIwMjUtMTAtMDFUMTE6NTE6MjAuMDAwWiIsImlhdCI6MTc1OTg0MzMyMSwiZXhwIjoxNzYwNDQ4MTIxfQ.S3HoTHbZ8HhsPgFNmz_UZJJP8vcPR2MHeW8iS0LD-KM",
-    //     email: "superAdmin@test.com");
-    // Note: Storage already initialized in main.dart, no need to init again
-    print('🚀 [SplashScreen] Starting authentication check...');
-    await sl<IProfileRepository>().loadUser().then((user) async {
-      if (user != null) {
-        // Check if user has multiple roles
-        final hasMixedRoles = RoleHelper.hasMixedRoles(user);
-        
-        if (hasMixedRoles) {
-          // Show role selection dialog for users with multiple roles
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            showDialog(
-              context: context,
-              barrierDismissible: false, // User must choose
-              builder: (dialogContext) => RoleSelectionDialog(
-                user: user,
-                onRoleSelected: (selectedRole) async {
-                  // Navigate based on selected role
-                  if (selectedRole == UserRole.khadem || selectedRole == UserRole.superAdmin) {
-                    final result = await sl<IMembersRepository>().fetchMembers(
-                      selectedRole == UserRole.superAdmin,
-                    );
-                    
-                    result.fold(
-                      (failure) {
-                        _showErrorDialog(failure);
-                      },
-                      (_) {
-                        context.go('/khadem');
-                      },
-                    );
-                  } else if (selectedRole == UserRole.makhdoum) {
-                    context.go('/makhdoum');
-                  }
-                },
-              ),
-            );
-          });
-        } else {
-          // Single role - navigate directly
-          final primaryRole = RoleHelper.getPrimaryRole(user);
-          
-          if (primaryRole == UserRole.khadem || primaryRole == UserRole.superAdmin) {
-            final result = await sl<IMembersRepository>().fetchMembers(
-              primaryRole == UserRole.superAdmin,
-            );
+  void _navigateForUser(UserModel? user) {
+    if (user == null) {
+      context.go('/login');
+      return;
+    }
 
-            result.fold(
-              (failure) {
-                _showErrorDialog(failure);
-              },
-              (_) {
-                context.go('/khadem');
-              },
-            );
-          } else if (primaryRole == UserRole.makhdoum) {
-            context.go('/makhdoum');
-          } else {
-            context.go('/login');
-          }
-        }
-      } else {
-        context.go('/login');
-      }
-    });
-  }
-
-  void _showErrorDialog(String errorMessage) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+    if (RoleHelper.hasMixedRoles(user)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => RoleSelectionDialog(
+            user: user,
+            onRoleSelected: (selectedRole) async {
+              if (selectedRole == UserRole.khadem ||
+                  selectedRole == UserRole.superAdmin) {
+                _openKhademLayout(selectedRole);
+              } else if (selectedRole == UserRole.makhdoum) {
+                context.go('/makhdoum');
+              }
+            },
           ),
-          title: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.1.clamp(0.0, 1.0)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.error_outline,
-                  color: AppColors.error,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'خطأ في التحميل',
-                  style: TextStyle(
-                    color: AppColors.error,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'حدث خطأ أثناء تحميل البيانات:',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color:
-                      AppColors.error.withValues(alpha: 0.05.clamp(0.0, 1.0)),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color:
-                        AppColors.error.withValues(alpha: 0.2.clamp(0.0, 1.0)),
-                  ),
-                ),
-                child: Text(
-                  errorMessage,
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                context.go('/login');
-              },
-              child: const Text('إعادة تسجيل الدخول'),
-            ),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.of(context).pop();
-                Future.delayed(const Duration(milliseconds: 100), () {
-                  if (Theme.of(context).platform == TargetPlatform.android) {
-                    SystemNavigator.pop();
-                  }
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
-                foregroundColor: AppColors.accentWhite,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-              ),
-              icon: const Icon(Icons.exit_to_app, size: 18),
-              label: const Text('إغلاق التطبيق'),
-            ),
-          ],
         );
-      },
-    );
+      });
+      return;
+    }
+
+    final primaryRole = RoleHelper.getPrimaryRole(user);
+    if (primaryRole == UserRole.khadem || primaryRole == UserRole.superAdmin) {
+      _openKhademLayout(primaryRole);
+    } else if (primaryRole == UserRole.makhdoum) {
+      context.go('/makhdoum');
+    } else {
+      context.go('/login');
+    }
+  }
+
+  /// Opens the servant layout straight away. The members list (hundreds of records)
+  /// loads in the background, and each screen shows its own loading state.
+  void _openKhademLayout(UserRole? role) {
+    context.go('/khadem');
+    sl<IMembersRepository>()
+        .fetchMembers(role == UserRole.superAdmin)
+        .then((result) => result.fold(
+              (error) => debugPrint('⚠️ [SplashScreen] Members preload: $error'),
+              (_) => sl<DataRefreshCubit>().refreshMembers(),
+            ));
   }
 
   @override
@@ -283,7 +164,13 @@ class _SplashScreenState extends State<SplashScreen>
     final screenSize = MediaQuery.of(context).size;
     final isMobile = screenSize.width < 768;
 
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+      child: Scaffold(
       body: Container(
         decoration: const BoxDecoration(
           gradient: AppColors.backgroundGradient,
@@ -403,13 +290,13 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                           const SizedBox(height: AppSpacing.md),
                           Text(
-                            'Loading...',
+                            'جاري التحميل...',
                             style: Theme.of(context)
                                 .textTheme
                                 .bodyMedium
                                 ?.copyWith(
                                   color: AppColors.textSecondary,
-                                  fontSize: AppSpacing.sm,
+                                  fontSize: 14,
                                 ),
                           ),
                         ],
@@ -422,6 +309,7 @@ class _SplashScreenState extends State<SplashScreen>
           ),
         ),
       ),
+    ),
     );
   }
 }

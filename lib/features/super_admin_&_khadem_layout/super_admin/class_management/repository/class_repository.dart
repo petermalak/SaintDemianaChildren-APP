@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:saint_demiana_children/core/constants/api_endpoints.dart';
 import 'package:saint_demiana_children/core/services/interface/i_api_service.dart';
+import 'package:saint_demiana_children/core/services/sync_queue_service.dart';
 
 import '../model/class_assignment_model.dart';
 import '../model/class_members_response.dart';
@@ -40,6 +41,7 @@ class ClassRepository implements IClassRepository {
         "location": location,
         "hasShop": hasShop,
       });
+      if (response.isQueued) return const Left(kQueuedOperationMessage);
       final data = response.data is Map
           ? response.data as Map<String, dynamic>
           : response.data;
@@ -65,7 +67,6 @@ class ClassRepository implements IClassRepository {
 
       print(
           '📦 [ClassRepo] loadMyClasses: Response type: ${response.data.runtimeType}');
-      print('📦 [ClassRepo] loadMyClasses: Response data: ${response.data}');
 
       // Handle different response formats
       final rawList = response.data is List
@@ -81,19 +82,9 @@ class ClassRepository implements IClassRepository {
       }
 
       print('📦 [ClassRepo] loadMyClasses: Received ${rawList.length} classes');
-      for (var i = 0; i < rawList.length; i++) {
-        final item = rawList[i];
-        print('  [$i] Class JSON: ${item.toString()}');
-        print(
-            '  [$i] Class name: ${item['name']}, hasShop: ${item['hasShop']} (type: ${item['hasShop']?.runtimeType}, value: ${item['hasShop']})');
-      }
 
-      _myClasses = rawList.map<ClassModel>((json) {
-        final model = ClassModel.fromJson(json);
-        print(
-            '  ✅ Parsed ClassModel: ${model.name}, hasShop: ${model.hasShop}');
-        return model;
-      }).toList();
+      _myClasses =
+          rawList.map<ClassModel>((json) => ClassModel.fromJson(json)).toList();
       return Right(_myClasses);
     } on DioException catch (e) {
       print('❌ [ClassRepo] loadMyClasses DioException: ${e.message}');
@@ -224,6 +215,7 @@ class ClassRepository implements IClassRepository {
         path: ApiEndpoints.classAssignments(classId),
         body: payload,
       );
+      if (response.isQueued) return const Left(kQueuedOperationMessage);
 
       final data = response.data;
       if (data is Map<String, dynamic>) {

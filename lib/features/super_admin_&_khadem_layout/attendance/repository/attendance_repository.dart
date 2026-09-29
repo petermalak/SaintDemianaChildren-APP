@@ -38,8 +38,6 @@ class AttendanceRepository implements IAttendanceRepository {
         queryParameters: queryParameters.isEmpty ? null : queryParameters,
       );
 
-      // Debug: Print the response to see what we're getting
-      print('Attendance API Response: ${response.data}');
       print(
           'Attendance count: ${(response.data is List) ? response.data.length : "unknown"}');
 
@@ -75,11 +73,10 @@ class AttendanceRepository implements IAttendanceRepository {
           '🌐 [AttendanceRepository] Calling API: ${ApiEndpoints.bulkAddAttendance}');
       print('🌐 Request body: $requestBody');
 
-      final response = await _apiService.post(
+      await _apiService.post(
           path: ApiEndpoints.bulkAddAttendance, body: requestBody);
 
       print('✅ [AttendanceRepository] API call successful');
-      print('✅ Response: ${response.data}');
 
       return right(unit);
     } on DioException catch (e) {
@@ -130,11 +127,10 @@ class AttendanceRepository implements IAttendanceRepository {
           '🌐 [AttendanceRepository] Calling API: ${ApiEndpoints.bulkUpdateAttendance}');
       print('🌐 Request body: $requestBody');
 
-      final response = await _apiService.put(
+      await _apiService.put(
           path: ApiEndpoints.bulkUpdateAttendance, body: requestBody);
 
       print('✅ [AttendanceRepository] Bulk update successful');
-      print('✅ Response: ${response.data}');
 
       return right(unit);
     } on DioException catch (e) {
@@ -162,13 +158,12 @@ class AttendanceRepository implements IAttendanceRepository {
 
       // Note: Using POST for bulk delete as DELETE with body is not standard in all HTTP clients
       // The backend route handles this as DELETE /bulk with body
-      final response = await _apiService.delete(
+      await _apiService.delete(
         path: ApiEndpoints.bulkDeleteAttendance,
         body: requestBody,
       );
 
       print('✅ [AttendanceRepository] Bulk delete successful');
-      print('✅ Response: ${response.data}');
 
       return right(unit);
     } on DioException catch (e) {

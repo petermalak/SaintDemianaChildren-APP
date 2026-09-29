@@ -149,25 +149,28 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                 ],
               )
             : null,
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              '${entry.totalPoints}',
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
+        trailing: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${entry.totalPoints}',
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
-            const Text(
-              'نقطة',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey,
+              const Text(
+                'نقطة',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

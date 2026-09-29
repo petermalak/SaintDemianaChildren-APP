@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
+import '../../../../../core/widgets/app_shell.dart';
 import '../../../../authentication/model/user_model.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
 import '../../../attendance/repository/i_attendance_repository.dart';
@@ -70,9 +71,9 @@ class HomeScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'مرحباً بك في لوحة التحكم',
-                  style: TextStyle(
+                Text(
+                  'أهلاً ${firstNameOf(user?.name, fallback: 'المخدوم')}',
+                  style: const TextStyle(
                     color: AppColors.accentWhite,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -80,7 +81,7 @@ class HomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${user?.name ?? 'المخدوم العزيز'}، مرحباً بك في منصة إدارة الكنيسة',
+                  'نورت كنيسة القديسة دميانة',
                   style: TextStyle(
                     color: AppColors.accentWhite
                         .withValues(alpha: 0.9.clamp(0.0, 1.0)),
@@ -372,6 +373,7 @@ class HomeScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             icon,
@@ -391,6 +393,8 @@ class HomeScreen extends StatelessWidget {
           Text(
             label,
             textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: color,
               fontSize: 12,

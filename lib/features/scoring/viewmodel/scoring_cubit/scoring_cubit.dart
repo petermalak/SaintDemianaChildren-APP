@@ -1,5 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../../../core/di/service_locator.dart';
 import '../../repository/i_scoring_repository.dart';
+import '../class_scores_cache.dart';
 import 'scoring_state.dart';
 
 class ScoringCubit extends Cubit<ScoringState> {
@@ -158,11 +160,14 @@ class ScoringCubit extends Cubit<ScoringState> {
 
     result.fold(
       (error) => emit(ScoringError(error)),
-      (data) => emit(PointsUpdated(
-        oldPoints: data['oldPoints'],
-        newPoints: data['newPoints'],
-        wasAddition: true,
-      )),
+      (data) {
+        sl<ClassScoresCache>().invalidate(classId);
+        emit(PointsUpdated(
+          oldPoints: data['oldPoints'],
+          newPoints: data['newPoints'],
+          wasAddition: true,
+        ));
+      },
     );
   }
 
@@ -184,11 +189,14 @@ class ScoringCubit extends Cubit<ScoringState> {
 
     result.fold(
       (error) => emit(ScoringError(error)),
-      (data) => emit(PointsUpdated(
-        oldPoints: data['oldPoints'],
-        newPoints: data['newPoints'],
-        wasAddition: false,
-      )),
+      (data) {
+        sl<ClassScoresCache>().invalidate(classId);
+        emit(PointsUpdated(
+          oldPoints: data['oldPoints'],
+          newPoints: data['newPoints'],
+          wasAddition: false,
+        ));
+      },
     );
   }
 

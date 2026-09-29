@@ -29,6 +29,7 @@ import '../../features/notifications/repository/i_notification_repository.dart';
 import '../../features/notifications/repository/notification_repository.dart';
 import '../../features/scoring/repository/i_scoring_repository.dart';
 import '../../features/scoring/repository/scoring_repository.dart';
+import '../../features/scoring/viewmodel/class_scores_cache.dart';
 import '../../features/shop/repository/i_shop_repository.dart';
 import '../../features/shop/repository/shop_repository.dart';
 import '../services/api_service.dart';
@@ -61,7 +62,8 @@ Future<void> setupServiceLocator() async {
   // Repositories
   sl.registerLazySingleton<IAuthenticationRepository>(() =>
       AuthenticationRepository(sl<IApiService>(), sl<IProfileRepository>(),
-          sl<IMembersRepository>(), sl<IBiometricService>()));
+          sl<IMembersRepository>(), sl<IBiometricService>(),
+          sl<IStorageService>()));
   sl.registerLazySingleton<IHomeRepository>(
       () => HomeRepository(sl<IApiService>()));
   sl.registerLazySingleton<IMembersRepository>(
@@ -82,8 +84,19 @@ Future<void> setupServiceLocator() async {
       () => NotificationRepository(sl<IApiService>()));
   sl.registerLazySingleton<IScoringRepository>(
       () => ScoringRepository(sl<IApiService>()));
+  sl.registerLazySingleton<ClassScoresCache>(
+      () => ClassScoresCache(sl<IScoringRepository>()));
   sl.registerLazySingleton<IShopRepository>(
       () => ShopRepository(sl<IApiService>()));
+
+  // Class scores are cached for the whole class; drop them when data changes.
+  sl<DataRefreshCubit>().stream.listen((state) {
+    if (state.shouldRefresh(RefreshType.all) ||
+        state.shouldRefresh(RefreshType.attendance) ||
+        state.shouldRefresh(RefreshType.members)) {
+      sl<ClassScoresCache>().invalidate();
+    }
+  });
 
   print('✅ [ServiceLocator] All services registered');
 }

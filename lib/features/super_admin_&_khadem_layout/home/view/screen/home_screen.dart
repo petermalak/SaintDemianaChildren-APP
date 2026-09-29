@@ -11,6 +11,7 @@ import 'package:saint_demiana_children/features/profile/repository/i_profile_rep
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/data_refresh_cubit.dart';
+import '../../../../../core/widgets/app_shell.dart';
 import '../../repository/i_home_repository.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -212,13 +213,14 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                const Text('مرحباً بك في لوحة التحكم',
-                    style: TextStyle(
+                Text(
+                    'مرحباً ${firstNameOf(_currentUser?.name, fallback: 'الخادم')}',
+                    style: const TextStyle(
                         color: AppColors.accentWhite,
                         fontSize: 20,
                         fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                Text('إدارة فعالة للأعضاء والحضور',
+                Text('إدارة الأعضاء والحضور في مكان واحد',
                     style: TextStyle(
                         color: AppColors.accentWhite
                             .withValues(alpha: 0.9.clamp(0.0, 1.0)),
@@ -241,7 +243,7 @@ class _HomeScreenState extends State<HomeScreen> {
           crossAxisCount: 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 2.3,
+          childAspectRatio: 1.85,
           children: [
             _buildStatCard('إجمالي الأعضاء', stats.totalUsers.toString(),
                 Icons.people, AppColors.primaryMaroon),
@@ -285,51 +287,61 @@ class _HomeScreenState extends State<HomeScreen> {
                 )
               ],
             ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12.clamp(0.0, 1.0)),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, color: color, size: 18),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return FittedBox(
+                fit: BoxFit.scaleDown,
+                child: SizedBox(
+                  width: constraints.maxWidth,
+                  height: constraints.maxHeight,
+                  child: Row(
                     children: [
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerRight,
-                        child: Text(
-                          value,
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: color,
-                          ),
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.12.clamp(0.0, 1.0)),
+                          borderRadius: BorderRadius.circular(8),
                         ),
+                        child: Icon(icon, color: color, size: 18),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textSecondary,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            FittedBox(
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerRight,
+                              child: Text(
+                                value,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: color,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
+              );
+            },
+          ),
           ),
         );
       },
@@ -391,7 +403,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
         onTap: onTap,
         child: Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
             decoration: BoxDecoration(
                 color: AppColors.backgroundCard,
                 borderRadius: BorderRadius.circular(16),
@@ -405,9 +417,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       blurRadius: 10,
                       offset: const Offset(0, 2))
                 ]),
-            child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
+            child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Container(
@@ -416,16 +426,16 @@ class _HomeScreenState extends State<HomeScreen> {
                               color:
                                   color.withValues(alpha: 0.1.clamp(0.0, 1.0)),
                               borderRadius: BorderRadius.circular(10)),
-                          child: Icon(icon, color: color, size: 20)),
+                          child: Icon(icon, color: color, size: 22)),
                       const SizedBox(height: 8),
                       Text(title,
                           style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 13,
                               fontWeight: FontWeight.w600,
                               color: AppColors.textPrimary),
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis)
-                    ]))));
+                    ])));
   }
 }

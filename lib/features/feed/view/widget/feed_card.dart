@@ -1,6 +1,8 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/constants/api_endpoints.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../model/feed_model.dart';
 
@@ -121,7 +123,9 @@ class FeedCard extends StatelessWidget {
                   radius: 22,
                   backgroundColor: AppColors.primaryMaroon.withOpacity(0.1),
                   backgroundImage: feed.author?.profileImage != null
-                      ? NetworkImage(feed.author!.profileImage!)
+                      ? CachedNetworkImageProvider(
+                          ApiEndpoints.fullUrlForPath(
+                              feed.author!.profileImage!))
                       : null,
                   child: feed.author?.profileImage == null
                       ? Text(

@@ -359,6 +359,26 @@ class _MemberCardState extends State<MemberCard> {
       return null;
     }
 
+    if (compact) {
+      final names = summaries
+          .map((summary) => summary.className?.trim())
+          .whereType<String>()
+          .where((name) => name.isNotEmpty)
+          .join(' • ');
+      if (names.isEmpty) return null;
+      return Text(
+        names,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 10,
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w500,
+        ),
+      );
+    }
+
     return Wrap(
       spacing: 6,
       runSpacing: 6,
@@ -475,10 +495,9 @@ class _MemberCardState extends State<MemberCard> {
   Widget _buildGridViewCard() {
     final badgeClassId = widget.user.primaryClassId;
     final classAssignmentsSection =
-        _buildClassAssignmentsSection(compact: widget.isCompact);
+        _buildClassAssignmentsSection(compact: true);
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
       decoration: BoxDecoration(
         color: isSelected
             ? AppColors.primaryMaroon.withValues(alpha: 0.3.clamp(0.0, 1.0))
@@ -492,85 +511,75 @@ class _MemberCardState extends State<MemberCard> {
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircleAvatar(
-            radius: widget.isCompact ? 25 : 30,
-            backgroundColor: _getRoleColor(widget.user.role!),
-            child: Text(
-              widget.user.name!.isNotEmpty
-                  ? widget.user.name![0].toUpperCase()
-                  : '?',
-              style: TextStyle(
-                color: AppColors.accentWhite,
-                fontWeight: FontWeight.bold,
-                fontSize: widget.isCompact ? 16 : 18,
+      clipBehavior: Clip.hardEdge,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return FittedBox(
+            fit: BoxFit.scaleDown,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: widget.isCompact ? 22 : 28,
+                    backgroundColor: _getRoleColor(widget.user.role!),
+                    child: Text(
+                      widget.user.name!.isNotEmpty
+                          ? widget.user.name![0].toUpperCase()
+                          : '?',
+                      style: TextStyle(
+                        color: AppColors.accentWhite,
+                        fontWeight: FontWeight.bold,
+                        fontSize: widget.isCompact ? 15 : 18,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.user.name!,
+                    style: TextStyle(
+                      fontSize: widget.isCompact ? 12 : 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.isCompact
+                        ? widget.user.roleDisplayName
+                        : widget.user.role!.name,
+                    style: TextStyle(
+                      fontSize: widget.isCompact ? 10 : 11,
+                      color: _getRoleColor(widget.user.role!),
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                  ),
+                  if (widget.user.role == UserRole.makhdoum &&
+                      badgeClassId != null) ...[
+                    const SizedBox(height: 6),
+                    ScoreBadgeWidget(
+                      key: ValueKey('score_${widget.user.id}_$_refreshKey'),
+                      userId: widget.user.id!,
+                      classId: badgeClassId,
+                      compact: true,
+                    ),
+                  ],
+                  if (classAssignmentsSection != null) ...[
+                    const SizedBox(height: 4),
+                    classAssignmentsSection,
+                  ],
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 6),
-          Flexible(
-            child: Text(
-              widget.user.name!,
-              style: TextStyle(
-                fontSize: widget.isCompact ? 12 : 14,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-              textAlign: TextAlign.center,
-            ),
-          ),
-          if (widget.isCompact) ...[
-            const SizedBox(height: 2),
-            Flexible(
-              child: Text(
-                widget.user.roleDisplayName,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: _getRoleColor(widget.user.role!),
-                  fontWeight: FontWeight.w600,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ] else ...[
-            const SizedBox(height: 4),
-            Flexible(
-              child: Text(
-                widget.user.role!.name,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: _getRoleColor(widget.user.role!),
-                  fontWeight: FontWeight.w600,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ],
-          // Show score badge for makhdoum only
-          if (widget.user.role == UserRole.makhdoum &&
-              badgeClassId != null) ...[
-            const SizedBox(height: 6),
-            ScoreBadgeWidget(
-              key: ValueKey('score_${widget.user.id}_$_refreshKey'),
-              userId: widget.user.id!,
-              classId: badgeClassId,
-              compact: true,
-            ),
-          ],
-          if (classAssignmentsSection != null) ...[
-            const SizedBox(height: 6),
-            classAssignmentsSection,
-          ],
-        ],
+          );
+        },
       ),
     );
   }

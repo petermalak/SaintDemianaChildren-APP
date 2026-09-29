@@ -14,6 +14,7 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/supe
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
+import '../../../../../core/widgets/app_shell.dart';
 import '../../../../../core/utils/role_helper.dart';
 import '../../../../authentication/model/user_model.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
@@ -41,8 +42,6 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   List<UserModel> _selectedMembers = [];
   final Map<int, Widget> _cachedTabs = {};
   final Map<int, ScrollController> _scrollControllers = {};
-  bool _isTabBarVisible = true;
-  double _lastScrollOffset = 0;
   RoleClassSelection? _selectedRoleClass;
   List<ClassModel> _classesForShop = [];
   bool _classesForShopLoaded = false;
@@ -150,38 +149,9 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   }
 
   void _initializeScrollControllers() {
-    // Initialize up to 7 scroll controllers (6 khadem tabs + optional shop)
     for (int i = 0; i < 7; i++) {
-      _scrollControllers[i] = ScrollController()
-        ..addListener(() => _handleScroll(i));
+      _scrollControllers[i] = ScrollController();
     }
-  }
-
-  void _handleScroll(int index) {
-    if (index != _selectedTab) return;
-
-    final controller = _scrollControllers[index];
-    if (controller == null || !controller.hasClients) return;
-
-    final currentOffset = controller.offset;
-    final delta = currentOffset - _lastScrollOffset;
-
-    // Only react to significant scroll changes
-    if (delta.abs() < 5) return;
-
-    if (delta > 0 && _isTabBarVisible && currentOffset > 50) {
-      // Scrolling down - hide tab bar
-      setState(() {
-        _isTabBarVisible = false;
-      });
-    } else if (delta < 0 && !_isTabBarVisible) {
-      // Scrolling up - show tab bar
-      setState(() {
-        _isTabBarVisible = true;
-      });
-    }
-
-    _lastScrollOffset = currentOffset;
   }
 
   @override
@@ -197,121 +167,55 @@ class _KhademMainScreenState extends State<KhademMainScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppColors.backgroundGradient,
-        ),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  const SizedBox(height: 90), // Space for app bar
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    height: _isTabBarVisible ? 80 : 0,
-                    curve: Curves.easeInOut,
-                  ),
-                  Expanded(
-                    child: PageView(
-                      controller: _pageController,
-                      onPageChanged: (index) {
-                        setState(() {
-                          _selectedTab = index;
-                        });
-                        _fabAnimationController.reset();
-                        _fabAnimationController.forward();
-                      },
-                      children: _buildTabWidgets(),
-                    ),
-                  ),
-                ],
-              ),
-              // Tab navigation (middle layer)
-              Positioned(
-                top: 90, // Below app bar
-                left: 0,
-                right: 0,
-                child: AnimatedSlide(
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeInOut,
-                  offset: _isTabBarVisible ? Offset.zero : const Offset(0, -1),
-                  child: _buildTabNavigation(),
-                ),
-              ),
-              // App bar on top (highest z-index)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: _buildEnhancedAppBar(),
-              ),
-            ],
-          ),
-        ),
-      ),
+    final user = sl<IProfileRepository>().user;
+    final name = firstNameOf(user?.name, fallback: 'الخادم');
+    return AppShell(
+      title: 'مرحباً $name',
+      subtitle: user?.role == UserRole.superAdmin
+          ? 'لوحة المدير'
+          : 'لوحة الخادم',
+      headerIcon: Icons.church,
+      actions: [_buildProfileMenu()],
+      tabs: _tabItems(),
+      selectedIndex: _selectedTab,
+      onTabSelected: onTabSelected,
       floatingActionButton: _buildEnhancedFAB(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      body: PageView.builder(
+        controller: _pageController,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _tabCount,
+        onPageChanged: (index) {
+          setState(() => _selectedTab = index);
+          _fabAnimationController.reset();
+          _fabAnimationController.forward();
+        },
+        itemBuilder: (context, index) =>
+            _buildTabWidget(index, _scrollControllers[index]),
+      ),
     );
   }
 
-  Widget _buildEnhancedAppBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1.clamp(0.0, 1.0)),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color:
-                  AppColors.accentWhite.withValues(alpha: 0.2.clamp(0.0, 1.0)),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.admin_panel_settings,
-              color: AppColors.accentWhite,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'لوحة التحكم',
-                  style: TextStyle(
-                    color: AppColors.accentWhite,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'مرحباً بك أيها الخادم',
-                  style: TextStyle(
-                    color: AppColors.accentWhite
-                        .withValues(alpha: 0.9.clamp(0.0, 1.0)),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _buildProfileMenu(),
-        ],
-      ),
-    );
+  int get _tabCount => _tabItems().length;
+
+  List<AppTabItem> _tabItems() {
+    if (_isInMakhdoumMode) {
+      return const [
+        AppTabItem(icon: Icons.home_rounded, label: 'الرئيسية'),
+        AppTabItem(icon: Icons.event_note_rounded, label: 'الحضور'),
+        AppTabItem(icon: Icons.newspaper_rounded, label: 'الأخبار'),
+        AppTabItem(icon: Icons.emoji_events_rounded, label: 'التايو'),
+      ];
+    }
+    return [
+      const AppTabItem(icon: Icons.home_rounded, label: 'الرئيسية'),
+      const AppTabItem(icon: Icons.newspaper_rounded, label: 'الأخبار'),
+      const AppTabItem(icon: Icons.people_rounded, label: 'الأعضاء'),
+      const AppTabItem(icon: Icons.event_note_rounded, label: 'الحضور'),
+      const AppTabItem(icon: Icons.person_search_rounded, label: 'الافتقاد'),
+      const AppTabItem(icon: Icons.emoji_events_rounded, label: 'التايو'),
+      if (_selectedClassHasShop)
+        const AppTabItem(icon: Icons.storefront_rounded, label: 'المتجر'),
+    ];
   }
 
   Widget _buildProfileMenu() {
@@ -410,147 +314,12 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     );
   }
 
-  Widget _buildTabNavigation() {
-    // Determine which tabs to show based on selected role
-    final tabs = <Widget>[];
-
-    if (_isInKhademMode) {
-      // Khadem tabs
-      tabs.addAll([
-        _buildTabButton(0, Icons.home, 'الرئيسية'),
-        _buildTabButton(1, Icons.newspaper, "الأخبار"),
-        _buildTabButton(2, Icons.people, 'الأعضاء'),
-        _buildTabButton(3, Icons.event_note, 'الحضور'),
-        _buildTabButton(4, Icons.person_search, "الأفتقاد"),
-        _buildTabButton(5, Icons.emoji_events, 'التايو'),
-      ]);
-      if (_selectedClassHasShop) {
-        tabs.add(_buildTabButton(6, Icons.shop, 'المتجر'));
-      }
-    } else if (_isInMakhdoumMode) {
-      // Makhdoum tabs - show makhdoum-specific tabs
-      tabs.addAll([
-        _buildTabButton(0, Icons.home, 'الرئيسية'),
-        _buildTabButton(1, Icons.event_note, 'الحضور'),
-        _buildTabButton(2, Icons.newspaper, "الأخبار"),
-        _buildTabButton(3, Icons.emoji_events, 'التقييم'),
-      ]);
-    } else {
-      // Default: show all khadem tabs
-      tabs.addAll([
-        _buildTabButton(0, Icons.home, 'الرئيسية'),
-        _buildTabButton(1, Icons.newspaper, "الأخبار"),
-        _buildTabButton(2, Icons.people, 'الأعضاء'),
-        _buildTabButton(3, Icons.event_note, 'الحضور'),
-        _buildTabButton(4, Icons.person_search, "الأفتقاد"),
-        _buildTabButton(5, Icons.emoji_events, 'التايو'),
-      ]);
-      if (_selectedClassHasShop) {
-        tabs.add(_buildTabButton(6, Icons.shop, 'المتجر'));
-      }
-    }
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08.clamp(0.0, 1.0)),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: tabs,
-      ),
-    );
-  }
-
-  Widget _buildTabButton(int index, IconData icon, String label) {
-    final isSelected = _selectedTab == index;
-    return Expanded(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => onTabSelected(index),
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primaryMaroon
-                        : AppColors.primaryMaroon
-                            .withValues(alpha: 0.08.clamp(0.0, 1.0)),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: isSelected
-                        ? AppColors.accentWhite
-                        : AppColors.primaryMaroon
-                            .withValues(alpha: 0.6.clamp(0.0, 1.0)),
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: isSelected
-                        ? AppColors.primaryMaroon
-                        : AppColors.textSecondary,
-                    fontSize: 10,
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   void onTabSelected(int index) {
     _pageController.animateToPage(
       index,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
     );
-  }
-
-  List<Widget> _buildTabWidgets() {
-    if (_isInMakhdoumMode) {
-      // Makhdoum mode: show makhdoum-specific screens
-      return [
-        _buildTabWidget(0, _scrollControllers[0]), // Home
-        _buildTabWidget(1, _scrollControllers[1]), // Attendance
-        _buildTabWidget(2, _scrollControllers[2]), // Feed
-        _buildTabWidget(3, _scrollControllers[3]), // Scoring
-      ];
-    } else {
-      // Khadem mode: 6 tabs + optional Shop tab when class has shop
-      final count = _selectedClassHasShop ? 7 : 6;
-      if (_selectedTab >= count) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) setState(() => _selectedTab = count - 1);
-        });
-      }
-      return List.generate(count, (index) {
-        return _buildTabWidget(index, _scrollControllers[index]);
-      });
-    }
   }
 
   Widget _buildTabWidget(int index, ScrollController? scrollController) {
