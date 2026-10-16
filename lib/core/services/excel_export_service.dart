@@ -40,6 +40,7 @@ class ExcelExportService {
 
       // Header row: base columns + Pope Athanasius extra data columns
       const popeAthanasiusHeaders = [
+        'الكود',
         'تاريخ التسجيل',
         'الكنيسه المواظب عليها',
         'خدمات سابقه',
@@ -57,7 +58,8 @@ class ExcelExportService {
         'الدورات السابقة',
         'أريد أن أعرف',
         'أريد امتحان',
-        'مرحلة الفصل',
+        'المرحلة',
+        'الفرقة',
       ];
       final headers = [
         'الترتيب',
@@ -591,7 +593,7 @@ class ExcelExportService {
   static List<TextCellValue> _popeAthanasiusRowCells(
       Map<String, dynamic>? additionalData) {
     if (additionalData == null) {
-      return List.filled(18, TextCellValue(''));
+      return List.filled(20, TextCellValue(''));
     }
     String str(dynamic v) {
       if (v == null) return '';
@@ -600,6 +602,7 @@ class ExcelExportService {
     }
 
     return [
+      TextCellValue(str(additionalData['code'] ?? additionalData['الكود'])),
       TextCellValue(str(
           additionalData['registrationDate'] ?? additionalData['تاريخ التسجيل'])),
       TextCellValue(str(additionalData['regularChurch'] ??
@@ -637,6 +640,9 @@ class ExcelExportService {
       TextCellValue(str(additionalData['classPhase'] ??
           additionalData['Class Phase'] ??
           additionalData['class_phase'])),
+      TextCellValue(str(additionalData['studyLevel'] ??
+          additionalData['الفرقة'] ??
+          additionalData['study_level'])),
     ];
   }
 

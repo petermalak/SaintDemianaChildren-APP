@@ -29,6 +29,7 @@ class UserModel extends Equatable {
   final List<UserClassAssignment> classAssignments;
   bool? isPopeAthnasius;
   PopeAthnasiusMeetingData? popeAthnasiusMeetingData;
+  TheaterMemberProfile? theaterProfile;
   List<String>?
       classIds; // Temporary field for class assignment during creation
   UserModel({
@@ -53,6 +54,7 @@ class UserModel extends Equatable {
     List<UserClassAssignment>? classAssignments,
     this.isPopeAthnasius,
     this.popeAthnasiusMeetingData,
+    this.theaterProfile,
     this.classIds,
   })  : classes = classes ?? const [],
         classAssignments = classAssignments ?? const [];
@@ -163,6 +165,13 @@ class UserModel extends Equatable {
           ? PopeAthnasiusMeetingData.fromJson(
               json['popeAthnasiusMeetingData'] as Map<String, dynamic>)
           : null,
+      theaterProfile: json['theaterProfile'] is Map<String, dynamic>
+          ? TheaterMemberProfile.fromJson(
+              json['theaterProfile'] as Map<String, dynamic>)
+          : json['theaterProfile'] is Map
+              ? TheaterMemberProfile.fromJson(
+                  Map<String, dynamic>.from(json['theaterProfile'] as Map))
+              : null,
     );
   }
 
@@ -188,29 +197,36 @@ class UserModel extends Equatable {
       'fatherOfConfession': fatherOfConfession,
       'classes': classes.map((c) => c.toJson()).toList(),
       'isPopeAthnasius': isPopeAthnasius ?? false,
+      'theaterProfile': theaterProfile?.toJson(),
     };
 
     // Include Pope Athanasius meeting data if provided
     if (popeAthnasiusMeetingData != null) {
       final meetingDataJson = popeAthnasiusMeetingData!.toJson();
-      // Extract classPhase from additionalData if present
+      // Extract classPhase and studyLevel from additionalData if present
       int? classPhase;
+      int? studyLevel;
       if (meetingDataJson['additionalData'] != null) {
         final additionalData =
             meetingDataJson['additionalData'] as Map<String, dynamic>?;
         if (additionalData != null &&
-            additionalData.containsKey('classPhase')) {
+            (additionalData.containsKey('classPhase') ||
+                additionalData.containsKey('studyLevel'))) {
           classPhase = additionalData['classPhase'] as int?;
-          // Remove classPhase from additionalData as it's stored separately
+          studyLevel = additionalData['studyLevel'] as int?;
           final updatedAdditionalData =
               Map<String, dynamic>.from(additionalData);
           updatedAdditionalData.remove('classPhase');
+          updatedAdditionalData.remove('studyLevel');
           meetingDataJson['additionalData'] = updatedAdditionalData;
         }
       }
       json['popeAthnasiusMeetingData'] = meetingDataJson;
       if (classPhase != null) {
         json['classPhase'] = classPhase;
+      }
+      if (studyLevel != null) {
+        json['studyLevel'] = studyLevel;
       }
     }
 
@@ -257,6 +273,7 @@ class UserModel extends Equatable {
     List<UserClassAssignment>? classAssignments,
     bool? isPopeAthnasius,
     PopeAthnasiusMeetingData? popeAthnasiusMeetingData,
+    TheaterMemberProfile? theaterProfile,
     List<String>? classIds,
   }) {
     return UserModel(
@@ -282,6 +299,7 @@ class UserModel extends Equatable {
       isPopeAthnasius: isPopeAthnasius ?? this.isPopeAthnasius,
       popeAthnasiusMeetingData:
           popeAthnasiusMeetingData ?? this.popeAthnasiusMeetingData,
+      theaterProfile: theaterProfile ?? this.theaterProfile,
       classIds: classIds ?? this.classIds,
     );
   }
@@ -336,7 +354,11 @@ class UserModel extends Equatable {
         classAssignments,
         isPopeAthnasius,
         popeAthnasiusMeetingData,
+        theaterProfile,
       ];
+
+  bool get isInTheaterClass =>
+      classes.any((info) => (info.className ?? '').contains('المسرح'));
 
   String? get primaryClassId {
     if (classId != null && classId!.isNotEmpty) {
@@ -549,6 +571,7 @@ class PopeAthnasiusMeetingData extends Equatable {
   final String? userId;
   final Map<String, dynamic>? additionalData;
   final int? classPhase;
+  final int? studyLevel;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -557,22 +580,21 @@ class PopeAthnasiusMeetingData extends Equatable {
     this.userId,
     this.additionalData,
     this.classPhase,
+    this.studyLevel,
     this.createdAt,
     this.updatedAt,
   });
 
   factory PopeAthnasiusMeetingData.fromJson(Map<String, dynamic> json) {
-    int? classPhase;
-    if (json['classPhase'] != null) {
-      final v = json['classPhase'];
-      if (v is int) {
-        classPhase = v;
-      } else if (v is num) {
-        classPhase = v.toInt();
-      } else {
-        classPhase = int.tryParse(v.toString());
-      }
+    int? readInt(dynamic v) {
+      if (v == null) return null;
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString());
     }
+
+    final classPhase = readInt(json['classPhase']);
+    final studyLevel = readInt(json['studyLevel']);
     Map<String, dynamic>? additionalData;
     final raw = json['additionalData'];
     if (raw != null) {
@@ -599,6 +621,7 @@ class PopeAthnasiusMeetingData extends Equatable {
       userId: json['userId']?.toString(),
       additionalData: additionalData,
       classPhase: classPhase,
+      studyLevel: studyLevel,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
           : null,
@@ -614,6 +637,7 @@ class PopeAthnasiusMeetingData extends Equatable {
       'userId': userId,
       'additionalData': additionalData,
       'classPhase': classPhase,
+      'studyLevel': studyLevel,
       'createdAt': createdAt?.toIso8601String(),
       'updatedAt': updatedAt?.toIso8601String(),
     };
@@ -623,6 +647,7 @@ class PopeAthnasiusMeetingData extends Equatable {
   Map<String, dynamic> get exportMap {
     final map = Map<String, dynamic>.from(additionalData ?? {});
     if (classPhase != null) map['classPhase'] = classPhase;
+    if (studyLevel != null) map['studyLevel'] = studyLevel;
     return map;
   }
 
@@ -632,7 +657,88 @@ class PopeAthnasiusMeetingData extends Equatable {
         userId,
         additionalData,
         classPhase,
+        studyLevel,
         createdAt,
         updatedAt,
+      ];
+}
+
+class TheaterMemberProfile extends Equatable {
+  final String? id;
+  final String? userId;
+  final String? department;
+  final String? stage;
+  final String? priority1;
+  final String? priority2;
+  final bool? participatedBefore;
+  final String? previousResponsibility;
+  final DateTime? registeredAt;
+  final String? photoUrl;
+
+  const TheaterMemberProfile({
+    this.id,
+    this.userId,
+    this.department,
+    this.stage,
+    this.priority1,
+    this.priority2,
+    this.participatedBefore,
+    this.previousResponsibility,
+    this.registeredAt,
+    this.photoUrl,
+  });
+
+  factory TheaterMemberProfile.fromJson(Map<String, dynamic> json) {
+    return TheaterMemberProfile(
+      id: json['id']?.toString(),
+      userId: json['userId']?.toString(),
+      department: json['department'] as String?,
+      stage: json['stage'] as String?,
+      priority1: json['priority1'] as String?,
+      priority2: json['priority2'] as String?,
+      participatedBefore: json['participatedBefore'] == null
+          ? null
+          : json['participatedBefore'] == true ||
+              json['participatedBefore'] == 1,
+      previousResponsibility: json['previousResponsibility'] as String?,
+      registeredAt: json['registeredAt'] != null
+          ? DateTime.tryParse(json['registeredAt'].toString())
+          : null,
+      photoUrl: json['photoUrl'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'userId': userId,
+      'department': department,
+      'stage': stage,
+      'priority1': priority1,
+      'priority2': priority2,
+      'participatedBefore': participatedBefore,
+      'previousResponsibility': previousResponsibility,
+      'registeredAt': registeredAt?.toIso8601String(),
+      'photoUrl': photoUrl,
+    };
+  }
+
+  String get departmentLabel =>
+      (department != null && department!.trim().isNotEmpty)
+          ? department!.trim()
+          : 'من غير قسم';
+
+  @override
+  List<Object?> get props => [
+        id,
+        userId,
+        department,
+        stage,
+        priority1,
+        priority2,
+        participatedBefore,
+        previousResponsibility,
+        registeredAt,
+        photoUrl,
       ];
 }

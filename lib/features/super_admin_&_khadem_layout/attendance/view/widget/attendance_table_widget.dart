@@ -13,6 +13,9 @@ class AttendanceTableWidget extends StatefulWidget {
   final Map<String, Map<String, Map<String, bool>>> attendance;
   final List<AttendanceRecord> attendanceRecords;
   final VoidCallback? onRefresh;
+  final VoidCallback? onLoadYear;
+  final bool selectAllDates;
+  final Map<String, String>? typeLabels;
 
   const AttendanceTableWidget({
     super.key,
@@ -21,6 +24,9 @@ class AttendanceTableWidget extends StatefulWidget {
     required this.attendance,
     required this.attendanceRecords,
     this.onRefresh,
+    this.onLoadYear,
+    this.selectAllDates = false,
+    this.typeLabels,
   });
 
   @override
@@ -31,7 +37,7 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
   final Set<String> _selectedRecordIds = {};
   bool _selectionMode = false;
 
-  static const Map<String, String> _categoryNames = {
+  static const Map<String, String> _defaultCategoryNames = {
     'praise': 'تسبحة',
     'mass': 'قداس',
     'generalMeeting': 'عام',
@@ -93,7 +99,7 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
         // Initialize with available dates
         final dateTimes =
             widget.dates.map(_parseDateString).whereType<DateTime>().toList();
-        cubit.initializeDates(dateTimes);
+        cubit.initializeDates(dateTimes, selectAll: widget.selectAllDates);
         return cubit;
       },
       child: Column(
@@ -104,7 +110,7 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
             itemsLabel: 'عضو',
             onRefresh: widget.onRefresh,
           ),
-          const DateFilterQuickActions(),
+          DateFilterQuickActions(onLoadYear: widget.onLoadYear),
           const DateFilterSelector(),
           _buildSelectionBar(),
           _buildLegend(),
@@ -338,7 +344,7 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
                                     color: Colors.grey.shade300, width: 0.5),
                               ),
                               child: Text(
-                                _categoryNames[cat] ?? cat,
+                                (widget.typeLabels ?? _defaultCategoryNames)[cat] ?? cat,
                                 style: const TextStyle(
                                     fontSize: 9, fontWeight: FontWeight.w600),
                               ),

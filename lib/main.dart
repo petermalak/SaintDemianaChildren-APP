@@ -24,11 +24,14 @@ import 'features/makhdoum_layout/home/view/screen/makhdoum_main_screen.dart';
 import 'features/super_admin_&_khadem_layout/super_admin/class_management/view/screen/class_management_screen.dart';
 import 'features/profile/view/screen/profile_screen.dart';
 import 'features/profile/repository/i_profile_repository.dart';
+import 'features/pope_athanasius/view/screen/agenda_screen.dart';
+import 'features/pope_athanasius/view/screen/course_marks_screen.dart';
+import 'features/pope_athanasius/view/screen/level_two_board_screen.dart';
+import 'features/pope_athanasius/view/screen/my_course_screen.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Catch Flutter framework errors (e.g. in release) so we don't show raw exception
   FlutterError.onError = (details) {
     if (kDebugMode) {
       FlutterError.presentError(details);
@@ -38,29 +41,19 @@ void main() async {
     }
   };
 
-  // Initialize Firebase only on mobile platforms (not web)
-  if (!kIsWeb) {
-    try {
-      await Firebase.initializeApp();
-      if (kDebugMode) {
-        print('✅ Firebase initialized for mobile');
-      }
+  runApp(const SaintDemianaApp());
+}
 
-      // Set up background message handler
-      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-    } catch (e) {
-      if (kDebugMode) {
-        print('⚠️ Firebase initialization failed: $e');
-      }
-    }
-  } else {
+Future<void> _initFirebase() async {
+  if (kIsWeb) return;
+  try {
+    await Firebase.initializeApp();
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  } catch (e) {
     if (kDebugMode) {
-      print(
-          'ℹ️ Web platform detected - skipping Firebase initialization (use mobile app for notifications)');
+      print('Firebase initialization failed: $e');
     }
   }
-
-  runApp(const SaintDemianaApp());
 }
 
 class SaintDemianaApp extends StatefulWidget {
@@ -125,6 +118,7 @@ class _SaintDemianaAppState extends State<SaintDemianaApp> {
       setState(() {
         _initialized = true;
       });
+      _initFirebase();
 
       if (kDebugMode) {
         print('✅ [main] App initialization complete!');
@@ -305,6 +299,29 @@ final GoRouter _router = GoRouter(
       builder: (context, state) {
         return const ProfileScreen();
       },
+    ),
+    GoRoute(
+      path: '/pope-agenda',
+      builder: (context, state) => const PopeAthanasiusAgendaScreen(),
+    ),
+    GoRoute(
+      path: '/pope-my-course',
+      builder: (context, state) => const MyCourseScreen(),
+    ),
+    GoRoute(
+      path: '/pope-level-two',
+      builder: (context, state) {
+        final raw = state.uri.queryParameters['date'];
+        DateTime? date;
+        if (raw != null && raw.length >= 10) {
+          date = DateTime.tryParse(raw.substring(0, 10));
+        }
+        return PopeLevelTwoBoardScreen(initialDate: date);
+      },
+    ),
+    GoRoute(
+      path: '/pope-level-one-marks',
+      builder: (context, state) => const PopeCourseMarksScreen(),
     ),
   ],
 );

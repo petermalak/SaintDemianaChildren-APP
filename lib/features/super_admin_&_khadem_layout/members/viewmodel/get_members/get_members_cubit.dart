@@ -26,7 +26,7 @@ class GetMembersCubit extends Cubit<GetMembersState> {
 
     final isSuperAdmin =
         sl<IProfileRepository>().user?.role == UserRole.superAdmin;
-    final result = await _membersRepository.fetchMembers(isSuperAdmin);
+    final result = await _membersRepository.fetchMembers(isSuperAdmin, summary: true);
     if (isClosed) return;
 
     result.fold(

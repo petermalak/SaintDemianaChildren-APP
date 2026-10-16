@@ -86,6 +86,7 @@ class ApiService implements IApiService {
           } else if (!queued && status < 400) {
             SyncQueueService.instance.noteOnline();
             if (response.requestOptions.method == 'GET' &&
+                !_isBulkPayload(response.data) &&
                 (response.data is Map || response.data is List)) {
               sl<IStorageService>().cacheResponse(
                   _cacheKey(response.requestOptions), response.data);
@@ -148,6 +149,24 @@ class ApiService implements IApiService {
         },
       ),
     );
+  }
+
+  bool _isBulkPayload(dynamic data) {
+    if (data is List) return data.length > 40;
+    if (data is Map) {
+      for (final key in const [
+        'data',
+        'makhdoum',
+        'khadem',
+        'attendanceRecords',
+        'people',
+        'marks',
+      ]) {
+        final value = data[key];
+        if (value is List && value.length > 40) return true;
+      }
+    }
+    return false;
   }
 
   String _responseSummary(dynamic data) {
@@ -276,32 +295,34 @@ class ApiService implements IApiService {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
-        return 'Connection timeout. Please check your internet connection.';
+        return 'انتهت مهلة الاتصال. تحقق من الإنترنت ثم أعد المحاولة.';
       case DioExceptionType.badResponse:
         final int? statusCode = error.response?.statusCode;
-        final String message =
-            error.response?.data?['message'] ?? 'An error occurred';
+        final rawMessage = error.response?.data;
+        final String message = rawMessage is Map && rawMessage['message'] != null
+            ? rawMessage['message'].toString()
+            : 'حدث خطأ';
 
         switch (statusCode) {
           case 400:
-            return 'Bad request: $message';
+            return message;
           case 401:
-            return 'Unauthorized. Please login again.';
+            return 'انتهت الجلسة. سجّل الدخول مرة أخرى.';
           case 403:
-            return 'Access denied. You don\'t have permission to perform this action.';
+            return 'ليس لديك صلاحية لهذا الإجراء.';
           case 404:
-            return 'Resource not found.';
+            return 'البيانات غير موجودة.';
           case 500:
-            return 'Server error. Please try again later.';
+            return 'خطأ في الخادم. حاول مرة أخرى.';
           default:
-            return 'Error $statusCode: $message';
+            return message;
         }
       case DioExceptionType.cancel:
-        return 'Request was cancelled.';
+        return 'تم إلغاء الطلب.';
       case DioExceptionType.connectionError:
-        return 'No internet connection. Please check your network.';
+        return 'لا يوجد اتصال بالإنترنت.';
       default:
-        return 'An unexpected error occurred. Please try again.';
+        return 'حدث خطأ غير متوقع. حاول مرة أخرى.';
     }
   }
 }

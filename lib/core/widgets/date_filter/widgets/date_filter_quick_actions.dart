@@ -7,7 +7,9 @@ import '../models/date_filter_state.dart';
 /// Quick action buttons for common date filter operations
 /// Follows Single Responsibility Principle - only handles quick actions
 class DateFilterQuickActions extends StatelessWidget {
-  const DateFilterQuickActions({super.key});
+  const DateFilterQuickActions({super.key, this.onLoadYear});
+
+  final VoidCallback? onLoadYear;
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +51,7 @@ class DateFilterQuickActions extends StatelessWidget {
                       context,
                       icon: Icons.done_all,
                       label: 'كل السنة',
-                      onPressed: cubit.selectAllInYear,
+                      onPressed: onLoadYear ?? cubit.selectAllInYear,
                       color: Colors.green.shade700,
                     ),
                   ),

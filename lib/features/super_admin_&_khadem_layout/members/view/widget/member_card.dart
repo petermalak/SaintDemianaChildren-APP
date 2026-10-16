@@ -4,11 +4,13 @@ import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/communication_service.dart';
 import '../../../../authentication/model/user_model.dart';
+import '../../../../pope_athanasius/view/widget/meeting_profile_section.dart';
 import '../../../../scoring/view/widget/manage_points_dialog.dart';
 import '../../../../scoring/view/widget/score_badge_widget.dart';
 import '../../../../scoring/viewmodel/scoring_cubit/scoring_cubit.dart';
 import '../../../../scoring/repository/i_scoring_repository.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
+import '../../repository/i_members_repository.dart';
 import 'add_user_dialog.dart';
 
 class MemberCard extends StatefulWidget {
@@ -21,6 +23,7 @@ class MemberCard extends StatefulWidget {
     required this.onUpdate,
     this.isCompact = false,
     this.isListView = false,
+    this.showTheaterDetails = false,
   });
 
   final Animation<double> cardAnimation;
@@ -30,6 +33,7 @@ class MemberCard extends StatefulWidget {
   final VoidCallback onUpdate;
   final bool isCompact;
   final bool isListView;
+  final bool showTheaterDetails;
 
   @override
   State<MemberCard> createState() => _MemberCardState();
@@ -40,116 +44,137 @@ class _MemberCardState extends State<MemberCard> {
   int _refreshKey = 0;
 
   void _showContactDrawer(BuildContext context) {
+    final detail = _loadDetail();
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
-        final communicationService = CommunicationService();
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-          padding:
-              const EdgeInsets.only(right: 18, left: 18, top: 12, bottom: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                widget.user.name!,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
+      builder: (sheetContext) {
+        return FutureBuilder<UserModel>(
+          future: detail,
+          builder: (context, snapshot) {
+            final person = snapshot.data ?? widget.user;
+            final loading = snapshot.connectionState != ConnectionState.done;
+            final communicationService = CommunicationService();
+            final meeting = person.popeAthnasiusMeetingData;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+              padding: const EdgeInsets.only(right: 18, left: 18, top: 12, bottom: 24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        person.name ?? '',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                      ),
+                      if (loading)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 16),
+                          child: LinearProgressIndicator(color: AppColors.primaryMaroon),
+                        ),
+                      if (!loading && widget.showTheaterDetails && person.theaterProfile != null) ...[
+                        const SizedBox(height: 12),
+                        _buildTheaterDetails(person),
+                      ],
+                      if (!loading && meeting != null) ...[
+                        const SizedBox(height: 12),
+                        MeetingProfileSection(meeting: meeting),
+                      ],
+                      const SizedBox(height: 16),
+                      ListTile(
+                        leading: const Icon(Icons.edit, color: AppColors.accentDark),
+                        title: const Text('Edit profile'),
+                        onTap: () async {
+                          Navigator.pop(context);
+                          showDialog(
+                            context: context,
+                            builder: (dialogContext) => AddUserDialog(
+                              onSuccess: widget.onUpdate,
+                              user: person,
+                            ),
+                          );
+                        },
+                      ),
+                      _buildManagePointsTile(context),
+                      if (person.classSummaries.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        _buildClassMembershipSection(person),
+                      ],
+                      ListTile(
+                        leading: const Icon(Icons.phone, color: AppColors.primaryMaroon),
+                        title: const Text('Call the number'),
+                        onTap: () async {
+                          final response = await communicationService.makePhoneCall(person.phoneNumber!);
+                          if (!context.mounted) return;
+                          response.fold(
+                            (failure) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(failure), backgroundColor: Colors.red),
+                              );
+                            },
+                            (success) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('جاري الاتصال بـ ${person.phoneNumber}'),
+                                  backgroundColor: Colors.green,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                          );
+                          Navigator.pop(context);
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.message, color: Colors.green),
+                        title: const Text('Send WhatsApp message'),
+                        onTap: () async {
+                          final response = await communicationService.openWhatsAppChat(person.phoneNumber!);
+                          if (!context.mounted) return;
+                          response.fold(
+                            (failure) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(failure), backgroundColor: Colors.red),
+                              );
+                            },
+                            (success) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('جاري فتح واتساب للتواصل مع ${person.phoneNumber}'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            },
+                          );
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.edit, color: AppColors.accentDark),
-                title: const Text('Edit profile'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  showDialog(
-                    context: context,
-                    builder: (dialogContext) => AddUserDialog(
-                      onSuccess: () {
-                        widget.onUpdate();
-                      },
-                      user: widget.user,
-                    ),
-                  );
-                },
-              ),
-              // Show manage points option for makhdoum only
-              _buildManagePointsTile(context),
-              if (widget.user.classSummaries.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                _buildClassMembershipSection(),
-              ],
-              ListTile(
-                leading:
-                    const Icon(Icons.phone, color: AppColors.primaryMaroon),
-                title: const Text('Call the number'),
-                onTap: () async {
-                  final response = await communicationService.makePhoneCall(
-                    widget.user.phoneNumber!,
-                  );
-                  response.fold(
-                    (failure) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(failure),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    },
-                    (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              'جاري الاتصال بـ ${widget.user.phoneNumber}'),
-                          backgroundColor: Colors.green,
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                  );
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                  leading: const Icon(Icons.message, color: Colors.green),
-                  title: const Text('Send WhatsApp message'),
-                  onTap: () async {
-                    (await communicationService.openWhatsAppChat(
-                      widget.user.phoneNumber!,
-                    ))
-                        .fold((failure) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(failure),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }, (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              'جاري فتح واتساب للتواصل مع ${widget.user.phoneNumber!}'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    });
-                    Navigator.pop(context);
-                  }),
-            ],
-          ),
+            );
+          },
         );
       },
-      isScrollControlled: true,
     );
   }
 
+  Future<UserModel> _loadDetail() async {
+    final id = widget.user.id;
+    if (id == null || id.isEmpty) return widget.user;
+    final result = await sl<IMembersRepository>().fetchMember(id);
+    return result.fold((_) => widget.user, (full) => full);
+  }
   Widget _buildManagePointsTile(BuildContext context) {
     if (widget.user.role != UserRole.makhdoum) {
       return const SizedBox.shrink();
@@ -315,8 +340,8 @@ class _MemberCardState extends State<MemberCard> {
     );
   }
 
-  Widget _buildClassMembershipSection() {
-    final summaries = widget.user.classSummaries;
+  Widget _buildClassMembershipSection([UserModel? person]) {
+    final summaries = (person ?? widget.user).classSummaries;
     if (summaries.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -429,6 +454,45 @@ class _MemberCardState extends State<MemberCard> {
             overflow: TextOverflow.ellipsis,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTheaterDetails([UserModel? person]) {
+    final profile = (person ?? widget.user).theaterProfile;
+    if (profile == null) return const SizedBox.shrink();
+    final lines = <String>[
+      'القسم: ${profile.departmentLabel}',
+      if (profile.stage != null && profile.stage!.trim().isNotEmpty)
+        'المرحلة: ${profile.stage}',
+      if (profile.priority1 != null && profile.priority1!.trim().isNotEmpty)
+        'الأولوية الأولى: ${profile.priority1}',
+      if (profile.priority2 != null && profile.priority2!.trim().isNotEmpty)
+        'الأولوية التانية: ${profile.priority2}',
+      if (profile.participatedBefore != null)
+        'اشترك قبل كده: ${profile.participatedBefore! ? 'نعم' : 'لا'}',
+      if (profile.previousResponsibility != null &&
+          profile.previousResponsibility!.trim().isNotEmpty)
+        'المسؤولية السابقة: ${profile.previousResponsibility}',
+    ];
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: lines
+            .map(
+              (line) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  line,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
@@ -547,6 +611,21 @@ class _MemberCardState extends State<MemberCard> {
                     maxLines: 1,
                     textAlign: TextAlign.center,
                   ),
+                  if (widget.showTheaterDetails &&
+                      widget.user.theaterProfile != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.user.theaterProfile!.departmentLabel,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.primaryMaroon,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                   const SizedBox(height: 2),
                   Text(
                     widget.isCompact
@@ -635,6 +714,20 @@ class _MemberCardState extends State<MemberCard> {
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),
+                if (widget.showTheaterDetails &&
+                    widget.user.theaterProfile != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.user.theaterProfile!.departmentLabel,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primaryMaroon,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ],
                 const SizedBox(height: 4),
                 Row(
                   children: [

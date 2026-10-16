@@ -28,12 +28,12 @@ class AttendanceRepository implements IAttendanceRepository {
         final attendanceModel = AttendanceModel.fromJson(response.data);
         return Right(attendanceModel);
       } else {
-        return Left('Failed to fetch attendance: ${response.statusMessage}');
+      return Left('تعذر تحميل الحضور');
       }
     } on DioException catch (e) {
       return Left(_apiService.handleError(e));
     } catch (e) {
-      return Left('Unexpected error: ${e.toString()}');
+      return Left('حدث خطأ غير متوقع');
     }
   }
 }

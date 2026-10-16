@@ -42,6 +42,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String _khademFilterSelection = _khademFilterSelfValue;
   bool _isLoadingAssignments = false;
   ScrollController? _internalScrollController;
+  late DateTime _rangeFrom;
+  late DateTime _rangeTo;
+  bool _selectAllDates = false;
 
   static const String _khademFilterSelfValue = 'self';
   static const String _khademFilterAllValue = 'all';
@@ -54,6 +57,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     'specialMeeting': 'اجتماع خاص',
   };
 
+  static const Map<String, String> _popeTypeLabels = {
+    'praise': 'تسبحة',
+    'mass': 'قداس',
+    'generalMeeting': 'كتاب المقدس',
+    'specialMeeting': 'عقيدة',
+  };
+
+  bool get _viewingPopeClass =>
+      _selectedClassId != null && _selectedClassId == _popeAthanasiusClassId;
+
+  Map<String, String> get _typeLabels =>
+      _viewingPopeClass ? _popeTypeLabels : _attendanceTypeLabels;
+
   ScrollController get _effectiveScrollController =>
       widget.scrollController ?? _internalScrollController!;
 
@@ -64,6 +80,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       _internalScrollController = ScrollController();
     }
     _currentUser = sl<IProfileRepository>().user;
+    final today = DateTime.now();
+    _rangeTo = DateTime(today.year, today.month, today.day);
+    _rangeFrom = _rangeTo.subtract(const Duration(days: 55));
     if (_currentUser?.role == UserRole.khadem) {
       _selectedKhademScope = _khademFilterSelfValue;
       _khademFilterSelection = _khademFilterSelfValue;
@@ -167,7 +186,28 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       classId: classIdOverride ?? _selectedClassId,
       khademId: effectiveKhademId,
       khademScope: scope,
+      from: _iso(_rangeFrom),
+      to: _iso(_rangeTo),
     );
+  }
+
+  String _iso(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
+  }
+
+  void _loadFullYear() {
+    final today = DateTime.now();
+    final from = DateTime(today.year, 1, 1);
+    final to = DateTime(today.year, 12, 31);
+    final alreadyLoaded = _rangeFrom == from && _rangeTo == to;
+    setState(() {
+      _rangeFrom = from;
+      _rangeTo = to;
+      _selectAllDates = true;
+    });
+    if (!alreadyLoaded) _fetchAttendanceWithCurrentFilters();
   }
 
   void _handleKhademFilterChangeForKhadem(String? value) {
@@ -627,7 +667,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           );
     final topTypeLabel = topTypeEntry == null
         ? '—'
-        : _attendanceTypeLabels[topTypeEntry.key] ?? topTypeEntry.key;
+        : _typeLabels[topTypeEntry.key] ?? topTypeEntry.key;
 
     return Wrap(
       spacing: 12,
@@ -753,11 +793,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 _buildExportButton(records),
                 Expanded(
                   child: AttendanceTableWidget(
+                    key: ValueKey('${_iso(_rangeFrom)}|${_iso(_rangeTo)}|$_selectAllDates|${dates.length}'),
                     dates: dates,
                     members: members,
                     attendance: attendanceMatrix,
                     attendanceRecords: records,
                     onRefresh: _refreshAttendance,
+                    onLoadYear: _loadFullYear,
+                    selectAllDates: _selectAllDates,
+                    typeLabels: _viewingPopeClass ? _popeTypeLabels : null,
                   ),
                 ),
               ],
@@ -948,6 +992,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         classId: classId,
         khademId: khademId,
         khademScope: isKhadem ? _selectedKhademScope : null,
+        from: _iso(_rangeFrom),
+        to: _iso(_rangeTo),
       );
     }
   }
@@ -1011,6 +1057,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           classId: _selectedClassId,
           khademId: khademId,
           khademScope: isKhadem ? _selectedKhademScope : null,
+          from: _iso(_rangeFrom),
+          to: _iso(_rangeTo),
         );
       }
     } catch (e) {
@@ -1073,6 +1121,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 khademScope: _currentUser?.role == UserRole.khadem
                     ? _selectedKhademScope
                     : null,
+                from: _iso(_rangeFrom),
+                to: _iso(_rangeTo),
               );
 
               result.fold(

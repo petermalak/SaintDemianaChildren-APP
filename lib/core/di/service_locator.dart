@@ -32,6 +32,10 @@ import '../../features/scoring/repository/scoring_repository.dart';
 import '../../features/scoring/viewmodel/class_scores_cache.dart';
 import '../../features/shop/repository/i_shop_repository.dart';
 import '../../features/shop/repository/shop_repository.dart';
+import '../../features/pope_athanasius/repository/agenda_repository.dart';
+import '../../features/pope_athanasius/repository/i_agenda_repository.dart';
+import '../../features/pope_athanasius/repository/i_pope_attendance_repository.dart';
+import '../../features/pope_athanasius/repository/pope_attendance_repository.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/notification_service.dart';
@@ -88,6 +92,10 @@ Future<void> setupServiceLocator() async {
       () => ClassScoresCache(sl<IScoringRepository>()));
   sl.registerLazySingleton<IShopRepository>(
       () => ShopRepository(sl<IApiService>()));
+  sl.registerLazySingleton<IAgendaRepository>(
+      () => AgendaRepository(sl<IApiService>()));
+  sl.registerLazySingleton<IPopeAttendanceRepository>(
+      () => PopeAttendanceRepository(sl<IApiService>()));
 
   // Class scores are cached for the whole class; drop them when data changes.
   sl<DataRefreshCubit>().stream.listen((state) {

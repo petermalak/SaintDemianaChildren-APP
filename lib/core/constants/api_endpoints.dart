@@ -67,6 +67,13 @@ class ApiEndpoints {
   // PopeAthnasius meeting data endpoints
   static String popeAthnasiusData(String userId) =>
       "users/$userId/pope-athnasius-data";
+  static const String popeAgenda = "pope-athnasius/agenda";
+  static const String popeAgendaMine = "pope-athnasius/agenda/mine";
+  static const String popeMyCourse = "pope-athnasius/attendance/mine";
+  static const String popeLevelOneCourses = "pope-athnasius/attendance/courses";
+  static const String popeLevelTwoBoard = "pope-athnasius/attendance/level-two";
+  static String popeCourseMarks(String courseId) =>
+      "pope-athnasius/attendance/courses/$courseId/marks";
 
   // Shop (scoring shop) endpoints
   static const String shop = "shop/";

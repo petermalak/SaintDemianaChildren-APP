@@ -22,7 +22,7 @@ class QrAttendanceCubit extends Cubit<QrAttendanceState> {
 
   Future<void> loadRoster() async {
     emit(const QrAttendanceLoadingRoster());
-    final result = await _membersRepository.fetchClassMembers(_classId);
+    final result = await _membersRepository.fetchClassMembers(_classId, summary: true);
     result.fold(
       (message) => emit(QrAttendanceRosterError(message)),
       (members) {
@@ -37,6 +37,7 @@ class QrAttendanceCubit extends Cubit<QrAttendanceState> {
           rosterById: map,
           scannedMembers: const [],
           selectedDate: DateTime.now(),
+          selectedEvent: 'generalMeeting',
         ));
       },
     );
@@ -84,6 +85,13 @@ class QrAttendanceCubit extends Cubit<QrAttendanceState> {
     if (member == null) {
       emit(s.copyWith(
         feedback: 'هذا العضو غير موجود في الفصل المحدد',
+      ));
+      return;
+    }
+
+    if (member.popeAthnasiusMeetingData?.studyLevel != 2) {
+      emit(s.copyWith(
+        feedback: 'هذه البطاقة ليست من الفرقة الثانية. الفرقة الأولى حضورها على الورق',
       ));
       return;
     }

@@ -16,18 +16,39 @@ class ClassRepository implements IClassRepository {
 
   List<ClassModel> _classes = [];
   List<ClassModel> _myClasses = [];
+  Future<Either<String, List<ClassModel>>>? _classesFlight;
+  Future<Either<String, List<ClassModel>>>? _myClassesFlight;
+  DateTime? _classesAt;
+  DateTime? _myClassesAt;
+  static const _freshFor = Duration(minutes: 2);
+
+  bool _isFresh(DateTime? at) =>
+      at != null && DateTime.now().difference(at) < _freshFor;
+
   @override
-  Future<Either<String, List<ClassModel>>> loadClasses() async {
+  Future<Either<String, List<ClassModel>>> loadClasses() {
+    if (_classes.isNotEmpty && _isFresh(_classesAt)) {
+      return Future.value(Right(List<ClassModel>.from(_classes)));
+    }
+    final existing = _classesFlight;
+    if (existing != null) return existing;
+    final future = _fetchClasses();
+    _classesFlight = future;
+    return future.whenComplete(() => _classesFlight = null);
+  }
+
+  Future<Either<String, List<ClassModel>>> _fetchClasses() async {
     try {
       final response = await _apiService.get(path: ApiEndpoints.classes);
       _classes = response.data
           .map<ClassModel>((json) => ClassModel.fromJson(json))
           .toList();
+      _classesAt = DateTime.now();
       return Right(_classes);
     } on DioException catch (e) {
       return Left(_apiService.handleError(e));
     } catch (e) {
-      return const Left('An unexpected error occurred');
+      return const Left('حدث خطأ غير متوقع');
     }
   }
 
@@ -50,7 +71,7 @@ class ClassRepository implements IClassRepository {
     } on DioException catch (e) {
       return Left(_apiService.handleError(e));
     } catch (e) {
-      return const Left('An unexpected error occurred');
+      return const Left('حدث خطأ غير متوقع');
     }
   }
 
@@ -61,7 +82,18 @@ class ClassRepository implements IClassRepository {
   List<ClassModel> get myClasses => _myClasses;
 
   @override
-  Future<Either<String, List<ClassModel>>> loadMyClasses() async {
+  Future<Either<String, List<ClassModel>>> loadMyClasses() {
+    if (_myClasses.isNotEmpty && _isFresh(_myClassesAt)) {
+      return Future.value(Right(List<ClassModel>.from(_myClasses)));
+    }
+    final existing = _myClassesFlight;
+    if (existing != null) return existing;
+    final future = _fetchMyClasses();
+    _myClassesFlight = future;
+    return future.whenComplete(() => _myClassesFlight = null);
+  }
+
+  Future<Either<String, List<ClassModel>>> _fetchMyClasses() async {
     try {
       final response = await _apiService.get(path: ApiEndpoints.myClasses);
 
@@ -78,13 +110,14 @@ class ClassRepository implements IClassRepository {
       if (rawList is! List) {
         print(
             '❌ [ClassRepo] loadMyClasses: Response is not a list: ${rawList.runtimeType}, value: $rawList');
-        return const Left('Invalid response format');
+        return const Left('صيغة الاستجابة غير صالحة');
       }
 
       print('📦 [ClassRepo] loadMyClasses: Received ${rawList.length} classes');
 
       _myClasses =
           rawList.map<ClassModel>((json) => ClassModel.fromJson(json)).toList();
+      _myClassesAt = DateTime.now();
       return Right(_myClasses);
     } on DioException catch (e) {
       print('❌ [ClassRepo] loadMyClasses DioException: ${e.message}');
@@ -93,7 +126,7 @@ class ClassRepository implements IClassRepository {
     } catch (e, stackTrace) {
       print('❌ [ClassRepo] loadMyClasses error: $e');
       print('❌ [ClassRepo] Stack trace: $stackTrace');
-      return Left('An unexpected error occurred: $e');
+      return const Left('حدث خطأ غير متوقع');
     }
   }
 
@@ -121,7 +154,7 @@ class ClassRepository implements IClassRepository {
     } on DioException catch (e) {
       return Left(_apiService.handleError(e));
     } catch (e) {
-      return const Left('An unexpected error occurred');
+      return const Left('حدث خطأ غير متوقع');
     }
   }
 
@@ -135,7 +168,7 @@ class ClassRepository implements IClassRepository {
     } on DioException catch (e) {
       return Left(_apiService.handleError(e));
     } catch (e) {
-      return Left('An unexpected error occurred');
+      return Left('حدث خطأ غير متوقع');
     }
   }
 
@@ -152,7 +185,7 @@ class ClassRepository implements IClassRepository {
     } on DioException catch (e) {
       return Left(_apiService.handleError(e));
     } catch (e) {
-      return Left('An unexpected error occurred');
+      return Left('حدث خطأ غير متوقع');
     }
   }
 
@@ -177,7 +210,7 @@ class ClassRepository implements IClassRepository {
     } on DioException catch (e) {
       return Left(_apiService.handleError(e));
     } catch (e) {
-      return Left('An unexpected error occurred');
+      return Left('حدث خطأ غير متوقع');
     }
   }
 
@@ -195,7 +228,7 @@ class ClassRepository implements IClassRepository {
     } on DioException catch (e) {
       return Left(_apiService.handleError(e));
     } catch (e) {
-      return const Left('An unexpected error occurred');
+      return const Left('حدث خطأ غير متوقع');
     }
   }
 
@@ -225,7 +258,7 @@ class ClassRepository implements IClassRepository {
     } on DioException catch (e) {
       return Left(_apiService.handleError(e));
     } catch (e) {
-      return const Left('An unexpected error occurred');
+      return const Left('حدث خطأ غير متوقع');
     }
   }
 }

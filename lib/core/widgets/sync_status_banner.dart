@@ -44,15 +44,8 @@ class SyncStatusBanner extends StatelessWidget {
           text = status.autoSync
               ? '${status.pending} عملية في انتظار الإرسال'
               : '${status.pending} عملية متوقفة بانتظار إرسالك';
-        } else if (status.online == null) {
-          color = AppColors.primaryBlue;
-          icon = Icons.cloud_queue;
-          text = 'جاري التحقق من الاتصال...';
         } else {
-          color = AppColors.success;
-          icon = Icons.cloud_done;
-          final saved = _savedText(status.cachedAt);
-          text = saved == null ? 'متصل' : 'متصل • آخر حفظ $saved';
+          return const SizedBox.shrink();
         }
 
         return Material(

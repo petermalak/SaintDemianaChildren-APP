@@ -16,6 +16,8 @@ class GetAttendanceCubit extends Cubit<GetAttendanceState> {
   String? _lastKhademId;
   String? _lastKhademName;
   String? _lastKhademScope;
+  String? _lastFrom;
+  String? _lastTo;
 
   GetAttendanceCubit(this._attendanceRepository, [this._refreshCubit])
       : super(GetAttendanceInitial()) {
@@ -29,6 +31,8 @@ class GetAttendanceCubit extends Cubit<GetAttendanceState> {
           khademId: _lastKhademId,
           khademName: _lastKhademName,
           khademScope: _lastKhademScope,
+          from: _lastFrom,
+          to: _lastTo,
         );
       }
     });
@@ -39,11 +43,15 @@ class GetAttendanceCubit extends Cubit<GetAttendanceState> {
     String? khademId,
     String? khademName,
     String? khademScope,
+    String? from,
+    String? to,
   }) async {
     _lastClassId = classId;
     _lastKhademId = khademId;
     _lastKhademName = khademName;
     _lastKhademScope = khademScope;
+    _lastFrom = from;
+    _lastTo = to;
     if (isClosed) return;
     emit(GetAttendanceLoading());
     final result = await _attendanceRepository.fetchAttendance(
@@ -51,6 +59,8 @@ class GetAttendanceCubit extends Cubit<GetAttendanceState> {
       khademId: khademId,
       khademName: khademName,
       khademScope: khademScope,
+      from: from,
+      to: to,
     );
     if (isClosed) return;
     result.fold(

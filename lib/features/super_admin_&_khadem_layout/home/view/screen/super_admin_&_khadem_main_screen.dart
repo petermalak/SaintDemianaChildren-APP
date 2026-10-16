@@ -4,12 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:saint_demiana_children/features/authentication/repository/i_authentication_repository.dart';
 import 'package:saint_demiana_children/features/feed/view/screen/feed_screen.dart';
-import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/aftekad/view/screen/aftekad_screen.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/attendance/view/screen/attendance_screen.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/home/view/screen/home_screen.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/view/screen/members_screen.dart';
-import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/scoring/view/screen/khadem_scoring_screen.dart';
-import 'package:saint_demiana_children/features/shop/view/screen/khadem_shop_screen.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/model/class_model.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
 import '../../../../../core/constants/app_colors.dart';
@@ -24,6 +21,7 @@ import '../../../../scoring/viewmodel/config_cubit/config_cubit.dart';
 import '../../../../scoring/viewmodel/score_definition_cubit/score_definition_cubit.dart';
 import '../../../members/view/widget/add_user_dialog.dart';
 import '../../../members/view/widget/attendance_dialog.dart';
+import 'khadem_more_screen.dart';
 
 class KhademMainScreen extends StatefulWidget {
   const KhademMainScreen({super.key});
@@ -77,6 +75,7 @@ class _KhademMainScreenState extends State<KhademMainScreen>
           setState(() {
             _classesForShop = classes;
             _classesForShopLoaded = true;
+            _cachedTabs.remove(3);
           });
         }
       },
@@ -208,13 +207,9 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     }
     return [
       const AppTabItem(icon: Icons.home_rounded, label: 'الرئيسية'),
-      const AppTabItem(icon: Icons.newspaper_rounded, label: 'الأخبار'),
       const AppTabItem(icon: Icons.people_rounded, label: 'الأعضاء'),
       const AppTabItem(icon: Icons.event_note_rounded, label: 'الحضور'),
-      const AppTabItem(icon: Icons.person_search_rounded, label: 'الافتقاد'),
-      const AppTabItem(icon: Icons.emoji_events_rounded, label: 'التايو'),
-      if (_selectedClassHasShop)
-        const AppTabItem(icon: Icons.storefront_rounded, label: 'المتجر'),
+      const AppTabItem(icon: Icons.grid_view_rounded, label: 'المزيد'),
     ];
   }
 
@@ -372,8 +367,6 @@ class _KhademMainScreenState extends State<KhademMainScreen>
             ),
           );
         case 1:
-          return FeedScreen(scrollController: scrollController);
-        case 2:
           return MembersScreen(
             cardAnimation: _cardAnimation,
             scrollController: scrollController,
@@ -383,16 +376,13 @@ class _KhademMainScreenState extends State<KhademMainScreen>
               });
             },
           );
-        case 3:
+        case 2:
           return AttendanceScreen(scrollController: scrollController);
-        case 4:
-          return AftekadScreen(scrollController: scrollController);
-        case 5:
-          return KhademScoringScreen(scrollController: scrollController);
-        case 6:
-          return KhademShopScreen(
+        case 3:
+          return KhademMoreScreen(
+            hasShop: _selectedClassHasShop,
+            shopClassId: _shopClassId ?? _selectedRoleClass?.classId,
             scrollController: scrollController,
-            initialClassId: _shopClassId ?? _selectedRoleClass?.classId,
           );
         default:
           return HomeScreen(
@@ -404,8 +394,8 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   }
 
   Widget _buildEnhancedFAB() {
-    final shouldShowFAB = _selectedTab == 2;
-    final isMemberSelected = _selectedTab == 2 && _selectedMembers.isNotEmpty;
+    final shouldShowFAB = _selectedTab == 1;
+    final isMemberSelected = _selectedTab == 1 && _selectedMembers.isNotEmpty;
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 250),
@@ -452,9 +442,9 @@ class _KhademMainScreenState extends State<KhademMainScreen>
         return AddUserDialog(
           onSuccess: () {
             // Force the members screen to refresh by switching tabs
-            if (_selectedTab == 2) {
+            if (_selectedTab == 1) {
               setState(() {
-                _cachedTabs.remove(2); // Clear cached members screen
+                _cachedTabs.remove(1); // Clear cached members screen
               });
             }
           },

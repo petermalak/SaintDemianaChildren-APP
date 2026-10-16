@@ -14,9 +14,16 @@ class ScannedMemberTile extends StatelessWidget {
   final VoidCallback onRemove;
 
   String? get _phaseSubtitle {
-    final phase = member.popeAthnasiusMeetingData?.classPhase;
-    if (phase == null) return null;
-    return 'المرحلة: $phase';
+    final meeting = member.popeAthnasiusMeetingData;
+    if (meeting == null) return null;
+    const groups = {1: 'الاسر', 2: 'شباب و خريجين', 3: 'اعدادى و ثانوى'};
+    const levels = {1: 'الفرقة الأولى', 2: 'الفرقة الثانية', 3: 'الفرقة الثالثة', 4: 'الفرقة الرابعة'};
+    final parts = <String>[
+      if (groups[meeting.classPhase] != null) 'المرحلة: ${groups[meeting.classPhase]}',
+      if (levels[meeting.studyLevel] != null) 'الفرقة: ${levels[meeting.studyLevel]}',
+    ];
+    if (parts.isEmpty) return null;
+    return parts.join(' · ');
   }
 
   @override

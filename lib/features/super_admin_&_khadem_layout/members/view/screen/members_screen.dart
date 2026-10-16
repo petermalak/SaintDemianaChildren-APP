@@ -45,6 +45,21 @@ class _MembersScreenState extends State<MembersScreen>
   UserModel? _currentUser;
   String? _selectedClassId;
   bool _isLoadingClasses = false;
+
+  bool get _isSelectedTheaterClass {
+    if (_selectedClassId == null) return false;
+    for (final classModel in _availableClasses) {
+      if (classModel.id == _selectedClassId) {
+        return classModel.name.contains('المسرح');
+      }
+    }
+    return false;
+  }
+
+  bool _showTheaterDetailsFor(UserModel member) {
+    if (_selectedClassId == null) return member.isInTheaterClass;
+    return _isSelectedTheaterClass;
+  }
   List<ClassModel> _availableClasses = const [];
 
   @override
@@ -217,9 +232,10 @@ class _MembersScreenState extends State<MembersScreen>
                                   controller: widget.scrollController,
                                   cacheExtent: 400,
                                   gridDelegate:
-                                      const SliverGridDelegateWithMaxCrossAxisExtent(
+                                      SliverGridDelegateWithMaxCrossAxisExtent(
                                     maxCrossAxisExtent: 200,
-                                    mainAxisExtent: 176,
+                                    mainAxisExtent:
+                                        _isSelectedTheaterClass ? 200 : 176,
                                     mainAxisSpacing: 12,
                                     crossAxisSpacing: 12,
                                   ),
@@ -234,6 +250,8 @@ class _MembersScreenState extends State<MembersScreen>
                                           selectedList: _selectedMembers,
                                           user: user,
                                           isCompact: true,
+                                          showTheaterDetails:
+                                              _showTheaterDetailsFor(user),
                                           onUpdate: () => set(() {}),
                                           cardAnimation: widget.cardAnimation,
                                           onSelectionChanged: (isSelected) =>
@@ -262,6 +280,8 @@ class _MembersScreenState extends State<MembersScreen>
                                           user: user,
                                           isCompact: true,
                                           isListView: true,
+                                          showTheaterDetails:
+                                              _showTheaterDetailsFor(user),
                                           onUpdate: () => set(() {}),
                                           cardAnimation: widget.cardAnimation,
                                           onSelectionChanged: (isSelected) =>

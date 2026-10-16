@@ -88,6 +88,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         _buildProfileImageSection(),
                         const SizedBox(height: AppSpacing.xl),
                         _buildProfileFieldsSection(),
+                        if (user.isInTheaterClass && user.theaterProfile != null) ...[
+                          const SizedBox(height: AppSpacing.xl),
+                          _buildTheaterSection(),
+                        ],
                         const SizedBox(height: AppSpacing.xl),
                         _buildSecuritySection(),
                         const SizedBox(height: AppSpacing.xl),
@@ -325,6 +329,84 @@ class _ProfileScreenState extends State<ProfileScreen> {
             isEditable: false,
             isRequired: false,
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTheaterSection() {
+    final profile = user.theaterProfile!;
+    final participated = profile.participatedBefore == null
+        ? null
+        : (profile.participatedBefore! ? 'نعم' : 'لا');
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'خدمة المسرح',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          ProfileField(
+            label: 'القسم',
+            value: profile.departmentLabel,
+            isEditable: false,
+            isRequired: false,
+          ),
+          if (profile.stage != null && profile.stage!.isNotEmpty)
+            ProfileField(
+              label: 'المرحلة',
+              value: profile.stage!,
+              isEditable: false,
+              isRequired: false,
+            ),
+          if (profile.priority1 != null && profile.priority1!.isNotEmpty)
+            ProfileField(
+              label: 'الأولوية الأولى',
+              value: profile.priority1!,
+              isEditable: false,
+              isRequired: false,
+            ),
+          if (profile.priority2 != null && profile.priority2!.isNotEmpty)
+            ProfileField(
+              label: 'الأولوية التانية',
+              value: profile.priority2!,
+              isEditable: false,
+              isRequired: false,
+            ),
+          if (participated != null)
+            ProfileField(
+              label: 'اشترك في مسرحيات قبل كده',
+              value: participated,
+              isEditable: false,
+              isRequired: false,
+            ),
+          if (profile.previousResponsibility != null &&
+              profile.previousResponsibility!.isNotEmpty)
+            ProfileField(
+              label: 'المسؤولية السابقة',
+              value: profile.previousResponsibility!,
+              isEditable: false,
+              isRequired: false,
+            ),
         ],
       ),
     );

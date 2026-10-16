@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/home/model/stats_model.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/home/viewmodel/stats_cubit.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/view/widget/add_user_dialog.dart';
@@ -182,7 +183,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 return const SizedBox.shrink();
               })),
           const SizedBox(height: 24),
-          _buildQuickActions(context)
+          _buildQuickActions(context),
+          const SizedBox(height: 16),
+          _buildPopeSection(context),
         ]));
   }
 
@@ -385,7 +388,7 @@ class _HomeScreenState extends State<HomeScreen> {
             try {
               context
                   .read<void Function(int)>()
-                  .call(3); // Tab 3 is AttendanceScreen
+                  .call(2); // Tab 2 is AttendanceScreen
             } catch (e) {
               print('❌ Error switching tab: $e'); // Debug
             }
@@ -393,6 +396,49 @@ class _HomeScreenState extends State<HomeScreen> {
         ))
       ])
     ]);
+  }
+
+  Widget _buildPopeSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'البابا أثناسيوس',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+        ),
+        const SizedBox(height: 12),
+        _popeLink(context, Icons.menu_book, 'منهج الدراسة', '/pope-agenda'),
+        _popeLink(context, Icons.qr_code_2, 'حضور الفرقة الثانية', '/pope-level-two'),
+        _popeLink(context, Icons.fact_check, 'سجل الفرقة الأولى', '/pope-level-one-marks'),
+      ],
+    );
+  }
+
+  Widget _popeLink(BuildContext context, IconData icon, String title, String path) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => context.push(path),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Icon(icon, color: AppColors.primaryMaroon),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                ),
+                Icon(Icons.chevron_left, color: AppColors.textSecondary),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildQuickActionCard(

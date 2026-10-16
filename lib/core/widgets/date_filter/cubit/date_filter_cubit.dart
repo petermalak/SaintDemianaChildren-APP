@@ -7,12 +7,13 @@ class DateFilterCubit extends Cubit<DateFilterState> {
   DateFilterCubit() : super(DateFilterState.initial());
 
   /// Initialize with available dates
-  void initializeDates(List<DateTime> dates) {
+  void initializeDates(List<DateTime> dates, {bool selectAll = false}) {
     final sorted = dates.toList()..sort((a, b) => b.compareTo(a));
     final mostRecentYear = sorted.isNotEmpty ? sorted.first.year : null;
 
-    // Select 4 most recent dates by default
-    final defaultSelection = sorted.take(4).map((d) => _dateToIso(d)).toSet();
+    final defaultSelection = (selectAll ? sorted : sorted.take(4))
+        .map((d) => _dateToIso(d))
+        .toSet();
 
     emit(DateFilterState(
       availableDates: sorted,

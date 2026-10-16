@@ -19,15 +19,16 @@ class MembersRepository implements IMembersRepository {
   }
 
   @override
-  Future<Either<String, List<UserModel>>> fetchClassMembers(
-      String classId) async {
+  Future<Either<String, List<UserModel>>> fetchClassMembers(String classId,
+      {bool summary = false}) async {
     try {
       final response = await _apiService.get(
         path: ApiEndpoints.classMembers(classId),
+        queryParameters: summary ? {'summary': '1'} : null,
       );
       final data =
           response.data is Map ? response.data as Map<String, dynamic> : null;
-      if (data == null) return left('Invalid response');
+      if (data == null) return left('استجابة غير صالحة');
       final makhdoum = data['makhdoum'] as List<dynamic>? ?? [];
       final khadem = data['khadem'] as List<dynamic>? ?? [];
       final list = [...makhdoum, ...khadem];
@@ -40,7 +41,7 @@ class MembersRepository implements IMembersRepository {
     } on DioException catch (e) {
       return left(_apiService.handleError(e));
     } catch (e) {
-      return left(e.toString());
+      return left('تعذر تحميل الأعضاء');
     }
   }
 
@@ -50,22 +51,27 @@ class MembersRepository implements IMembersRepository {
   /// they share one request instead of both hitting the server.
   @override
   Future<Either<String, List<UserModel>>> fetchMembers(bool isSuperAdmin,
-      {String? classId}) {
-    if (classId != null) return _fetchMembers(isSuperAdmin, classId: classId);
+      {String? classId, bool summary = false}) {
+    if (classId != null) {
+      return _fetchMembers(isSuperAdmin, classId: classId, summary: summary);
+    }
     final existing = _inFlightFetch;
     if (existing != null) return existing;
-    final future = _fetchMembers(isSuperAdmin);
+    final future = _fetchMembers(isSuperAdmin, summary: summary);
     _inFlightFetch = future;
     return future.whenComplete(() => _inFlightFetch = null);
   }
 
   Future<Either<String, List<UserModel>>> _fetchMembers(bool isSuperAdmin,
-      {String? classId}) async {
+      {String? classId, bool summary = false}) async {
     try {
-      final queryParams = classId != null ? {'classId': classId} : null;
+      final queryParams = <String, dynamic>{
+        if (classId != null) 'classId': classId,
+        if (summary) 'summary': '1',
+      };
       final response = await _apiService.get(
         path: isSuperAdmin ? ApiEndpoints.users : ApiEndpoints.members,
-        queryParameters: queryParams,
+        queryParameters: queryParams.isEmpty ? null : queryParams,
       );
       // Backend returns { success: true, data: [...] } for GET /users/
       final rawList = response.data is Map && response.data['data'] != null
@@ -107,7 +113,22 @@ class MembersRepository implements IMembersRepository {
       return left(_apiService.handleError(e));
     } catch (e) {
       print(e.toString());
-      return left(e.toString());
+      return left('حدث خطأ غير متوقع');
+    }
+  }
+
+  @override
+  Future<Either<String, UserModel>> fetchMember(String userId) async {
+    try {
+      final response = await _apiService.get(path: '${ApiEndpoints.users}$userId');
+      final raw = response.data;
+      if (raw is! Map) return left('استجابة غير صالحة');
+      final json = raw['data'] is Map ? raw['data'] as Map : raw;
+      return right(UserModel.fromJson(Map<String, dynamic>.from(json)));
+    } on DioException catch (e) {
+      return left(_apiService.handleError(e));
+    } catch (e) {
+      return left('تعذر فتح بيانات العضو');
     }
   }
 
@@ -125,7 +146,7 @@ class MembersRepository implements IMembersRepository {
     } on DioException catch (e) {
       return left(_apiService.handleError(e));
     } catch (e) {
-      return left("An unexpected error occurred");
+      return left('حدث خطأ غير متوقع');
     }
   }
 
@@ -141,7 +162,7 @@ class MembersRepository implements IMembersRepository {
     } on DioException catch (e) {
       return left(_apiService.handleError(e));
     } catch (e) {
-      return left("An unexpected error occurred");
+      return left('حدث خطأ غير متوقع');
     }
   }
 

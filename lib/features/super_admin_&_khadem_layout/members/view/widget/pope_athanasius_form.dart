@@ -36,6 +36,7 @@ class PopeAthanasiusFormData {
   String? needToKnow;
   bool? wantExam;
   int? classPhase;
+  int? studyLevel;
 
   Map<String, dynamic> toAdditionalData() {
     return {
@@ -287,6 +288,8 @@ class _PopeAthanasiusFormState extends State<PopeAthanasiusForm> {
                 const SizedBox(height: 12),
                 _buildClassPhaseSelector(typographyScale, textTheme),
                 const SizedBox(height: 12),
+                _buildStudyLevelSelector(typographyScale, textTheme),
+                const SizedBox(height: 12),
                 _buildWantExamCheckbox(typographyScale, textTheme),
               ],
             ),
@@ -389,19 +392,51 @@ class _PopeAthanasiusFormState extends State<PopeAthanasiusForm> {
       child: DropdownButtonFormField<int?>(
         value: _formData.classPhase,
         decoration: const InputDecoration(
-          labelText: 'مرحلة الفصل',
+          labelText: 'المرحلة',
           border: InputBorder.none,
-          icon: Icon(Icons.class_, color: AppColors.primaryMaroon),
+          icon: Icon(Icons.groups, color: AppColors.primaryMaroon),
         ),
-        items: [
-          const DropdownMenuItem<int?>(value: null, child: Text('لا شيء')),
-          const DropdownMenuItem<int?>(value: 1, child: Text('المرحلة 1')),
-          const DropdownMenuItem<int?>(value: 2, child: Text('المرحلة 2')),
-          const DropdownMenuItem<int?>(value: 3, child: Text('المرحلة 3')),
+        items: const [
+          DropdownMenuItem<int?>(value: null, child: Text('لا شيء')),
+          DropdownMenuItem<int?>(value: 1, child: Text('الاسر')),
+          DropdownMenuItem<int?>(value: 2, child: Text('شباب و خريجين')),
+          DropdownMenuItem<int?>(value: 3, child: Text('اعدادى و ثانوى')),
         ],
         onChanged: (value) {
           setState(() {
             _formData.classPhase = value;
+          });
+          widget.onDataChanged(_formData);
+        },
+      ),
+    );
+  }
+
+  Widget _buildStudyLevelSelector(
+      DialogTypographyScale typography, TextTheme textTheme) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.borderLight),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: DropdownButtonFormField<int?>(
+        value: _formData.studyLevel,
+        decoration: const InputDecoration(
+          labelText: 'الفرقة',
+          border: InputBorder.none,
+          icon: Icon(Icons.class_, color: AppColors.primaryMaroon),
+        ),
+        items: const [
+          DropdownMenuItem<int?>(value: null, child: Text('لا شيء')),
+          DropdownMenuItem<int?>(value: 1, child: Text('الفرقة الأولى')),
+          DropdownMenuItem<int?>(value: 2, child: Text('الفرقة الثانية')),
+          DropdownMenuItem<int?>(value: 3, child: Text('الفرقة الثالثة')),
+          DropdownMenuItem<int?>(value: 4, child: Text('الفرقة الرابعة')),
+        ],
+        onChanged: (value) {
+          setState(() {
+            _formData.studyLevel = value;
           });
           widget.onDataChanged(_formData);
         },

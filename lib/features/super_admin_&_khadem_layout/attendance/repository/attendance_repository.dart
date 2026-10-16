@@ -16,6 +16,8 @@ class AttendanceRepository implements IAttendanceRepository {
     String? khademId,
     String? khademName,
     String? khademScope,
+    String? from,
+    String? to,
   }) async {
     try {
       final queryParameters = <String, dynamic>{};
@@ -31,24 +33,19 @@ class AttendanceRepository implements IAttendanceRepository {
       if (khademScope != null && khademScope.isNotEmpty) {
         queryParameters['khademScope'] = khademScope;
       }
+      if (from != null && from.isNotEmpty) queryParameters['from'] = from;
+      if (to != null && to.isNotEmpty) queryParameters['to'] = to;
 
-      // Fetch all attendance records (removed type filter)
       final response = await _apiService.get(
         path: ApiEndpoints.attendance,
         queryParameters: queryParameters.isEmpty ? null : queryParameters,
       );
 
-      print(
-          'Attendance count: ${(response.data is List) ? response.data.length : "unknown"}');
-
       return right(AttendanceModel.fromJson(response.data));
     } on DioException catch (e) {
-      print('DioException in fetchAttendance: ${e.message}');
-      print('Response data: ${e.response?.data}');
       return left(_apiService.handleError(e));
     } catch (e) {
-      print('Unexpected error in fetchAttendance: $e');
-      return left("An unexpected error occurred: $e");
+      return left('تعذر تحميل الحضور');
     }
   }
 

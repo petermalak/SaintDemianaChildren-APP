@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/widgets/app_shell.dart';
 import '../../../../authentication/model/user_model.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
+import '../../../../pope_athanasius/view/widget/meeting_profile_section.dart';
 import '../../../attendance/repository/i_attendance_repository.dart';
 import '../../../attendance/viewmodel/attendance_cubit.dart';
 
@@ -26,6 +28,17 @@ class HomeScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildWelcomeSection(user),
+            if (user.isPopeAthnasius == true) ...[
+              const SizedBox(height: 20),
+              _buildAgendaCard(context),
+              if (user.popeAthnasiusMeetingData != null) ...[
+                const SizedBox(height: 12),
+                MeetingProfileSection(
+                  meeting: user.popeAthnasiusMeetingData!,
+                  viewOnly: true,
+                ),
+              ],
+            ],
             const SizedBox(height: 20),
             _buildProfileSection(user),
             const SizedBox(height: 20),
@@ -92,6 +105,51 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAgendaCard(BuildContext context) {
+    final meeting = sl<IProfileRepository>().user?.popeAthnasiusMeetingData;
+    final levelLabel = switch (meeting?.studyLevel) {
+      1 => 'الفرقة الأولى',
+      2 => 'الفرقة الثانية',
+      3 => 'الفرقة الثالثة',
+      4 => 'الفرقة الرابعة',
+      _ => 'فرقتك',
+    };
+    final groupLabel = switch (meeting?.classPhase) {
+      1 => 'الاسر',
+      2 => 'شباب و خريجين',
+      3 => 'اعدادى و ثانوى',
+      _ => null,
+    };
+    final phaseLabel = groupLabel == null ? levelLabel : '$levelLabel · $groupLabel';
+    return Material(
+      color: AppColors.backgroundCard,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => context.push('/pope-my-course'),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              const Icon(Icons.menu_book, color: AppColors.primaryMaroon),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('المادة الحالية', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text('عرض فقط · $phaseLabel', style: TextStyle(color: AppColors.textSecondary)),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_left, color: AppColors.textSecondary),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -234,12 +292,26 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              const Text(
-                'إحصائيات الحضور',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.textPrimary,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      sl<IProfileRepository>().user?.isPopeAthnasius == true
+                          ? 'حضوري'
+                          : 'إحصائيات الحضور',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    if (sl<IProfileRepository>().user?.isPopeAthnasius == true)
+                      Text(
+                        'عرض فقط',
+                        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                      ),
+                  ],
                 ),
               ),
             ],
@@ -258,6 +330,7 @@ class HomeScreen extends StatelessWidget {
                 );
               } else if (state is AttendanceSuccess) {
                 final records = state.attendanceModel.attendanceRecords ?? [];
+                final levelTwo = sl<IProfileRepository>().user?.popeAthnasiusMeetingData?.studyLevel == 2;
                 final massCount = records.where((r) => r.type == 'mass').length;
                 final specialMeetingCount =
                     records.where((r) => r.type == 'specialMeeting').length;
@@ -282,7 +355,7 @@ class HomeScreen extends StatelessWidget {
                         Expanded(
                           child: _buildStatCard(
                             Icons.star,
-                            'اجتماع خاص',
+                            levelTwo ? 'عقيدة' : 'اجتماع خاص',
                             specialMeetingCount.toString(),
                             AppColors.accentGold,
                           ),
@@ -295,7 +368,7 @@ class HomeScreen extends StatelessWidget {
                         Expanded(
                           child: _buildStatCard(
                             Icons.people,
-                            'اجتماع عام',
+                            levelTwo ? 'كتاب المقدس' : 'اجتماع عام',
                             generalMeetingCount.toString(),
                             AppColors.primaryBlue,
                           ),

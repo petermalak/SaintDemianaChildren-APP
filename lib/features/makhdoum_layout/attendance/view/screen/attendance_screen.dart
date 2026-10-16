@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:saint_demiana_children/features/makhdoum_layout/attendance/viewmodel/attendance_cubit.dart';
 import '../../../../../core/constants/app_colors.dart';
@@ -26,6 +27,8 @@ class AttendanceScreen extends StatefulWidget {
 class _AttendanceScreenState extends State<AttendanceScreen> {
   List<UserClassInfo> _makhdoumClasses = const [];
   String? _selectedClassId;
+  DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
+  String? _typeFilter;
 
   @override
   void initState() {
@@ -136,15 +139,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             );
           } else if (state is AttendanceSuccess) {
             final records = state.attendanceModel.attendanceRecords ?? [];
+            final visible = records.where(_matchesFilters).toList();
 
             return Column(
               children: [
-                // Class selector
                 if (hasMultipleClasses)
                   _buildClassSelector(context),
-                
+                if (sl<IProfileRepository>().user?.isPopeAthnasius == true)
+                  _buildCurrentCourseLink(context),
+                _buildMonthBar(),
+                _buildTypeFilters(),
                 Expanded(
-                  child: records.isEmpty
+                  child: visible.isEmpty
                       ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -156,18 +162,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                               ),
                               const SizedBox(height: 16),
                               const Text(
-                                'لا توجد سجلات حضور',
+                                'لا يوجد حضور في هذا الشهر',
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
                                   color: AppColors.textPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'سيتم عرض سجلات الحضور الخاصة بك هنا',
-                                style: TextStyle(
-                                  color: AppColors.textSecondary,
                                 ),
                               ),
                             ],
@@ -183,9 +182,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           child: ListView.builder(
                             controller: widget.scrollController,
                             padding: const EdgeInsets.all(16),
-                            itemCount: records.length,
+                            itemCount: visible.length,
                             itemBuilder: (context, index) {
-                              return _buildAttendanceCard(records[index]);
+                              return _buildAttendanceCard(visible[index]);
                             },
                           ),
                         ),
@@ -196,6 +195,110 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
           return const SizedBox.shrink();
         },
+      ),
+    );
+  }
+
+  bool _matchesFilters(AttendanceRecord record) {
+    final parsed = DateTime.tryParse(record.date ?? '');
+    if (parsed == null || parsed.year != _month.year || parsed.month != _month.month) {
+      return false;
+    }
+    if (_typeFilter != null && record.type != _typeFilter) return false;
+    return true;
+  }
+
+  Widget _buildMonthBar() {
+    final label = DateFormat('MMMM yyyy', 'ar').format(_month);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => setState(() {
+              _month = DateTime(_month.year, _month.month - 1);
+            }),
+            icon: const Icon(Icons.chevron_right),
+          ),
+          Expanded(
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          IconButton(
+            onPressed: () => setState(() {
+              _month = DateTime(_month.year, _month.month + 1);
+            }),
+            icon: const Icon(Icons.chevron_left),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTypeFilters() {
+    final levelTwo = sl<IProfileRepository>().user?.popeAthnasiusMeetingData?.studyLevel == 2;
+    final types = <String?, String>{
+      null: 'الكل',
+      'mass': 'قداس',
+      'generalMeeting': levelTwo ? 'كتاب المقدس' : 'اجتماع عام',
+      'specialMeeting': levelTwo ? 'عقيدة' : 'اجتماع خاص',
+      'praise': 'تسبحة',
+    };
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: types.entries.map((entry) {
+          final selected = _typeFilter == entry.key;
+          return Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: ChoiceChip(
+              label: Text(entry.value),
+              selected: selected,
+              selectedColor: AppColors.primaryMaroon,
+              labelStyle: TextStyle(
+                color: selected ? AppColors.accentWhite : AppColors.textPrimary,
+              ),
+              onSelected: (_) => setState(() => _typeFilter = entry.key),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildCurrentCourseLink(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Material(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => context.push('/pope-my-course'),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Icon(Icons.menu_book, color: AppColors.primaryMaroon),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('المادة الحالية', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text('عرض فقط', style: TextStyle(color: AppColors.textSecondary)),
+                    ],
+                  ),
+                ),
+                Icon(Icons.chevron_left, color: AppColors.textSecondary),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -249,6 +352,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     String typeText;
     Color typeColor;
 
+    final levelTwo = sl<IProfileRepository>().user?.popeAthnasiusMeetingData?.studyLevel == 2;
     switch (record.type) {
       case 'mass':
         icon = Icons.church;
@@ -257,12 +361,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         break;
       case 'specialMeeting':
         icon = Icons.star;
-        typeText = 'اجتماع خاص';
+        typeText = levelTwo ? 'عقيدة' : 'اجتماع خاص';
         typeColor = AppColors.accentGold;
         break;
       case 'generalMeeting':
         icon = Icons.people;
-        typeText = 'اجتماع عام';
+        typeText = levelTwo ? 'كتاب المقدس' : 'اجتماع عام';
         typeColor = AppColors.primaryBlue;
         break;
       case 'praise':

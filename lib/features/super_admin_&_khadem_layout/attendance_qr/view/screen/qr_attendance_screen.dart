@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../../../core/constants/app_colors.dart';
@@ -46,10 +47,10 @@ class _QrAttendanceBodyState extends State<_QrAttendanceBody> {
   DateTime _lastBarcodeAt = DateTime.fromMillisecondsSinceEpoch(0);
 
   static const List<List<String>> _eventOptions = [
-    ['praise', 'تسبحة'],
+    ['generalMeeting', 'كتاب المقدس'],
+    ['specialMeeting', 'عقيدة'],
     ['mass', 'قداس'],
-    ['generalMeeting', 'اجتماع عام'],
-    ['specialMeeting', 'اجتماع خاص'],
+    ['praise', 'تسبحة'],
   ];
 
   @override
@@ -169,6 +170,19 @@ class _QrAttendanceBodyState extends State<_QrAttendanceBody> {
             title: const Text('تسجيل حضور بالـ QR'),
             backgroundColor: AppColors.primaryMaroon,
             foregroundColor: AppColors.accentWhite,
+            actions: [
+              IconButton(
+                tooltip: 'سجل اليوم',
+                onPressed: () {
+                  final current = context.read<QrAttendanceCubit>().state;
+                  final date = current is QrAttendanceReady ? current.selectedDate : DateTime.now();
+                  final month = date.month.toString().padLeft(2, '0');
+                  final day = date.day.toString().padLeft(2, '0');
+                  context.push('/pope-level-two?date=${date.year}-$month-$day');
+                },
+                icon: const Icon(Icons.fact_check_outlined),
+              ),
+            ],
           ),
           body: switch (state) {
             QrAttendanceLoadingRoster() => const Center(

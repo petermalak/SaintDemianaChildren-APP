@@ -314,9 +314,13 @@ class _AddUserDialogState extends State<AddUserDialog> {
                                     // Store classPhase in a temporary field that will be extracted in toJson
                                     if (_popeAthanasiusData!.classPhase !=
                                         null) {
-                                      // Add classPhase to additionalData temporarily - backend will extract it
                                       additionalData['classPhase'] =
                                           _popeAthanasiusData!.classPhase;
+                                    }
+                                    if (_popeAthanasiusData!.studyLevel !=
+                                        null) {
+                                      additionalData['studyLevel'] =
+                                          _popeAthanasiusData!.studyLevel;
                                     }
                                   }
 
