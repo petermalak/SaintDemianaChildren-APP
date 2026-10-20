@@ -126,10 +126,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       (error) async {
         print('⚠️ [AttendanceScreen] Failed to load classes: $error');
         if (!mounted) return;
-        setState(() {
-          _availableClasses = const [];
-          _khademOptions = const [];
-        });
+        // Keep any classes already on screen so QR FAB / filters still work offline.
+        if (_availableClasses.isEmpty) {
+          setState(() {
+            _availableClasses = const [];
+            _khademOptions = const [];
+          });
+        }
       },
       (classes) async {
         if (!mounted) return;
@@ -779,7 +782,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final attendanceMatrix = _buildAttendanceMatrix(records);
 
       return SliverFillRemaining(
-        hasScrollBody: false,
+        hasScrollBody: true,
         child: Card(
           elevation: 0,
           margin: EdgeInsets.zero,
@@ -909,7 +912,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   bool get _showQrAttendanceFab {
-    return _currentUser?.role == UserRole.khadem &&
+    final role = _currentUser?.role;
+    final isStaff = role == UserRole.khadem || role == UserRole.superAdmin;
+    return isStaff &&
         _popeAthanasiusClassId != null &&
         _popeAthanasiusClassId!.isNotEmpty;
   }

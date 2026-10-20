@@ -46,8 +46,14 @@ class ClassRepository implements IClassRepository {
       _classesAt = DateTime.now();
       return Right(_classes);
     } on DioException catch (e) {
+      if (_classes.isNotEmpty) {
+        return Right(List<ClassModel>.from(_classes));
+      }
       return Left(_apiService.handleError(e));
     } catch (e) {
+      if (_classes.isNotEmpty) {
+        return Right(List<ClassModel>.from(_classes));
+      }
       return const Left('حدث خطأ غير متوقع');
     }
   }
@@ -122,10 +128,16 @@ class ClassRepository implements IClassRepository {
     } on DioException catch (e) {
       print('❌ [ClassRepo] loadMyClasses DioException: ${e.message}');
       print('❌ [ClassRepo] Response: ${e.response?.data}');
+      if (_myClasses.isNotEmpty) {
+        return Right(List<ClassModel>.from(_myClasses));
+      }
       return Left(_apiService.handleError(e));
     } catch (e, stackTrace) {
       print('❌ [ClassRepo] loadMyClasses error: $e');
       print('❌ [ClassRepo] Stack trace: $stackTrace');
+      if (_myClasses.isNotEmpty) {
+        return Right(List<ClassModel>.from(_myClasses));
+      }
       return const Left('حدث خطأ غير متوقع');
     }
   }

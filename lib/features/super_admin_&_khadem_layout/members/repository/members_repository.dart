@@ -11,11 +11,31 @@ class MembersRepository implements IMembersRepository {
   final IApiService _apiService;
   @override
   List<UserModel> members = [];
+
+  /// Last successful class roster per class (keeps QR/attendance usable offline).
+  final Map<String, List<UserModel>> _classRosterById = {};
+
   MembersRepository(this._apiService);
 
   @override
   void setMembers(List<UserModel> newMembers) {
     members = newMembers;
+  }
+
+  bool _memberInClass(UserModel m, String classId) {
+    if (m.classId == classId) return true;
+    if (m.classes.any((c) => c.classId == classId)) return true;
+    if (m.classIds?.contains(classId) == true) return true;
+    return false;
+  }
+
+  List<UserModel> _offlineClassRoster(String classId) {
+    final cached = _classRosterById[classId];
+    if (cached != null && cached.isNotEmpty) {
+      return List<UserModel>.from(cached);
+    }
+    if (members.isEmpty) return const [];
+    return members.where((m) => _memberInClass(m, classId)).toList();
   }
 
   @override
@@ -28,19 +48,28 @@ class MembersRepository implements IMembersRepository {
       );
       final data =
           response.data is Map ? response.data as Map<String, dynamic> : null;
-      if (data == null) return left('استجابة غير صالحة');
+      if (data == null) {
+        final fallback = _offlineClassRoster(classId);
+        if (fallback.isNotEmpty) return right(fallback);
+        return left('استجابة غير صالحة');
+      }
       final makhdoum = data['makhdoum'] as List<dynamic>? ?? [];
       final khadem = data['khadem'] as List<dynamic>? ?? [];
       final list = [...makhdoum, ...khadem];
-      final members = list
+      final loaded = list
           .map((e) => UserModel.fromJson(e is Map<String, dynamic>
               ? e
               : Map<String, dynamic>.from(e as Map)))
           .toList();
-      return right(members);
+      _classRosterById[classId] = loaded;
+      return right(loaded);
     } on DioException catch (e) {
+      final fallback = _offlineClassRoster(classId);
+      if (fallback.isNotEmpty) return right(fallback);
       return left(_apiService.handleError(e));
     } catch (e) {
+      final fallback = _offlineClassRoster(classId);
+      if (fallback.isNotEmpty) return right(fallback);
       return left('تعذر تحميل الأعضاء');
     }
   }
@@ -86,33 +115,20 @@ class MembersRepository implements IMembersRepository {
           .toList();
       if (classId == null) this.members = members;
       return right(members);
-      // return right([
-      //   UserModel(
-      //       id: "1",
-      //       name: "John Doe",
-      //       email: "",
-      //       role: UserRole.makhdoum,
-      //       phoneNumber: '',
-      //       createdAt: DateTime.now()),
-      //   UserModel(
-      //       id: "2",
-      //       name: "Jane Smith",
-      //       email: "",
-      //       role: UserRole.makhdoum,
-      //       phoneNumber: '',
-      //       createdAt: DateTime.now()),
-      //   UserModel(
-      //       id: "3",
-      //       name: "Alice Johnson",
-      //       email: "",
-      //       role: UserRole.makhdoum,
-      //       phoneNumber: '',
-      //       createdAt: DateTime.now()),
-      // ]);
     } on DioException catch (e) {
+      if (classId == null && this.members.isNotEmpty) {
+        return right(List<UserModel>.from(this.members));
+      }
+      if (classId != null) {
+        final fallback = _offlineClassRoster(classId);
+        if (fallback.isNotEmpty) return right(fallback);
+      }
       return left(_apiService.handleError(e));
     } catch (e) {
       print(e.toString());
+      if (classId == null && this.members.isNotEmpty) {
+        return right(List<UserModel>.from(this.members));
+      }
       return left('حدث خطأ غير متوقع');
     }
   }

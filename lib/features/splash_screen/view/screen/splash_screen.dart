@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/attendance_qr/constants.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/repository/i_members_repository.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/di/service_locator.dart';
@@ -143,12 +145,44 @@ class _SplashScreenState extends State<SplashScreen>
   /// loads in the background, and each screen shows its own loading state.
   void _openKhademLayout(UserRole? role) {
     context.go('/khadem');
-    sl<IMembersRepository>()
-        .fetchMembers(role == UserRole.superAdmin)
-        .then((result) => result.fold(
-              (error) => debugPrint('⚠️ [SplashScreen] Members preload: $error'),
-              (_) => sl<DataRefreshCubit>().refreshMembers(),
-            ));
+    final isSuperAdmin = role == UserRole.superAdmin;
+    sl<IMembersRepository>().fetchMembers(isSuperAdmin).then((result) =>
+        result.fold(
+          (error) => debugPrint('⚠️ [SplashScreen] Members preload: $error'),
+          (_) => sl<DataRefreshCubit>().refreshMembers(),
+        ));
+    // Warm classes + Pope roster so attendance / QR work offline later.
+    _preloadOfflineAttendanceData(isSuperAdmin);
+  }
+
+  void _preloadOfflineAttendanceData(bool isSuperAdmin) {
+    final classRepo = sl<IClassRepository>();
+    final load =
+        isSuperAdmin ? classRepo.loadClasses() : classRepo.loadMyClasses();
+    load.then((result) {
+      result.fold(
+        (error) => debugPrint('⚠️ [SplashScreen] Classes preload: $error'),
+        (classes) {
+          String? popeId;
+          try {
+            popeId =
+                classes.firstWhere((c) => isPopeAthanasiusClassName(c.name)).id;
+          } catch (_) {
+            popeId = classes.any((c) => c.id == kLegacyPopeAthanasiusClassId)
+                ? kLegacyPopeAthanasiusClassId
+                : null;
+          }
+          if (popeId == null || popeId.isEmpty) return;
+          sl<IMembersRepository>()
+              .fetchClassMembers(popeId, summary: true)
+              .then((r) => r.fold(
+                    (e) =>
+                        debugPrint('⚠️ [SplashScreen] Pope roster preload: $e'),
+                    (_) => debugPrint('✅ [SplashScreen] Pope roster cached'),
+                  ));
+        },
+      );
+    });
   }
 
   @override

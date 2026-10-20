@@ -30,9 +30,12 @@ final class QrAttendanceReady extends QrAttendanceState {
     required this.scannedMembers,
     this.selectedEvent,
     required this.selectedDate,
-    this.shouldAddScore = true,
+    this.shouldAddScore = false,
     this.isSubmitting = false,
     this.feedback,
+    this.feedbackIsError = true,
+    this.lastSuccessName,
+    this.successTick = 0,
   });
 
   /// All class members keyed by user id (makhdoum + khadem from API).
@@ -49,6 +52,15 @@ final class QrAttendanceReady extends QrAttendanceState {
   /// One-shot message for SnackBar (duplicate, not in roster, etc.).
   final String? feedback;
 
+  /// When false, [feedback] is a success/info tone.
+  final bool feedbackIsError;
+
+  /// Name of the last successful scan (for overlay).
+  final String? lastSuccessName;
+
+  /// Bumps on each successful scan so UI can animate even for same name.
+  final int successTick;
+
   QrAttendanceReady copyWith({
     Map<String, UserModel>? rosterById,
     List<UserModel>? scannedMembers,
@@ -59,6 +71,10 @@ final class QrAttendanceReady extends QrAttendanceState {
     bool? isSubmitting,
     String? feedback,
     bool clearFeedback = false,
+    bool? feedbackIsError,
+    String? lastSuccessName,
+    bool clearLastSuccessName = false,
+    int? successTick,
   }) {
     return QrAttendanceReady(
       rosterById: rosterById ?? this.rosterById,
@@ -69,6 +85,11 @@ final class QrAttendanceReady extends QrAttendanceState {
       shouldAddScore: shouldAddScore ?? this.shouldAddScore,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       feedback: clearFeedback ? null : (feedback ?? this.feedback),
+      feedbackIsError: feedbackIsError ?? this.feedbackIsError,
+      lastSuccessName: clearLastSuccessName
+          ? null
+          : (lastSuccessName ?? this.lastSuccessName),
+      successTick: successTick ?? this.successTick,
     );
   }
 
@@ -81,6 +102,9 @@ final class QrAttendanceReady extends QrAttendanceState {
         shouldAddScore,
         isSubmitting,
         feedback,
+        feedbackIsError,
+        lastSuccessName,
+        successTick,
       ];
 }
 

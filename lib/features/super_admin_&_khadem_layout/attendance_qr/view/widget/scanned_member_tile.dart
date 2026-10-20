@@ -8,22 +8,18 @@ class ScannedMemberTile extends StatelessWidget {
     super.key,
     required this.member,
     required this.onRemove,
+    this.index,
   });
 
   final UserModel member;
   final VoidCallback onRemove;
+  final int? index;
 
-  String? get _phaseSubtitle {
+  String get _groupLabel {
     final meeting = member.popeAthnasiusMeetingData;
-    if (meeting == null) return null;
-    const groups = {1: 'الاسر', 2: 'شباب و خريجين', 3: 'اعدادى و ثانوى'};
-    const levels = {1: 'الفرقة الأولى', 2: 'الفرقة الثانية', 3: 'الفرقة الثالثة', 4: 'الفرقة الرابعة'};
-    final parts = <String>[
-      if (groups[meeting.classPhase] != null) 'المرحلة: ${groups[meeting.classPhase]}',
-      if (levels[meeting.studyLevel] != null) 'الفرقة: ${levels[meeting.studyLevel]}',
-    ];
-    if (parts.isEmpty) return null;
-    return parts.join(' · ');
+    if (meeting == null) return 'الفرقة الثانية';
+    const groups = {1: 'الأسر', 2: 'شباب وخريجين', 3: 'إعدادي وثانوي'};
+    return groups[meeting.classPhase] ?? 'الفرقة الثانية';
   }
 
   @override
@@ -31,40 +27,31 @@ class ScannedMemberTile extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       leading: CircleAvatar(
-        backgroundColor: AppColors.primaryMaroon.withValues(alpha: 0.15),
-        child: const Icon(Icons.person,
-            color: AppColors.primaryMaroon, size: 22),
+        backgroundColor: AppColors.primaryMaroon.withValues(alpha: 0.12),
+        child: Text(
+          index != null ? '${index! + 1}' : '•',
+          style: const TextStyle(
+            color: AppColors.primaryMaroon,
+            fontWeight: FontWeight.bold,
+            fontSize: 13,
+          ),
+        ),
       ),
       title: Text(
         member.name ?? '—',
         style: textTheme.titleSmall?.copyWith(
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           color: AppColors.textPrimary,
         ),
       ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (member.id != null && member.id!.isNotEmpty)
-            Text(
-              member.id!,
-              style: textTheme.bodySmall?.copyWith(
-                color: AppColors.textSecondary,
-                fontFamily: 'monospace',
-              ),
-            ),
-          if (_phaseSubtitle != null)
-            Text(
-              _phaseSubtitle!,
-              style: textTheme.bodySmall?.copyWith(
-                color: AppColors.primaryMaroon,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-        ],
+      subtitle: Text(
+        _groupLabel,
+        style: textTheme.bodySmall?.copyWith(
+          color: AppColors.primaryMaroon,
+          fontWeight: FontWeight.w500,
+        ),
       ),
       trailing: IconButton(
         icon: const Icon(Icons.close, color: AppColors.error),

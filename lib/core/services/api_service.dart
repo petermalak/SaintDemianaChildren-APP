@@ -86,7 +86,8 @@ class ApiService implements IApiService {
           } else if (!queued && status < 400) {
             SyncQueueService.instance.noteOnline();
             if (response.requestOptions.method == 'GET' &&
-                !_isBulkPayload(response.data) &&
+                (_shouldAlwaysCache(response.requestOptions) ||
+                    !_isBulkPayload(response.data)) &&
                 (response.data is Map || response.data is List)) {
               sl<IStorageService>().cacheResponse(
                   _cacheKey(response.requestOptions), response.data);
@@ -151,6 +152,16 @@ class ApiService implements IApiService {
     );
   }
 
+  /// Large member/class/attendance lists must still be cached for offline QR
+  /// and attendance (otherwise [_isBulkPayload] skips them and offline fails).
+  bool _shouldAlwaysCache(RequestOptions options) {
+    final path = options.path;
+    return path.contains('members') ||
+        path.contains('my-classes') ||
+        path.contains('classes') ||
+        path.contains('attendance');
+  }
+
   bool _isBulkPayload(dynamic data) {
     if (data is List) return data.length > 40;
     if (data is Map) {
@@ -159,6 +170,7 @@ class ApiService implements IApiService {
         'makhdoum',
         'khadem',
         'attendanceRecords',
+        'attendance_records',
         'people',
         'marks',
       ]) {
