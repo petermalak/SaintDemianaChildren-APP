@@ -8,6 +8,7 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/memb
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/model/class_model.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
 import '../../../../../core/constants/app_colors.dart';
+import '../../../attendance_qr/constants.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/excel_export_service.dart';
 import '../../../../../core/widgets/class_export_selection_dialog.dart';
@@ -592,6 +593,7 @@ class _MembersScreenState extends State<MembersScreen>
               filteredMembers,
               className,
               classNamesMap: selectedClassIds.length > 1 ? classNamesMap : null,
+              includePopeData: canViewPopeAthanasiusData(_currentUser),
             );
 
             if (result != null) {
@@ -662,6 +664,7 @@ class _MembersScreenState extends State<MembersScreen>
             final result = await ExcelExportService.exportMembers(
               membersToExport,
               className,
+              includePopeData: canViewPopeAthanasiusData(_currentUser),
             );
 
             if (result != null) {

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -63,9 +64,13 @@ class _QrAttendanceBodyState extends State<_QrAttendanceBody>
   @override
   void initState() {
     super.initState();
+    if (kIsWeb) {
+      // Load the reader from this app so scanning works offline, without a CDN.
+      MobileScannerPlatform.instance.setBarcodeLibraryScriptUrl('zxing.min.js');
+    }
     _scannerController = MobileScannerController(
       detectionSpeed: DetectionSpeed.normal,
-      facing: CameraFacing.back,
+      facing: kIsWeb ? CameraFacing.front : CameraFacing.back,
       formats: const [BarcodeFormat.qrCode],
     );
     _flashController = AnimationController(
@@ -317,30 +322,31 @@ class _QrAttendanceBodyState extends State<_QrAttendanceBody>
                         errorBuilder: (context, error) => _cameraError(error),
                         overlayBuilder: (context, constraints) => _scanOverlay(),
                       ),
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: Row(
-                          children: [
-                            IconButton.filledTonal(
-                              onPressed: () => _scannerController.toggleTorch(),
-                              icon: ValueListenableBuilder(
-                                valueListenable: _scannerController,
-                                builder: (context, mobileState, _) => Icon(
-                                  mobileState.torchState == TorchState.on
-                                      ? Icons.flash_on
-                                      : Icons.flash_off,
+                      if (!kIsWeb)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Row(
+                            children: [
+                              IconButton.filledTonal(
+                                onPressed: () => _scannerController.toggleTorch(),
+                                icon: ValueListenableBuilder(
+                                  valueListenable: _scannerController,
+                                  builder: (context, mobileState, _) => Icon(
+                                    mobileState.torchState == TorchState.on
+                                        ? Icons.flash_on
+                                        : Icons.flash_off,
+                                  ),
                                 ),
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            IconButton.filledTonal(
-                              onPressed: () => _scannerController.switchCamera(),
-                              icon: const Icon(Icons.cameraswitch),
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                              IconButton.filledTonal(
+                                onPressed: () => _scannerController.switchCamera(),
+                                icon: const Icon(Icons.cameraswitch),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
                       if (_flashName != null)
                         FadeTransition(
                           opacity: Tween(begin: 1.0, end: 0.0).animate(
@@ -551,9 +557,29 @@ class _QrAttendanceBodyState extends State<_QrAttendanceBody>
     );
   }
 
+  String _cameraMessage(MobileScannerException error) {
+    final raw = error.errorDetails?.message ?? '';
+    final permissionDenied =
+        error.errorCode == MobileScannerErrorCode.permissionDenied ||
+            raw.contains('NotAllowed');
+    if (permissionDenied) {
+      return 'يلزم السماح بالكاميرا لمسح بطاقات الحضور';
+    }
+    if (error.errorCode == MobileScannerErrorCode.unsupported ||
+        raw.contains('NotFound') ||
+        raw.contains('NotSupported')) {
+      return 'لم يتم العثور على كاميرا في هذا الجهاز';
+    }
+    if (raw.contains('Could not load')) {
+      return 'تعذر تحميل قارئ الباركود. أغلق التطبيق وافتحه من سطح المكتب مرة أخرى.';
+    }
+    return 'تعذّر فتح الكاميرا';
+  }
+
   Widget _cameraError(MobileScannerException error) {
     final permissionDenied =
-        error.errorCode == MobileScannerErrorCode.permissionDenied;
+        error.errorCode == MobileScannerErrorCode.permissionDenied ||
+            (error.errorDetails?.message ?? '').contains('NotAllowed');
     return ColoredBox(
       color: Colors.black87,
       child: Center(
@@ -569,9 +595,7 @@ class _QrAttendanceBodyState extends State<_QrAttendanceBody>
               ),
               const SizedBox(height: 12),
               Text(
-                permissionDenied
-                    ? 'يلزم السماح بالكاميرا لمسح بطاقات الحضور'
-                    : (error.errorDetails?.message ?? 'تعذّر فتح الكاميرا'),
+                _cameraMessage(error),
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white, fontSize: 14),
               ),

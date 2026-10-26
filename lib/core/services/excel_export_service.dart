@@ -33,6 +33,7 @@ class ExcelExportService {
     List<UserModel> members,
     String? className, {
     Map<String, String>? classNamesMap,
+    bool includePopeData = false,
   }) async {
     try {
       final excel = Excel.createExcel();
@@ -73,7 +74,7 @@ class ExcelExportService {
         'هاتف الأب',
         'هاتف الأم',
         'تاريخ الإنشاء',
-        ...popeAthanasiusHeaders,
+        if (includePopeData) ...popeAthanasiusHeaders,
       ];
 
       sheet.appendRow(headers.map((h) => TextCellValue(h)).toList());
@@ -123,7 +124,9 @@ class ExcelExportService {
               ? _dateFormat.format(member.createdAt!)
               : ''),
         ];
-        final popeCells = _popeAthanasiusRowCells(additionalData);
+        final popeCells = includePopeData
+            ? _popeAthanasiusRowCells(additionalData)
+            : const <TextCellValue>[];
         sheet.appendRow([...baseRow, ...popeCells]);
         rowNum++;
       }

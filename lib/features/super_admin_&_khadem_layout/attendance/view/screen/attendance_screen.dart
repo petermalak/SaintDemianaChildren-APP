@@ -83,6 +83,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final today = DateTime.now();
     _rangeTo = DateTime(today.year, today.month, today.day);
     _rangeFrom = _rangeTo.subtract(const Duration(days: 55));
+    if (_rangeFrom.isBefore(kAttendanceSeasonStart)) {
+      _rangeFrom = kAttendanceSeasonStart;
+    }
     if (_currentUser?.role == UserRole.khadem) {
       _selectedKhademScope = _khademFilterSelfValue;
       _khademFilterSelection = _khademFilterSelfValue;
@@ -202,7 +205,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   void _loadFullYear() {
     final today = DateTime.now();
-    final from = DateTime(today.year, 1, 1);
+    var from = DateTime(today.year, 1, 1);
+    if (from.isBefore(kAttendanceSeasonStart)) from = kAttendanceSeasonStart;
     final to = DateTime(today.year, 12, 31);
     final alreadyLoaded = _rangeFrom == from && _rangeTo == to;
     setState(() {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../core/constants/app_colors.dart';
+import '../../../attendance_qr/constants.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/communication_service.dart';
 import '../../../../authentication/model/user_model.dart';
@@ -59,7 +60,9 @@ class _MemberCardState extends State<MemberCard> {
             final person = snapshot.data ?? widget.user;
             final loading = snapshot.connectionState != ConnectionState.done;
             final communicationService = CommunicationService();
-            final meeting = person.popeAthnasiusMeetingData;
+            final meeting = canViewPopeAthanasiusData(sl<IProfileRepository>().user)
+                ? person.popeAthnasiusMeetingData
+                : null;
             return AnimatedContainer(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeOut,

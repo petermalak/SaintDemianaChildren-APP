@@ -10,6 +10,7 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/supe
 import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
 
 import '../../../../../core/constants/app_colors.dart';
+import '../../../attendance_qr/constants.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/data_refresh_cubit.dart';
 import '../../../../../core/widgets/app_shell.dart';
@@ -184,8 +185,10 @@ class _HomeScreenState extends State<HomeScreen> {
               })),
           const SizedBox(height: 24),
           _buildQuickActions(context),
-          const SizedBox(height: 16),
-          _buildPopeSection(context),
+          if (canViewPopeAthanasiusData(_currentUser)) ...[
+            const SizedBox(height: 16),
+            _buildPopeSection(context),
+          ],
         ]));
   }
 

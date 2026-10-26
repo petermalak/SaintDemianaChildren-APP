@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:saint_demiana_children/features/makhdoum_layout/attendance/viewmodel/attendance_cubit.dart';
 import '../../../../../core/constants/app_colors.dart';
+import '../../../../super_admin_&_khadem_layout/attendance_qr/constants.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../super_admin_&_khadem_layout/attendance/model/attendance_model.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
@@ -204,6 +205,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (parsed == null || parsed.year != _month.year || parsed.month != _month.month) {
       return false;
     }
+    final day = DateTime(parsed.year, parsed.month, parsed.day);
+    if (day.isBefore(kAttendanceSeasonStart)) return false;
     if (_typeFilter != null && record.type != _typeFilter) return false;
     return true;
   }
@@ -215,9 +218,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       child: Row(
         children: [
           IconButton(
-            onPressed: () => setState(() {
-              _month = DateTime(_month.year, _month.month - 1);
-            }),
+            onPressed: _month.year == kAttendanceSeasonStart.year &&
+                    _month.month == kAttendanceSeasonStart.month
+                ? null
+                : () => setState(() {
+                      _month = DateTime(_month.year, _month.month - 1);
+                    }),
             icon: const Icon(Icons.chevron_right),
           ),
           Expanded(
