@@ -102,9 +102,17 @@ class _ClassExportSelectionDialogState
                   return CheckboxListTile(
                     title: Text(classOption.name),
                     value: isSelected,
-                    onChanged: widget.allowMultiple
-                        ? (_) => _toggleClass(classOption.id)
-                        : null,
+                    onChanged: (_) {
+                      if (widget.allowMultiple) {
+                        _toggleClass(classOption.id);
+                      } else {
+                        setState(() {
+                          _selectedClassIds
+                            ..clear()
+                            ..add(classOption.id);
+                        });
+                      }
+                    },
                     activeColor: AppColors.primaryMaroon,
                   );
                 },

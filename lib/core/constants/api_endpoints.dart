@@ -4,6 +4,12 @@ class ApiEndpoints {
 
   static const String members = 'classes/my-members/';
   static const String users = 'users/';
+  static const String possibleDuplicates = 'users/possible-duplicates';
+  static const String theaterDepartments = 'users/theater-departments';
+  static String theaterProfile(String userId) => 'users/$userId/theater-profile';
+  static const String userRequests = 'user-requests/';
+  static String approveUserRequest(String id) => 'user-requests/$id/approve';
+  static String rejectUserRequest(String id) => 'user-requests/$id/reject';
 
   static String attendance = "attendance";
 

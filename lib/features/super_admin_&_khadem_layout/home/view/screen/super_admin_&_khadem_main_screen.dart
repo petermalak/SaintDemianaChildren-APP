@@ -20,6 +20,7 @@ import '../../../../scoring/repository/i_scoring_repository.dart';
 import '../../../../scoring/viewmodel/config_cubit/config_cubit.dart';
 import '../../../../scoring/viewmodel/score_definition_cubit/score_definition_cubit.dart';
 import '../../../members/view/widget/add_user_dialog.dart';
+import '../../../members/view/widget/request_member_dialog.dart';
 import '../../../members/view/widget/attendance_dialog.dart';
 import 'khadem_more_screen.dart';
 
@@ -439,6 +440,10 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     showDialog(
       context: context,
       builder: (dialogContext) {
+        final user = sl<IProfileRepository>().user;
+        if (user?.role == UserRole.khadem) {
+          return RequestMemberDialog(onSuccess: () {});
+        }
         return AddUserDialog(
           onSuccess: () {
             // Force the members screen to refresh by switching tabs

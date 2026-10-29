@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/home/model/stats_model.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/home/viewmodel/stats_cubit.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/view/widget/add_user_dialog.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/view/widget/request_member_dialog.dart';
 import 'package:saint_demiana_children/features/authentication/model/user_model.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/model/class_model.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
@@ -372,6 +373,10 @@ class _HomeScreenState extends State<HomeScreen> {
             await showDialog(
                 context: context,
                 builder: (BuildContext dialogContext) {
+                  final user = sl<IProfileRepository>().user;
+                  if (user?.role == UserRole.khadem) {
+                    return RequestMemberDialog(onSuccess: () {});
+                  }
                   return AddUserDialog(
                     onSuccess: () {
                       // Members screen will auto-refresh

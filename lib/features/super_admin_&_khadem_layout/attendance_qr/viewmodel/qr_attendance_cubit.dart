@@ -40,6 +40,13 @@ class QrAttendanceCubit extends Cubit<QrAttendanceState> {
     );
   }
 
+  bool _isClassServant(UserModel member) {
+    return member.classes.any((info) =>
+        info.classId == _classId &&
+        info.membershipRole == 'khadem' &&
+        info.isActive != false);
+  }
+
   bool _memberLikelyInThisClass(UserModel m) {
     if (m.classId == _classId) return true;
     if (m.classes.any((c) => c.classId == _classId)) return true;
@@ -121,7 +128,7 @@ class QrAttendanceCubit extends Cubit<QrAttendanceState> {
       return;
     }
 
-    if (member.popeAthnasiusMeetingData?.studyLevel != 2) {
+    if (member.popeAthnasiusMeetingData?.studyLevel != 2 && !_isClassServant(member)) {
       emit(s.copyWith(
         feedback: 'هذه البطاقة ليست من الفرقة الثانية. الفرقة الأولى حضورها على الورق',
         feedbackIsError: true,

@@ -44,6 +44,83 @@ class _MemberCardState extends State<MemberCard> {
   bool isSelected = false;
   int _refreshKey = 0;
 
+  Future<void> _editDepartment(UserModel person) async {
+    final profile = person.theaterProfile;
+    final userId = person.id;
+    if (profile == null || userId == null || userId.isEmpty) return;
+    final departments = await sl<IMembersRepository>().theaterDepartments();
+    final names = departments.fold((_) => <String>[], (value) => value);
+    if (!mounted) return;
+    final controller = TextEditingController(
+      text: profile.missingDepartment ? '' : profile.department,
+    );
+    final next = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('القسم'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(labelText: 'القسم'),
+              ),
+              ...names.map(
+                (name) => ListTile(
+                  title: Text(name),
+                  onTap: () => Navigator.pop(dialogContext, name),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, ''),
+            child: const Text('بدون قسم'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (next == null || !mounted) return;
+    final saved = await sl<IMembersRepository>().updateTheaterDepartment(
+      userId,
+      next.isEmpty ? null : next,
+    );
+    if (!mounted) return;
+    saved.fold(
+      (error) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error))),
+      (_) {
+        final updated = TheaterMemberProfile(
+          id: profile.id,
+          userId: profile.userId,
+          department: next.isEmpty ? null : next,
+          stage: profile.stage,
+          priority1: profile.priority1,
+          priority2: profile.priority2,
+          participatedBefore: profile.participatedBefore,
+          previousResponsibility: profile.previousResponsibility,
+          registeredAt: profile.registeredAt,
+          photoUrl: profile.photoUrl,
+        );
+        person.theaterProfile = updated;
+        widget.user.theaterProfile = updated;
+        widget.onUpdate();
+        setState(() {});
+      },
+    );
+  }
+
   void _showContactDrawer(BuildContext context) {
     final detail = _loadDetail();
     showModalBottomSheet(
@@ -87,6 +164,13 @@ class _MemberCardState extends State<MemberCard> {
                       if (!loading && widget.showTheaterDetails && person.theaterProfile != null) ...[
                         const SizedBox(height: 12),
                         _buildTheaterDetails(person),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => _editDepartment(person),
+                            child: const Text('تعديل القسم'),
+                          ),
+                        ),
                       ],
                       if (!loading && meeting != null) ...[
                         const SizedBox(height: 12),

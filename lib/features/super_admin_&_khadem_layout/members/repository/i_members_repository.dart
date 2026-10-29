@@ -11,7 +11,21 @@ abstract class IMembersRepository {
       {bool summary = false});
   Future<Either<String, UserModel>> fetchMember(String userId);
   Future<Either<String, Unit>> updateMemberProfile(UserModel user);
-  Future<Either<String, Unit>> addMember(UserModel user);
+  Future<Either<String, Unit>> addMember(UserModel user,
+      {bool confirmDuplicate = false});
+  Future<Either<String, Map<String, dynamic>>> findDuplicates({
+    String? phoneNumber,
+    String? name,
+  });
+  Future<Either<String, List<String>>> theaterDepartments();
+  Future<Either<String, Unit>> updateTheaterDepartment(
+      String userId, String? department);
+  Future<Either<String, List<Map<String, dynamic>>>> fetchMemberRequests(
+      {String? status});
+  Future<Either<String, Map<String, dynamic>>> submitMemberRequest(
+      Map<String, dynamic> body);
+  Future<Either<String, Map<String, dynamic>>> approveMemberRequest(String id);
+  Future<Either<String, Unit>> rejectMemberRequest(String id, String reason);
   void setMembers(List<UserModel> newMembers);
   void deleteMember(UserModel user);
 }

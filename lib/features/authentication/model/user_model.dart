@@ -118,13 +118,20 @@ class UserModel extends Equatable {
       }
     }
 
-    final List<UserClassInfo> combinedClasses = parsedClasses.isNotEmpty
-        ? parsedClasses
-        : memberships
-            .map(UserClassInfo.fromMembershipJson)
-            .where((info) => info.classId.isNotEmpty)
-            .toList();
+    final List<UserClassInfo> combinedClasses = (parsedClasses.isNotEmpty
+            ? parsedClasses
+            : memberships
+                .map(UserClassInfo.fromMembershipJson)
+                .where((info) => info.classId.isNotEmpty)
+                .toList())
+        .where((info) => !(info.className ?? '').contains('المسرح'))
+        .toList();
 
+    if (extractedClassId != null &&
+        !combinedClasses.any((info) => info.classId == extractedClassId)) {
+      extractedClassId =
+          combinedClasses.isNotEmpty ? combinedClasses.first.classId : null;
+    }
     if (extractedClassId == null && combinedClasses.isNotEmpty) {
       extractedClassId = combinedClasses.first.classId;
     }
@@ -247,7 +254,7 @@ class UserModel extends Equatable {
       case UserRole.makhdoum:
         return 'makhdoum';
       case UserRole.superAdmin:
-        return 'admin';
+        return 'super_admin';
     }
   }
 
@@ -357,8 +364,9 @@ class UserModel extends Equatable {
         theaterProfile,
       ];
 
-  bool get isInTheaterClass =>
-      classes.any((info) => (info.className ?? '').contains('المسرح'));
+  bool get hasTheaterProfile => theaterProfile != null;
+
+  bool get isInTheaterClass => hasTheaterProfile;
 
   String? get primaryClassId {
     if (classId != null && classId!.isNotEmpty) {
@@ -723,10 +731,11 @@ class TheaterMemberProfile extends Equatable {
     };
   }
 
+  bool get missingDepartment =>
+      department == null || department!.trim().isEmpty;
+
   String get departmentLabel =>
-      (department != null && department!.trim().isNotEmpty)
-          ? department!.trim()
-          : 'من غير قسم';
+      missingDepartment ? 'من غير قسم' : department!.trim();
 
   @override
   List<Object?> get props => [

@@ -88,7 +88,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         _buildProfileImageSection(),
                         const SizedBox(height: AppSpacing.xl),
                         _buildProfileFieldsSection(),
-                        if (user.isInTheaterClass && user.theaterProfile != null) ...[
+                        if (user.theaterProfile != null) ...[
                           const SizedBox(height: AppSpacing.xl),
                           _buildTheaterSection(),
                         ],

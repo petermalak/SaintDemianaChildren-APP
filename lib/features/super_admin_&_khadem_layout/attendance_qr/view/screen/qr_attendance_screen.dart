@@ -32,13 +32,15 @@ class QrAttendanceScreen extends StatelessWidget {
         sl(),
         classId,
       )..loadRoster(),
-      child: const _QrAttendanceBody(),
+      child: _QrAttendanceBody(classId: classId),
     );
   }
 }
 
 class _QrAttendanceBody extends StatefulWidget {
-  const _QrAttendanceBody();
+  const _QrAttendanceBody({required this.classId});
+
+  final String classId;
 
   @override
   State<_QrAttendanceBody> createState() => _QrAttendanceBodyState();
@@ -124,7 +126,12 @@ class _QrAttendanceBodyState extends State<_QrAttendanceBody>
 
   Future<void> _showManualAddDialog(QrAttendanceReady ready) async {
     final options = ready.rosterById.values
-        .where((m) => m.popeAthnasiusMeetingData?.studyLevel == 2)
+        .where((m) =>
+            m.popeAthnasiusMeetingData?.studyLevel == 2 ||
+            m.classes.any((info) =>
+                info.classId == widget.classId &&
+                info.membershipRole == 'khadem' &&
+                info.isActive != false))
         .toList()
       ..sort((a, b) => (a.name ?? '').compareTo(b.name ?? ''));
 

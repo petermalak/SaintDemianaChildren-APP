@@ -11,6 +11,7 @@ import '../../../../../core/widgets/info_form.dart';
 import '../../../../../core/widgets/class_export_selection_dialog.dart';
 import '../../../../authentication/model/user_model.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
+import '../../../super_admin/class_management/repository/i_class_repository.dart';
 import '../../repository/i_members_repository.dart';
 import 'pope_athanasius_form.dart';
 
@@ -35,6 +36,7 @@ class _AddUserDialogState extends State<AddUserDialog> {
   final TextEditingController _emailController = TextEditingController();
   UserRole? _selectedRole;
   List<String> _selectedClassIds = [];
+  List<ClassOption> _adminClasses = [];
   PopeAthanasiusFormData? _popeAthanasiusData;
 
   @override
@@ -46,7 +48,112 @@ class _AddUserDialogState extends State<AddUserDialog> {
     // If khadem creating makhdoum, auto-select their classes
     if (widget.user == null) {
       _initializeClassSelection();
+      _loadAdminClasses();
     }
+  }
+
+  Future<void> _loadAdminClasses() async {
+    final currentUser = sl<IProfileRepository>().user;
+    if (currentUser?.role != UserRole.superAdmin) return;
+    final result = await sl<IClassRepository>().loadClasses();
+    result.fold((_) {}, (classes) {
+      if (!mounted) return;
+      setState(() {
+        _adminClasses = classes
+            .where((item) => !item.name.contains('المسرح'))
+            .map((item) => ClassOption(id: item.id, name: item.name))
+            .where((item) => item.id.isNotEmpty)
+            .toList();
+        if (_adminClasses.length == 1) {
+          _selectedClassIds = [_adminClasses.first.id];
+        }
+      });
+    });
+  }
+
+  Future<void> _createWithDuplicateCheck(
+    AddMemberCubit cubit,
+    UserModel currentUser,
+  ) async {
+    final lookup = await sl<IMembersRepository>().findDuplicates(
+      phoneNumber: currentUser.phoneNumber,
+      name: currentUser.name,
+    );
+    final data = lookup.fold<Map<String, dynamic>?>((_) => null, (value) => value);
+    final phones = (data?['phoneMatches'] as List?) ?? const [];
+    final names = (data?['nameHints'] as List?) ?? const [];
+    if (!mounted || (phones.isEmpty && names.isEmpty)) {
+      cubit.addMember(currentUser);
+      return;
+    }
+
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        final people = <Map<String, dynamic>>[
+          ...phones.whereType<Map>().map((row) => Map<String, dynamic>.from(row)),
+          ...names.whereType<Map>().map((row) => Map<String, dynamic>.from(row)),
+        ];
+        return AlertDialog(
+          title: const Text('حساب مشابه موجود'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('اختر الحساب الموجود لإضافته للفصل، أو أكد أن هذا شخص آخر.'),
+                const SizedBox(height: 12),
+                ...people.map((person) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(person['name']?.toString() ?? ''),
+                      subtitle: Text(person['phoneNumber']?.toString() ?? ''),
+                      onTap: () => Navigator.pop(dialogContext, 'user:${person['id']}'),
+                    )),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('إلغاء'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, 'new'),
+              child: const Text('شخص آخر'),
+            ),
+          ],
+        );
+      },
+    );
+    if (!mounted || choice == null) return;
+    if (choice == 'new') {
+      cubit.addMember(currentUser, confirmDuplicate: true);
+      return;
+    }
+    final userId = choice.substring('user:'.length);
+    final classIds = currentUser.classIds ?? const <String>[];
+    if (classIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('اختر الفصل أولاً حتى نضيف الحساب الموجود إليه')),
+      );
+      return;
+    }
+    String? errorMessage;
+    for (final classId in classIds) {
+      final added = await sl<IClassRepository>().addClassMember(
+        classId,
+        userId,
+        currentUser.role == UserRole.khadem ? 'khadem' : 'makhdoum',
+      );
+      final failed = added.fold((error) => error, (_) => null);
+      if (failed != null) errorMessage = failed;
+    }
+    if (!mounted) return;
+    if (errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMessage)));
+      return;
+    }
+    widget.onSuccess();
+    Navigator.pop(context);
   }
 
   void _initializeClassSelection() async {
@@ -54,7 +161,9 @@ class _AddUserDialogState extends State<AddUserDialog> {
     if (currentUser != null &&
         RoleHelper.hasRole(currentUser, UserRole.khadem) &&
         _selectedRole == UserRole.makhdoum) {
-      final khademClasses = RoleHelper.getKhademClasses(currentUser);
+      final khademClasses = RoleHelper.getKhademClasses(currentUser)
+          .where((info) => !(info.className ?? '').contains('المسرح'))
+          .toList();
       if (khademClasses.length == 1) {
         // Auto-select single class
         setState(() {
@@ -280,7 +389,9 @@ class _AddUserDialogState extends State<AddUserDialog> {
                                         _selectedRole == UserRole.makhdoum) {
                                       // Fallback: if nothing was selected, default to all khadem classes
                                       final khademClasses =
-                                          RoleHelper.getKhademClasses(creator);
+                                          RoleHelper.getKhademClasses(creator)
+                                          .where((info) => !(info.className ?? '').contains('المسرح'))
+                                          .toList();
                                       effectiveClassIds = khademClasses
                                           .map((c) => c.classId)
                                           .toList();
@@ -290,7 +401,9 @@ class _AddUserDialogState extends State<AddUserDialog> {
                                     // Safety fallback: even if the selector is hidden for some reason,
                                     // still relate the new makhdoum to all classes where creator is khadem.
                                     final khademClasses =
-                                        RoleHelper.getKhademClasses(creator);
+                                        RoleHelper.getKhademClasses(creator)
+                                          .where((info) => !(info.className ?? '').contains('المسرح'))
+                                          .toList();
                                     effectiveClassIds = khademClasses
                                         .map((c) => c.classId)
                                         .toList();
@@ -344,7 +457,10 @@ class _AddUserDialogState extends State<AddUserDialog> {
                                       addMemberCubit
                                           .updateMemberProfile(currentUser);
                                     } else {
-                                      addMemberCubit.addMember(currentUser);
+                                      _createWithDuplicateCheck(
+                                        addMemberCubit,
+                                        currentUser,
+                                      );
                                     }
                                   }
                                 }
@@ -403,7 +519,7 @@ class _AddUserDialogState extends State<AddUserDialog> {
           border: InputBorder.none,
           icon: Icon(Icons.person_outline, color: AppColors.primaryMaroon),
         ),
-        items: UserRole.values.map((UserRole role) {
+        items: const [UserRole.makhdoum, UserRole.khadem].map((UserRole role) {
           return DropdownMenuItem<UserRole>(
             value: role,
             child: Text(
@@ -453,8 +569,11 @@ class _AddUserDialogState extends State<AddUserDialog> {
     if (widget.user != null) return false; // Don't show for updates
 
     final currentUser = sl<IProfileRepository>().user;
-    return currentUser != null &&
-        RoleHelper.hasRole(currentUser, UserRole.khadem) &&
+    if (currentUser == null || _selectedRole == null) return false;
+    if (currentUser.role == UserRole.superAdmin) {
+      return _selectedRole == UserRole.makhdoum || _selectedRole == UserRole.khadem;
+    }
+    return RoleHelper.hasRole(currentUser, UserRole.khadem) &&
         _selectedRole == UserRole.makhdoum;
   }
 
@@ -486,10 +605,19 @@ class _AddUserDialogState extends State<AddUserDialog> {
     final currentUser = sl<IProfileRepository>().user;
     if (currentUser == null) return const SizedBox.shrink();
 
-    final khademClasses = RoleHelper.getKhademClasses(currentUser);
-    if (khademClasses.isEmpty) return const SizedBox.shrink();
+    final isAdmin = currentUser.role == UserRole.superAdmin;
+    final options = isAdmin
+        ? _adminClasses
+        : RoleHelper.getKhademClasses(currentUser)
+            .where((info) => !(info.className ?? '').contains('المسرح'))
+            .map((info) => ClassOption(
+                  id: info.classId,
+                  name: info.className ?? info.classId,
+                ))
+            .toList();
+    if (options.isEmpty) return const SizedBox.shrink();
 
-    if (khademClasses.length == 1) {
+    if (options.length == 1) {
       // Single class - show as read-only
       return Container(
         padding: const EdgeInsets.all(12),
@@ -515,8 +643,7 @@ class _AddUserDialogState extends State<AddUserDialog> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    khademClasses.first.className ??
-                        khademClasses.first.classId,
+                    options.first.name,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -543,12 +670,7 @@ class _AddUserDialogState extends State<AddUserDialog> {
           final selectedIds = await showDialog<List<String>>(
             context: context,
             builder: (context) => ClassExportSelectionDialog(
-              availableClasses: khademClasses
-                  .map((c) => ClassOption(
-                        id: c.classId,
-                        name: c.className ?? c.classId,
-                      ))
-                  .toList(),
+              availableClasses: options,
               title: 'اختر الفصول لإضافة المخدوم',
               allowMultiple: true,
             ),
@@ -581,9 +703,9 @@ class _AddUserDialogState extends State<AddUserDialog> {
                     if (_selectedClassIds.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
-                        _selectedClassIds.length == khademClasses.length
+                        _selectedClassIds.length == options.length
                             ? 'جميع الفصول (${_selectedClassIds.length})'
-                            : '${_selectedClassIds.length} من ${khademClasses.length} فصل',
+                            : '${_selectedClassIds.length} من ${options.length} فصل',
                         style: TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,

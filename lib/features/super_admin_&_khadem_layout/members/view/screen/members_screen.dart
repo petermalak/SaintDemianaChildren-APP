@@ -8,6 +8,7 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/memb
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/model/class_model.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
 import '../../../../../core/constants/app_colors.dart';
+import '../../../../../core/utils/arabic_search.dart';
 import '../../../attendance_qr/constants.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/excel_export_service.dart';
@@ -47,19 +48,13 @@ class _MembersScreenState extends State<MembersScreen>
   String? _selectedClassId;
   bool _isLoadingClasses = false;
 
-  bool get _isSelectedTheaterClass {
-    if (_selectedClassId == null) return false;
-    for (final classModel in _availableClasses) {
-      if (classModel.id == _selectedClassId) {
-        return classModel.name.contains('المسرح');
-      }
-    }
-    return false;
-  }
+  static const theaterFilterId = '__theater__';
+  static const noDepartmentFilterId = '__theater_no_department__';
+
+  bool get _canSeeTheater => _currentUser?.role == UserRole.superAdmin;
 
   bool _showTheaterDetailsFor(UserModel member) {
-    if (_selectedClassId == null) return member.isInTheaterClass;
-    return _isSelectedTheaterClass;
+    return _canSeeTheater && member.theaterProfile != null;
   }
   List<ClassModel> _availableClasses = const [];
 
@@ -103,7 +98,9 @@ class _MembersScreenState extends State<MembersScreen>
       (classes) {
         if (!mounted) return;
         setState(() {
-          _availableClasses = classes;
+          _availableClasses = classes
+              .where((classModel) => !classModel.name.contains('المسرح'))
+              .toList();
           if (_selectedClassId != null &&
               !_availableClasses.any((c) => c.id == _selectedClassId)) {
             _selectedClassId = null;
@@ -131,6 +128,16 @@ class _MembersScreenState extends State<MembersScreen>
   }
 
   List<UserModel> _filterMembersByClass(List<UserModel> members) {
+    if (_selectedClassId == theaterFilterId) {
+      return members.where((member) => member.theaterProfile != null).toList();
+    }
+    if (_selectedClassId == noDepartmentFilterId) {
+      return members
+          .where((member) =>
+              member.theaterProfile != null &&
+              member.theaterProfile!.missingDepartment)
+          .toList();
+    }
     if (_selectedClassId == null) return members;
 
     return members.where((member) {
@@ -145,17 +152,23 @@ class _MembersScreenState extends State<MembersScreen>
     final id = member.id ?? '';
     final cached = _searchIndex[id];
     if (cached != null) return cached;
-    final text = [member.name, member.email, member.phoneNumber]
-        .whereType<String>()
-        .join(' ')
-        .toLowerCase();
+    final text = normalizeSearchText([
+      member.name,
+      member.email,
+      member.phoneNumber,
+      member.fathersPhoneNumber,
+      member.mothersPhoneNumber,
+      member.fatherOfConfession,
+      ...member.classes.map((info) => info.className),
+      if (_canSeeTheater) member.theaterProfile?.department,
+    ].whereType<String>().join(' '));
     if (id.isNotEmpty) _searchIndex[id] = text;
     return text;
   }
 
   List<UserModel> _applySearch(List<UserModel> members) {
     if (_searchQuery.isEmpty) return members;
-    final query = _searchQuery.toLowerCase();
+    final query = normalizeSearchText(_searchQuery);
     return members
         .where((member) => _searchTextFor(member).contains(query))
         .toList();
@@ -235,8 +248,12 @@ class _MembersScreenState extends State<MembersScreen>
                                   gridDelegate:
                                       SliverGridDelegateWithMaxCrossAxisExtent(
                                     maxCrossAxisExtent: 200,
-                                    mainAxisExtent:
-                                        _isSelectedTheaterClass ? 200 : 176,
+                                    mainAxisExtent: _selectedClassId ==
+                                                theaterFilterId ||
+                                            _selectedClassId ==
+                                                noDepartmentFilterId
+                                        ? 200
+                                        : 176,
                                     mainAxisSpacing: 12,
                                     crossAxisSpacing: 12,
                                   ),
@@ -253,7 +270,10 @@ class _MembersScreenState extends State<MembersScreen>
                                           isCompact: true,
                                           showTheaterDetails:
                                               _showTheaterDetailsFor(user),
-                                          onUpdate: () => set(() {}),
+                                          onUpdate: () {
+                                            _searchIndex.remove(user.id);
+                                            set(() {});
+                                          },
                                           cardAnimation: widget.cardAnimation,
                                           onSelectionChanged: (isSelected) =>
                                               _selectedMembers.length > 1
@@ -283,7 +303,10 @@ class _MembersScreenState extends State<MembersScreen>
                                           isListView: true,
                                           showTheaterDetails:
                                               _showTheaterDetailsFor(user),
-                                          onUpdate: () => set(() {}),
+                                          onUpdate: () {
+                                            _searchIndex.remove(user.id);
+                                            set(() {});
+                                          },
                                           cardAnimation: widget.cardAnimation,
                                           onSelectionChanged: (isSelected) =>
                                               _selectedMembers.length > 1
@@ -323,7 +346,7 @@ class _MembersScreenState extends State<MembersScreen>
       child: TextField(
         controller: _searchController,
         decoration: InputDecoration(
-          hintText: 'البحث عن الأعضاء...',
+          hintText: 'اسم، هاتف، هاتف الأب أو الأم، فصل...',
           border: InputBorder.none,
           prefixIcon: const Icon(Icons.search, color: AppColors.primaryMaroon),
           suffixIcon: _searchController.text.isNotEmpty
@@ -370,6 +393,16 @@ class _MembersScreenState extends State<MembersScreen>
             value: null,
             child: Text('كل الفصول'),
           ),
+          if (_canSeeTheater) ...[
+            const DropdownMenuItem<String?>(
+              value: _MembersScreenState.theaterFilterId,
+              child: Text('خدمة المسرح'),
+            ),
+            const DropdownMenuItem<String?>(
+              value: _MembersScreenState.noDepartmentFilterId,
+              child: Text('بدون قسم'),
+            ),
+          ],
           ..._availableClasses.map(
             (classModel) => DropdownMenuItem<String?>(
               value: classModel.id,

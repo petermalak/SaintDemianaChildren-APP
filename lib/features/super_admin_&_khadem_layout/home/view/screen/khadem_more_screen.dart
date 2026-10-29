@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../feed/view/screen/feed_screen.dart';
 import '../../../aftekad/view/screen/aftekad_screen.dart';
+import '../../../members/view/screen/member_requests_screen.dart';
 import '../../../scoring/view/screen/khadem_scoring_screen.dart';
 import '../../../../shop/view/screen/khadem_shop_screen.dart';
 
@@ -34,6 +35,8 @@ class _KhademMoreScreenState extends State<KhademMoreScreen> {
         return _pageShell('الافتقاد', AftekadScreen(scrollController: widget.scrollController));
       case 'scoring':
         return _pageShell('التايو', KhademScoringScreen(scrollController: widget.scrollController));
+      case 'requests':
+        return _pageShell('طلبات الأعضاء', MemberRequestsScreen(scrollController: widget.scrollController));
       case 'shop':
         return _pageShell(
           'المتجر',
@@ -72,6 +75,7 @@ class _KhademMoreScreenState extends State<KhademMoreScreen> {
         const SizedBox(height: 12),
         _tile(Icons.newspaper_rounded, 'الأخبار', 'feed'),
         _tile(Icons.person_search_rounded, 'الافتقاد', 'eftekad'),
+        _tile(Icons.how_to_reg_rounded, 'طلبات الأعضاء', 'requests'),
         _tile(Icons.emoji_events_rounded, 'التايو', 'scoring'),
         if (widget.hasShop) _tile(Icons.storefront_rounded, 'المتجر', 'shop'),
       ],

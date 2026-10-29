@@ -149,14 +149,19 @@ class MembersRepository implements IMembersRepository {
   }
 
   @override
-  Future<Either<String, Unit>> addMember(UserModel user) async {
+  Future<Either<String, Unit>> addMember(UserModel user,
+      {bool confirmDuplicate = false}) async {
     try {
-      print("cccccccccccccccccccccccccccccccccccccc");
+      final body = user.toJson();
+      if (confirmDuplicate) body['confirmDuplicate'] = true;
       final response =
-          await _apiService.post(path: ApiEndpoints.users, body: user.toJson());
-      print("xxxxxxxxxxxxxxxxxxx");
+          await _apiService.post(path: ApiEndpoints.users, body: body);
       if (response.isQueued) return left(kQueuedOperationMessage);
-      members.add(UserModel.fromJson(response.data));
+      final raw = response.data;
+      final json = raw is Map && raw['data'] is Map ? raw['data'] : raw;
+      if (json is Map) {
+        members.add(UserModel.fromJson(Map<String, dynamic>.from(json)));
+      }
       return right(unit);
       //TODO:refresh members list and stats
     } on DioException catch (e) {
@@ -179,6 +184,133 @@ class MembersRepository implements IMembersRepository {
       return left(_apiService.handleError(e));
     } catch (e) {
       return left('حدث خطأ غير متوقع');
+    }
+  }
+
+  Map<String, dynamic> _asMap(dynamic raw) {
+    if (raw is Map<String, dynamic>) return raw;
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return {};
+  }
+
+  @override
+  Future<Either<String, Map<String, dynamic>>> findDuplicates({
+    String? phoneNumber,
+    String? name,
+  }) async {
+    try {
+      final response = await _apiService.get(
+        path: ApiEndpoints.possibleDuplicates,
+        queryParameters: {
+          if (phoneNumber != null && phoneNumber.isNotEmpty)
+            'phoneNumber': phoneNumber,
+          if (name != null && name.isNotEmpty) 'name': name,
+        },
+      );
+      return right(_asMap(response.data));
+    } on DioException catch (e) {
+      return left(_apiService.handleError(e));
+    } catch (e) {
+      return left('تعذر البحث عن حسابات مشابهة');
+    }
+  }
+
+  @override
+  Future<Either<String, List<String>>> theaterDepartments() async {
+    try {
+      final response =
+          await _apiService.get(path: ApiEndpoints.theaterDepartments);
+      final raw = response.data;
+      final list = raw is List ? raw : <dynamic>[];
+      return right(list.map((item) => item.toString()).toList());
+    } on DioException catch (e) {
+      return left(_apiService.handleError(e));
+    } catch (e) {
+      return left('تعذر تحميل الأقسام');
+    }
+  }
+
+  @override
+  Future<Either<String, Unit>> updateTheaterDepartment(
+      String userId, String? department) async {
+    try {
+      await _apiService.patch(
+        path: ApiEndpoints.theaterProfile(userId),
+        body: {'department': department},
+      );
+      return right(unit);
+    } on DioException catch (e) {
+      return left(_apiService.handleError(e));
+    } catch (e) {
+      return left('تعذر حفظ القسم');
+    }
+  }
+
+  @override
+  Future<Either<String, List<Map<String, dynamic>>>> fetchMemberRequests(
+      {String? status}) async {
+    try {
+      final response = await _apiService.get(
+        path: ApiEndpoints.userRequests,
+        queryParameters: status == null ? null : {'status': status},
+      );
+      final raw = response.data;
+      final list = raw is List ? raw : <dynamic>[];
+      return right(list.map(_asMap).toList());
+    } on DioException catch (e) {
+      return left(_apiService.handleError(e));
+    } catch (e) {
+      return left('تعذر تحميل الطلبات');
+    }
+  }
+
+  @override
+  Future<Either<String, Map<String, dynamic>>> submitMemberRequest(
+      Map<String, dynamic> body) async {
+    try {
+      final response =
+          await _apiService.post(path: ApiEndpoints.userRequests, body: body);
+      return right(_asMap(response.data));
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (data is Map && data['data'] is Map) {
+        return left('duplicate:${data['message'] ?? ''}');
+      }
+      return left(_apiService.handleError(e));
+    } catch (e) {
+      return left('تعذر إرسال الطلب');
+    }
+  }
+
+  @override
+  Future<Either<String, Map<String, dynamic>>> approveMemberRequest(
+      String id) async {
+    try {
+      final response = await _apiService.post(
+        path: ApiEndpoints.approveUserRequest(id),
+        body: const {},
+      );
+      return right(_asMap(response.data));
+    } on DioException catch (e) {
+      return left(_apiService.handleError(e));
+    } catch (e) {
+      return left('تعذر الموافقة');
+    }
+  }
+
+  @override
+  Future<Either<String, Unit>> rejectMemberRequest(
+      String id, String reason) async {
+    try {
+      await _apiService.post(
+        path: ApiEndpoints.rejectUserRequest(id),
+        body: {'reason': reason},
+      );
+      return right(unit);
+    } on DioException catch (e) {
+      return left(_apiService.handleError(e));
+    } catch (e) {
+      return left('تعذر رفض الطلب');
     }
   }
 
