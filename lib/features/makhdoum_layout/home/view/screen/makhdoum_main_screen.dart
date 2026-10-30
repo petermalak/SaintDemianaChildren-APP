@@ -5,10 +5,12 @@ import 'package:saint_demiana_children/features/makhdoum_layout/home/view/screen
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/widgets/app_shell.dart';
+import '../../../../../core/session/session_context.dart';
 import '../../../../../core/utils/role_helper.dart';
 import '../../../../authentication/repository/i_authentication_repository.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
 import '../../../../authentication/model/user_model.dart';
+import '../../../../authentication/view/widget/role_selection_dialog.dart';
 import '../../../../scoring/view/screen/scoring_dashboard_screen.dart';
 import '../../../../scoring/viewmodel/scoring_cubit/scoring_cubit.dart';
 import '../../../../scoring/repository/i_scoring_repository.dart';
@@ -47,6 +49,15 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
     _initializeAnimations();
     _initializeScrollControllers();
     _checkAndRefreshUser();
+    SessionContext.instance.addListener(_onSessionContext);
+    _loadClassesForShop();
+  }
+
+  void _onSessionContext() {
+    if (!mounted) return;
+    final selection = SessionContext.instance.current;
+    if (selection == null || selection.role != UserRole.makhdoum) return;
+    setState(() => _selectedMakhdoumClassId = selection.classId);
     _loadClassesForShop();
   }
 
@@ -57,28 +68,30 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
         print('❌ [MakhdoumMain] Error loading classes for shop: $error');
       },
       (classes) {
+        final user = sl<IProfileRepository>().user;
+        final scoped = classesForContext(
+          user: user,
+          role: UserRole.makhdoum,
+          classes: classes,
+          idOf: (item) => item.id,
+        );
         print(
-            '✅ [MakhdoumMain] Loaded ${classes.length} classes for shop check');
-        classes.forEach((c) {
+            '✅ [MakhdoumMain] Loaded ${scoped.length} classes for shop check');
+        scoped.forEach((c) {
           print('  - Class: ${c.name}, hasShop: ${c.hasShop}');
         });
         if (mounted) {
-          // Check if any class has shop
-          final hasShop = classes.any((c) => c.hasShop == true);
-          // Calculate tab count: base 4 tabs + 1 shop tab if hasShop
-          final newTabCount = hasShop ? 5 : 4;
-
           setState(() {
-            _classesForShop = classes;
+            _classesForShop = scoped;
             _classesForShopLoaded = true;
-            // Ensure selected tab is still valid after adding/removing shop tab
-            if (_selectedTab >= newTabCount) {
-              _selectedTab = newTabCount - 1;
+            final tabCount = _tabItems().length;
+            if (_selectedTab >= tabCount) {
+              _selectedTab = tabCount - 1;
             }
           });
 
           print(
-              '🔄 [MakhdoumMain] Classes loaded. Tab count: $newTabCount, hasShop: $hasShop');
+              '🔄 [MakhdoumMain] Classes loaded. Scoring: $_selectedClassHasScoring, shop: $_selectedClassHasShop');
         }
       },
     );
@@ -171,7 +184,12 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
 
     _makhdoumClasses = relevantClasses;
 
-    if (_selectedMakhdoumClassId == null) {
+    final session = SessionContext.instance.current;
+    if (session?.role == UserRole.makhdoum &&
+        session?.classId != null &&
+        relevantClasses.any((info) => info.classId == session!.classId)) {
+      _selectedMakhdoumClassId = session!.classId;
+    } else if (_selectedMakhdoumClassId == null) {
       if (_makhdoumClasses.isNotEmpty) {
         _selectedMakhdoumClassId = _makhdoumClasses.first.classId;
       } else if (user.classId != null && user.classId!.isNotEmpty) {
@@ -212,6 +230,7 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
 
   @override
   void dispose() {
+    SessionContext.instance.removeListener(_onSessionContext);
     _pageController.dispose();
     _cardAnimationController.dispose();
     for (var controller in _scrollControllers.values) {
@@ -221,12 +240,20 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
     super.dispose();
   }
 
+  bool get _selectedClassHasScoring {
+    if (!_classesForShopLoaded) return false;
+    final classId = _effectiveMakhdoumClassId;
+    if (classId == null || classId.isEmpty) return false;
+    return _classesForShop.any((c) => c.id == classId && c.scoringEnabled);
+  }
+
   List<AppTabItem> _tabItems() {
     return [
       const AppTabItem(icon: Icons.home_rounded, label: 'الرئيسية'),
       const AppTabItem(icon: Icons.event_note_rounded, label: 'الحضور'),
       const AppTabItem(icon: Icons.newspaper_rounded, label: 'الأخبار'),
-      const AppTabItem(icon: Icons.emoji_events_rounded, label: 'التايو'),
+      if (_selectedClassHasScoring)
+        const AppTabItem(icon: Icons.emoji_events_rounded, label: 'التايو'),
       if (_selectedClassHasShop)
         const AppTabItem(icon: Icons.storefront_rounded, label: 'المتجر'),
     ];
@@ -251,23 +278,11 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
         itemCount: tabs.length,
         onPageChanged: (index) => setState(() => _selectedTab = index),
         itemBuilder: (context, index) {
-          switch (index) {
-            case 0:
-              return HomeScreen(scrollController: _scrollControllers[0]);
-            case 1:
-              return AttendanceScreen(
-                scrollController: _scrollControllers[1],
-                initialClassId: _effectiveMakhdoumClassId,
-              );
-            case 2:
-              return _buildFeedsTab();
-            case 3:
-              return _buildScoringTab();
-            case 4:
-              return _buildShopTab();
-            default:
-              return HomeScreen(scrollController: _scrollControllers[0]);
+          final pages = _pages();
+          if (index < 0 || index >= pages.length) {
+            return HomeScreen(scrollController: _scrollControllers[0]);
           }
+          return pages[index];
         },
       ),
     );
@@ -296,9 +311,8 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
           context.push('/profile');
         } else if (value == 'logout') {
           _handleLogout(context);
-        } else if (value == 'switch-to-khadem') {
-          // Switch to khadem UI
-          context.go('/khadem');
+        } else if (value == 'switch-context') {
+          _pickContext(context);
         }
       },
       itemBuilder: (context) => [
@@ -312,18 +326,17 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
             ],
           ),
         ),
-        // Role switcher for users with mixed roles
-        if (RoleHelper.hasMixedRoles(sl<IProfileRepository>().user) &&
-            RoleHelper.canAccessKhademFeatures(
-                sl<IProfileRepository>().user)) ...[
+        if (RoleHelper.membershipContexts(sl<IProfileRepository>().user)
+                .length >
+            1) ...[
           const PopupMenuDivider(),
           const PopupMenuItem(
-            value: 'switch-to-khadem',
+            value: 'switch-context',
             child: Row(
               children: [
                 Icon(Icons.swap_horiz, color: AppColors.primaryMaroon),
                 SizedBox(width: 12),
-                Text('التبديل إلى واجهة الخادم'),
+                Text('تبديل الفصل'),
               ],
             ),
           ),
@@ -341,6 +354,19 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
         ),
       ],
     );
+  }
+
+  List<Widget> _pages() {
+    return [
+      HomeScreen(scrollController: _scrollControllers[0]),
+      AttendanceScreen(
+        scrollController: _scrollControllers[1],
+        initialClassId: _effectiveMakhdoumClassId,
+      ),
+      _buildFeedsTab(),
+      if (_selectedClassHasScoring) _buildScoringTab(),
+      if (_selectedClassHasShop) _buildShopTab(),
+    ];
   }
 
   void _onTabSelected(int index) {
@@ -443,8 +469,10 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
   Widget _buildMakhdoumClassSelector({
     required String title,
     required String selectedClassId,
+    List<UserClassInfo>? classes,
   }) {
-    final hasMultiple = _makhdoumClasses.length > 1;
+    final options = classes ?? _makhdoumClasses;
+    final hasMultiple = options.length > 1;
     final className = _getClassNameById(selectedClassId) ?? 'فصلي';
 
     if (!hasMultiple) {
@@ -471,8 +499,10 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
           ),
           const SizedBox(height: 8),
           DropdownButtonFormField<String>(
-            value: selectedClassId,
-            items: _makhdoumClasses
+            value: options.any((info) => info.classId == selectedClassId)
+                ? selectedClassId
+                : options.first.classId,
+            items: options
                 .map(
                   (info) => DropdownMenuItem(
                     value: info.classId,
@@ -533,6 +563,11 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
         _buildMakhdoumClassSelector(
           title: 'فصل التايو',
           selectedClassId: classId,
+          classes: _makhdoumClasses.where((info) {
+            if (!_classesForShopLoaded) return info.scoringEnabled;
+            return _classesForShop
+                .any((item) => item.id == info.classId && item.scoringEnabled);
+          }).toList(),
         ),
         Expanded(
           child: BlocProvider(
@@ -546,6 +581,27 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _pickContext(BuildContext context) async {
+    final user = sl<IProfileRepository>().user;
+    final contexts = RoleHelper.membershipContexts(user);
+    if (contexts.length < 2 || !context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => RoleSelectionDialog(
+        contexts: contexts,
+        onContextSelected: (selection) {
+          SessionContext.instance.select(selection);
+          if (!context.mounted) return;
+          if (selection.role == UserRole.makhdoum) {
+            context.go('/makhdoum');
+          } else {
+            context.go('/khadem');
+          }
+        },
+      ),
     );
   }
 

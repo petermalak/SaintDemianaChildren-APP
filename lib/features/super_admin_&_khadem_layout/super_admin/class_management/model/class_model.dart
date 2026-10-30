@@ -17,6 +17,7 @@ class ClassModel {
   final int khademCount;
   final int makhdoumCount;
   final bool hasShop;
+  final bool scoringEnabled;
   final List<ClassMembershipModel>? memberships;
 
   ClassModel({
@@ -35,6 +36,7 @@ class ClassModel {
     this.khademCount = 0,
     this.makhdoumCount = 0,
     this.hasShop = false,
+    this.scoringEnabled = true,
     this.memberships,
   });
 
@@ -83,6 +85,7 @@ class ClassModel {
       khademCount: json['khademCount'] ?? 0,
       makhdoumCount: json['makhdoumCount'] ?? 0,
       hasShop: json['hasShop'] == true,
+      scoringEnabled: json['scoringEnabled'] != false,
       memberships: json['memberships'] != null
           ? (json['memberships'] as List)
               .map((m) => ClassMembershipModel.fromJson(m))
@@ -122,6 +125,7 @@ class ClassModel {
     int? khademCount,
     int? makhdoumCount,
     bool? hasShop,
+    bool? scoringEnabled,
     List<ClassMembershipModel>? memberships,
   }) {
     return ClassModel(
@@ -140,6 +144,7 @@ class ClassModel {
       khademCount: khademCount ?? this.khademCount,
       makhdoumCount: makhdoumCount ?? this.makhdoumCount,
       hasShop: hasShop ?? this.hasShop,
+      scoringEnabled: scoringEnabled ?? this.scoringEnabled,
       memberships: memberships ?? this.memberships,
     );
   }

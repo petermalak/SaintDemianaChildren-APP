@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
+import '../../../../../core/session/session_context.dart';
 import '../../../../../core/utils/role_helper.dart';
 import '../../../../../core/services/excel_export_service.dart';
 import '../../../../../core/widgets/class_export_selection_dialog.dart';
@@ -11,6 +12,7 @@ import '../../../../scoring/viewmodel/scoring_cubit/scoring_state.dart';
 import '../../../../scoring/repository/i_scoring_repository.dart';
 import '../../../../scoring/model/scoring_models.dart';
 import '../../../../authentication/model/user_model.dart';
+import '../../../super_admin/class_management/repository/i_class_repository.dart';
 
 class KhademScoringScreen extends StatefulWidget {
   final ScrollController? scrollController;
@@ -46,16 +48,37 @@ class _KhademScoringScreenState extends State<KhademScoringScreen> {
       _isLoadingClasses = true;
     });
 
-    // Get khadem classes
-    final khademClasses = RoleHelper.getKhademClasses(user);
+    final isSuperAdmin = SessionContext.isSuperAdminContext(user);
+    final repo = sl<IClassRepository>();
+    final result = isSuperAdmin ? await repo.loadClasses() : await repo.loadMyClasses();
+    final enabledIds = result.fold<Set<String>>(
+      (_) => RoleHelper.getKhademClasses(user)
+          .where((info) => info.scoringEnabled)
+          .map((info) => info.classId)
+          .toSet(),
+      (classes) => classes
+          .where((item) => item.scoringEnabled)
+          .map((item) => item.id)
+          .toSet(),
+    );
+    final khademClasses = isSuperAdmin
+        ? RoleHelper.getClassesByRole(user, UserRole.khadem)
+            .where((info) => enabledIds.contains(info.classId))
+            .toList()
+        : RoleHelper.getKhademClasses(user)
+            .where((info) => enabledIds.contains(info.classId))
+            .toList();
 
     if (mounted) {
       setState(() {
         _availableClasses = khademClasses;
-        if (khademClasses.isNotEmpty && _selectedClassId == null) {
-          _selectedClassId = khademClasses.first.classId;
-          _selectedClassName = khademClasses.first.className;
-        }
+        final sessionId = SessionContext.instance.current?.classId;
+        final preferred = khademClasses.cast<UserClassInfo?>().firstWhere(
+              (info) => info!.classId == sessionId,
+              orElse: () => khademClasses.isEmpty ? null : khademClasses.first,
+            );
+        _selectedClassId = preferred?.classId;
+        _selectedClassName = preferred?.className;
         _isLoadingClasses = false;
       });
     }
@@ -94,7 +117,7 @@ class _KhademScoringScreenState extends State<KhademScoringScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'يجب أن تكون خادماً في فصل لرؤية التقييم',
+              'نظام التايو غير مفعّل للفصول المتاحة',
               style: TextStyle(fontSize: 14),
               textAlign: TextAlign.center,
             ),

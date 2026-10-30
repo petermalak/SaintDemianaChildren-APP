@@ -6,6 +6,7 @@ import 'package:saint_demiana_children/core/services/interface/i_api_service.dar
 import 'package:saint_demiana_children/core/services/interface/i_biometric_service.dart';
 import 'package:saint_demiana_children/core/services/interface/i_storage_service.dart';
 import 'package:saint_demiana_children/core/services/sync_queue_service.dart';
+import 'package:saint_demiana_children/core/session/session_context.dart';
 
 import 'package:saint_demiana_children/features/authentication/model/user_model.dart';
 import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
@@ -24,6 +25,7 @@ class AuthenticationRepository implements IAuthenticationRepository {
 
   @override
   void logout() {
+    SessionContext.instance.clear();
     _profileRepository.user = null;
     _apiService.post(path: ApiEndpoints.logout);
     SyncQueueService.instance.onUserChanged();

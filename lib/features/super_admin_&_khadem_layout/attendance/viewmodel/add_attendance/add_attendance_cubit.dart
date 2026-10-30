@@ -15,6 +15,7 @@ class AddAttendanceCubit extends Cubit<AddAttendanceState> {
       required String event,
       required DateTime date,
       String? notes,
+      String? classId,
       bool addScore = true}) async {
     print('🔵 [AddAttendanceCubit] Starting bulk add attendance...'); // Debug
     print('🔵 Members count: ${members.length}'); // Debug
@@ -29,6 +30,7 @@ class AddAttendanceCubit extends Cubit<AddAttendanceState> {
         event: event,
         date: date,
         notes: notes,
+        classId: classId,
         addScore: addScore);
 
     result.fold(

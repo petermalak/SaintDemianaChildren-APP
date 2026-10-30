@@ -203,7 +203,6 @@ class _AppBottomTabsState extends State<_AppBottomTabs> {
       elevation: 8,
       child: SafeArea(
         top: false,
-        bottom: false,
         child: SizedBox(
           height: 68,
           child: LayoutBuilder(

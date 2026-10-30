@@ -103,6 +103,7 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
         return cubit;
       },
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           DateFilterHeader(
             title: 'سجل الحضور',
@@ -115,7 +116,7 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
           _buildSelectionBar(),
           _buildLegend(),
           const SizedBox(height: 12),
-          Expanded(child: _buildTableWithFilter()),
+          _buildTableWithFilter(),
         ],
       ),
     );
@@ -301,6 +302,7 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
       child: SizedBox(
         width: tableWidth,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
@@ -330,23 +332,33 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
                         ),
                         const SizedBox(height: 4),
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
                           children: _categories.map((cat) {
-                            return Container(
-                              margin:
-                                  const EdgeInsets.symmetric(horizontal: 1.5),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 4, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(3),
-                                border: Border.all(
-                                    color: Colors.grey.shade300, width: 0.5),
-                              ),
-                              child: Text(
-                                (widget.typeLabels ?? _defaultCategoryNames)[cat] ?? cat,
-                                style: const TextStyle(
-                                    fontSize: 9, fontWeight: FontWeight.w600),
+                            return Expanded(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 1),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 3, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(3),
+                                      border: Border.all(
+                                          color: Colors.grey.shade300,
+                                          width: 0.5),
+                                    ),
+                                    child: Text(
+                                      (widget.typeLabels ??
+                                              _defaultCategoryNames)[cat] ??
+                                          cat,
+                                      style: const TextStyle(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                  ),
+                                ),
                               ),
                             );
                           }).toList(),
@@ -357,15 +369,10 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
                   ),
               ],
             ),
-            Expanded(
-              child: ListView.builder(
-                itemCount: widget.members.length,
-                itemExtent: 56,
-                cacheExtent: 400,
-                itemBuilder: (context, index) {
-                  final member = widget.members[index];
-                  return RepaintBoundary(
-                    child: Row(
+            for (final member in widget.members)
+              SizedBox(
+                height: 56,
+                child: Row(
                       children: [
                         Container(
                           width: nameWidth,
@@ -389,7 +396,6 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
                               border: Border.all(color: Colors.grey.shade200),
                             ),
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
                               children: _categories.map((cat) {
                                 final isPresent = widget
                                         .attendance[member]?[date]?[cat] ==
@@ -398,17 +404,17 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
                                     recordIdMap['$member|$date|$cat'];
                                 final isSelected = recordId != null &&
                                     _selectedRecordIds.contains(recordId);
-                                return GestureDetector(
+                                return Expanded(
+                                  child: Center(
+                                child: GestureDetector(
                                   onTap: _selectionMode &&
                                           recordId != null &&
                                           isPresent
                                       ? () => _toggleRecordSelection(recordId)
                                       : null,
                                   child: Container(
-                                    margin: const EdgeInsets.symmetric(
-                                        horizontal: 3),
-                                    width: 32,
-                                    height: 32,
+                                    width: 28,
+                                    height: 28,
                                     decoration: BoxDecoration(
                                       color: isSelected
                                           ? AppColors.primaryMaroon
@@ -434,16 +440,15 @@ class _AttendanceTableWidgetState extends State<AttendanceTableWidget> {
                                           : Colors.grey.shade300,
                                     ),
                                   ),
+                                ),
+                                  ),
                                 );
                               }).toList(),
                             ),
                           ),
                       ],
                     ),
-                  );
-                },
-              ),
-            ),
+                  ),
           ],
         ),
       ),

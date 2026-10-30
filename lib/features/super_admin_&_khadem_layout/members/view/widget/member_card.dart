@@ -300,7 +300,7 @@ class _MemberCardState extends State<MemberCard> {
           currentKhademClassIds.contains(summary.classId);
 
       return explicitlyAssigned || sharesClass;
-    }).toList();
+    }).where((summary) => summary.scoringEnabled).toList();
 
     if (permittedSummaries.isEmpty) {
       return const SizedBox.shrink();
@@ -453,12 +453,13 @@ class _MemberCardState extends State<MemberCard> {
               Icons.class_outlined,
               color: AppColors.primaryMaroon.withValues(alpha: 0.8),
             ),
-            title: Text(summary.className ?? 'فصل بدون اسم'),
-            subtitle: Text(
-              summary.membershipRole == 'khadem'
-                  ? 'الدور: ${_localizeMembershipRole(summary.membershipRole)}'
-                  : summary.khademNames,
+            title: Text(
+              '${summary.className ?? 'فصل بدون اسم'} — ${_localizeMembershipRole(summary.membershipRole)}',
             ),
+            subtitle: summary.membershipRole == 'makhdoum' &&
+                    summary.khademNames.trim().isNotEmpty
+                ? Text(summary.khademNames)
+                : null,
           ),
         ),
       ],
@@ -502,9 +503,11 @@ class _MemberCardState extends State<MemberCard> {
 
   Widget _buildClassChip(UserClassSummary summary,
       {required bool compact}) {
-    final description = summary.membershipRole == 'makhdoum'
+    final roleLabel = _localizeMembershipRole(summary.membershipRole);
+    final description = summary.membershipRole == 'makhdoum' &&
+            summary.khademNames.trim().isNotEmpty
         ? summary.khademNames
-        : 'الدور: ${_localizeMembershipRole(summary.membershipRole)}';
+        : null;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
@@ -521,7 +524,7 @@ class _MemberCardState extends State<MemberCard> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            summary.className ?? 'فصل بدون اسم',
+            '${summary.className ?? 'فصل بدون اسم'} — $roleLabel',
             style: TextStyle(
               fontSize: compact ? 10 : 12,
               fontWeight: FontWeight.bold,
@@ -530,16 +533,18 @@ class _MemberCardState extends State<MemberCard> {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: 2),
-          Text(
-            description,
-            style: TextStyle(
-              fontSize: compact ? 8 : 10,
-              color: AppColors.textSecondary,
+          if (description != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              description,
+              style: TextStyle(
+                fontSize: compact ? 8 : 10,
+                color: AppColors.textSecondary,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
+          ],
         ],
       ),
     );
@@ -728,7 +733,8 @@ class _MemberCardState extends State<MemberCard> {
                     textAlign: TextAlign.center,
                   ),
                   if (widget.user.role == UserRole.makhdoum &&
-                      badgeClassId != null) ...[
+                      badgeClassId != null &&
+                      widget.user.scoringEnabledFor(badgeClassId)) ...[
                     const SizedBox(height: 6),
                     ScoreBadgeWidget(
                       key: ValueKey('score_${widget.user.id}_$_refreshKey'),
@@ -863,7 +869,8 @@ class _MemberCardState extends State<MemberCard> {
                 ],
                 // Show score badge for makhdoum only
                 if (widget.user.role == UserRole.makhdoum &&
-                    badgeClassId != null) ...[
+                    badgeClassId != null &&
+                    widget.user.scoringEnabledFor(badgeClassId)) ...[
                   const SizedBox(height: 6),
                   ScoreBadgeWidget(
                     key: ValueKey('score_${widget.user.id}_$_refreshKey'),

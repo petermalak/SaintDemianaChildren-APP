@@ -18,6 +18,7 @@ abstract class IAttendanceRepository {
       required String event,
       required DateTime date,
       String? notes,
+      String? classId,
       bool addScore = true});
 
   Future<Either<String, Unit>> bulkUpdateAttendance(

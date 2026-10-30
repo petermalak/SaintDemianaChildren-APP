@@ -11,12 +11,16 @@ class KhademMoreScreen extends StatefulWidget {
   const KhademMoreScreen({
     super.key,
     required this.hasShop,
+    required this.hasScoring,
     this.shopClassId,
+    this.initialPage,
     this.scrollController,
   });
 
   final bool hasShop;
+  final bool hasScoring;
   final String? shopClassId;
+  final String? initialPage;
   final ScrollController? scrollController;
 
   @override
@@ -25,6 +29,12 @@ class KhademMoreScreen extends StatefulWidget {
 
 class _KhademMoreScreenState extends State<KhademMoreScreen> {
   String? _page;
+
+  @override
+  void initState() {
+    super.initState();
+    _page = widget.initialPage;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +86,7 @@ class _KhademMoreScreenState extends State<KhademMoreScreen> {
         _tile(Icons.newspaper_rounded, 'الأخبار', 'feed'),
         _tile(Icons.person_search_rounded, 'الافتقاد', 'eftekad'),
         _tile(Icons.how_to_reg_rounded, 'طلبات الأعضاء', 'requests'),
-        _tile(Icons.emoji_events_rounded, 'التايو', 'scoring'),
+        if (widget.hasScoring) _tile(Icons.emoji_events_rounded, 'التايو', 'scoring'),
         if (widget.hasShop) _tile(Icons.storefront_rounded, 'المتجر', 'shop'),
       ],
     );

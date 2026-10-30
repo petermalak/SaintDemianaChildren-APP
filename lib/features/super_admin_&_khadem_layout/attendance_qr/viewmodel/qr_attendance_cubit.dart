@@ -203,6 +203,7 @@ class QrAttendanceCubit extends Cubit<QrAttendanceState> {
       members: s.scannedMembers,
       event: s.selectedEvent!,
       date: s.selectedDate,
+      classId: _classId,
       addScore: s.shouldAddScore,
     );
 

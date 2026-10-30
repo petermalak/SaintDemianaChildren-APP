@@ -55,6 +55,7 @@ class AttendanceRepository implements IAttendanceRepository {
       required String event,
       required DateTime date,
       String? notes,
+      String? classId,
       bool addScore = true}) async {
     try {
       final requestBody = {
@@ -63,7 +64,8 @@ class AttendanceRepository implements IAttendanceRepository {
         "type": event,
         "note": notes ?? "",
         "users_ids": members.map((e) => e.id).toList(),
-        "shouldAddScore": addScore
+        "shouldAddScore": addScore,
+        if (classId != null && classId.isNotEmpty) "classId": classId,
       };
 
       print(

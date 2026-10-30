@@ -9,6 +9,7 @@ import '../../../../core/constants/spacing.dart';
 import '../../../../core/di/service_locator.dart';
 import '../../../../core/services/interface/i_notification_service.dart';
 import '../../../../core/services/interface/i_biometric_service.dart';
+import '../../../../core/session/session_context.dart';
 import '../../../../core/utils/role_helper.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/loading_button.dart';
@@ -660,48 +661,39 @@ class _LoginScreenState extends State<LoginScreen>
                             _initializeNotifications();
 
                             final currentUser = state.user;
-                            
-                            // Check if user has multiple roles
-                            final hasMixedRoles = RoleHelper.hasMixedRoles(currentUser);
-                            
-                            if (hasMixedRoles) {
-                              // Show role selection dialog for users with multiple roles
+                            final contexts =
+                                RoleHelper.membershipContexts(currentUser);
+
+                            void openContext(RoleClassSelection selection) {
+                              SessionContext.instance.select(selection);
+                              if (selection.role == UserRole.makhdoum) {
+                                context.go('/makhdoum');
+                              } else {
+                                context.go('/khadem');
+                              }
+                            }
+
+                            if (contexts.length > 1) {
                               WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (!context.mounted) return;
                                 showDialog(
                                   context: context,
-                                  barrierDismissible: false, // User must choose
+                                  barrierDismissible: false,
                                   builder: (dialogContext) => RoleSelectionDialog(
-                                    user: currentUser,
-                                    onRoleSelected: (selectedRole) {
-                                      // Navigate based on selected role
-                                      switch (selectedRole) {
-                                        case UserRole.khadem:
-                                        case UserRole.superAdmin:
-                                          context.go('/khadem');
-                                          break;
-                                        case UserRole.makhdoum:
-                                          context.go('/makhdoum');
-                                          break;
-                                      }
-                                    },
+                                    contexts: contexts,
+                                    onContextSelected: openContext,
                                   ),
                                 );
                               });
+                            } else if (contexts.length == 1) {
+                              openContext(contexts.first);
                             } else {
-                              // Single role - navigate directly
-                              final primaryRole = RoleHelper.getPrimaryRole(currentUser);
-                              
-                              switch (primaryRole) {
-                                case UserRole.khadem:
-                                case UserRole.superAdmin:
-                                  context.go('/khadem');
-                                  break;
-                                case UserRole.makhdoum:
-                                  context.go('/makhdoum');
-                                  break;
-                                default:
-                                  context.go('/login');
-                                  break;
+                              final primaryRole =
+                                  RoleHelper.getPrimaryRole(currentUser);
+                              if (primaryRole == null) {
+                                context.go('/login');
+                              } else {
+                                openContext(RoleClassSelection(role: primaryRole));
                               }
                             }
                           }

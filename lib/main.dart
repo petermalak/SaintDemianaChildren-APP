@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb, debugPrint;
 import 'package:go_router/go_router.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -29,8 +30,9 @@ import 'features/pope_athanasius/view/screen/course_marks_screen.dart';
 import 'features/pope_athanasius/view/screen/level_two_board_screen.dart';
 import 'features/pope_athanasius/view/screen/my_course_screen.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('ar');
 
   FlutterError.onError = (details) {
     if (kDebugMode) {

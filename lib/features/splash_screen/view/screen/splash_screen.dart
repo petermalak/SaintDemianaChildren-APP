@@ -8,6 +8,7 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/di/service_locator.dart';
 import '../../../../core/services/data_refresh_cubit.dart';
+import '../../../../core/session/session_context.dart';
 import '../../../../core/utils/role_helper.dart';
 import '../../../authentication/model/user_model.dart';
 import '../../../profile/repository/i_profile_repository.dart';
@@ -109,36 +110,43 @@ class _SplashScreenState extends State<SplashScreen>
       return;
     }
 
-    if (RoleHelper.hasMixedRoles(user)) {
+    final contexts = RoleHelper.membershipContexts(user);
+    if (contexts.length > 1) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (dialogContext) => RoleSelectionDialog(
-            user: user,
-            onRoleSelected: (selectedRole) async {
-              if (selectedRole == UserRole.khadem ||
-                  selectedRole == UserRole.superAdmin) {
-                _openKhademLayout(selectedRole);
-              } else if (selectedRole == UserRole.makhdoum) {
-                context.go('/makhdoum');
-              }
-            },
+            contexts: contexts,
+            onContextSelected: _enterContext,
           ),
         );
       });
       return;
     }
 
-    final primaryRole = RoleHelper.getPrimaryRole(user);
-    if (primaryRole == UserRole.khadem || primaryRole == UserRole.superAdmin) {
-      _openKhademLayout(primaryRole);
-    } else if (primaryRole == UserRole.makhdoum) {
-      context.go('/makhdoum');
-    } else {
-      context.go('/login');
+    if (contexts.length == 1) {
+      _enterContext(contexts.first);
+      return;
     }
+
+    final primaryRole = RoleHelper.getPrimaryRole(user);
+    if (primaryRole == null) {
+      context.go('/login');
+      return;
+    }
+    _enterContext(RoleClassSelection(role: primaryRole));
+  }
+
+  void _enterContext(RoleClassSelection selection) {
+    SessionContext.instance.select(selection);
+    if (!mounted) return;
+    if (selection.role == UserRole.makhdoum) {
+      context.go('/makhdoum');
+      return;
+    }
+    _openKhademLayout(selection.role);
   }
 
   /// Opens the servant layout straight away. The members list (hundreds of records)

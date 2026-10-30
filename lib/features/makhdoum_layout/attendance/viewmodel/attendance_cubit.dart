@@ -15,6 +15,7 @@ class AttendanceCubit extends Cubit<AttendanceState> {
 
     final result = await _attendanceRepository.fetchAttendance(classId: classId);
 
+    if (isClosed) return;
     result.fold(
       (error) => emit(AttendanceFailure(error)),
       (attendanceModel) => emit(AttendanceSuccess(attendanceModel)),

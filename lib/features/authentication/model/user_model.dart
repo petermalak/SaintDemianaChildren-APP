@@ -368,6 +368,13 @@ class UserModel extends Equatable {
 
   bool get isInTheaterClass => hasTheaterProfile;
 
+  bool scoringEnabledFor(String? classId) {
+    if (classId == null || classId.isEmpty) return false;
+    final matches = classes.where((info) => info.classId == classId);
+    if (matches.isEmpty) return true;
+    return matches.every((info) => info.scoringEnabled);
+  }
+
   String? get primaryClassId {
     if (classId != null && classId!.isNotEmpty) {
       return classId;
@@ -406,6 +413,7 @@ class UserModel extends Equatable {
         isActive: membership?.isActive ?? true,
         joinedAt: membership?.joinedAt,
         assignedKhadems: assignment?.khadems ?? const [],
+        scoringEnabled: membership?.scoringEnabled ?? true,
       );
     }).toList();
   }
@@ -418,6 +426,7 @@ class UserClassInfo extends Equatable {
   final String? membershipRole;
   final bool? isActive;
   final DateTime? joinedAt;
+  final bool scoringEnabled;
 
   const UserClassInfo({
     required this.classId,
@@ -426,6 +435,7 @@ class UserClassInfo extends Equatable {
     this.membershipRole,
     this.isActive,
     this.joinedAt,
+    this.scoringEnabled = true,
   });
 
   factory UserClassInfo.fromJson(Map<String, dynamic> json) {
@@ -438,6 +448,7 @@ class UserClassInfo extends Equatable {
       joinedAt: json['joinedAt'] != null
           ? DateTime.tryParse(json['joinedAt'].toString())
           : null,
+      scoringEnabled: _readScoringEnabled(json, null),
     );
   }
 
@@ -456,7 +467,17 @@ class UserClassInfo extends Equatable {
       joinedAt: json['joinedAt'] != null
           ? DateTime.tryParse(json['joinedAt'].toString())
           : null,
+      scoringEnabled: _readScoringEnabled(json, classData),
     );
+  }
+
+  static bool _readScoringEnabled(
+    Map<String, dynamic> json,
+    Map<String, dynamic>? classData,
+  ) {
+    if (classData != null && classData['scoringEnabled'] == false) return false;
+    if (json['scoringEnabled'] == false) return false;
+    return true;
   }
 
   Map<String, dynamic> toJson() {
@@ -467,6 +488,7 @@ class UserClassInfo extends Equatable {
       'membershipRole': membershipRole,
       'isActive': isActive,
       'joinedAt': joinedAt?.toIso8601String(),
+      'scoringEnabled': scoringEnabled,
     };
   }
 
@@ -478,6 +500,7 @@ class UserClassInfo extends Equatable {
         membershipRole,
         isActive,
         joinedAt,
+        scoringEnabled,
       ];
 }
 
@@ -544,6 +567,7 @@ class UserClassSummary extends Equatable {
   final bool isActive;
   final DateTime? joinedAt;
   final List<AssignmentKhademInfo> assignedKhadems;
+  final bool scoringEnabled;
 
   const UserClassSummary({
     required this.classId,
@@ -552,6 +576,7 @@ class UserClassSummary extends Equatable {
     this.isActive = true,
     this.joinedAt,
     List<AssignmentKhademInfo>? assignedKhadems,
+    this.scoringEnabled = true,
   }) : assignedKhadems = assignedKhadems ?? const [];
 
   String get khademNames {
@@ -571,6 +596,7 @@ class UserClassSummary extends Equatable {
         isActive,
         joinedAt,
         assignedKhadems,
+        scoringEnabled,
       ];
 }
 

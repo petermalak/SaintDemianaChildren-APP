@@ -11,19 +11,23 @@ import '../../repository/i_attendance_repository.dart';
 import '../../viewmodel/add_attendance/add_attendance_cubit.dart';
 
 class BulkAttendanceDialog extends StatelessWidget {
-  const BulkAttendanceDialog({super.key});
+  final String? classId;
+
+  const BulkAttendanceDialog({super.key, this.classId});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => AddAttendanceCubit(sl<IAttendanceRepository>()),
-      child: const _BulkAttendanceDialogContent(),
+      child: _BulkAttendanceDialogContent(classId: classId),
     );
   }
 }
 
 class _BulkAttendanceDialogContent extends StatefulWidget {
-  const _BulkAttendanceDialogContent();
+  final String? classId;
+
+  const _BulkAttendanceDialogContent({this.classId});
 
   @override
   State<_BulkAttendanceDialogContent> createState() =>
@@ -1098,6 +1102,7 @@ class _BulkAttendanceDialogContentState
           members: _selectedMembers,
           event: _selectedEvent!,
           date: _selectedDate,
+          classId: widget.classId,
           addScore: _shouldAddScore,
         );
   }

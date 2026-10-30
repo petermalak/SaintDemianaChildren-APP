@@ -6,6 +6,7 @@ import 'package:saint_demiana_children/features/makhdoum_layout/attendance/viewm
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../super_admin_&_khadem_layout/attendance_qr/constants.dart';
 import '../../../../../core/di/service_locator.dart';
+import '../../../../../core/session/session_context.dart';
 import '../../../../super_admin_&_khadem_layout/attendance/model/attendance_model.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
 import '../../../../authentication/model/user_model.dart';
@@ -48,7 +49,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() {
       _makhdoumClasses = relevantClasses;
       
-      if (widget.initialClassId != null && widget.initialClassId!.isNotEmpty) {
+      final session = SessionContext.instance.current;
+      if (session?.role == UserRole.makhdoum &&
+          session?.classId != null &&
+          relevantClasses.any((info) => info.classId == session!.classId)) {
+        _selectedClassId = session!.classId;
+      } else if (widget.initialClassId != null &&
+          widget.initialClassId!.isNotEmpty) {
         _selectedClassId = widget.initialClassId;
       } else if (_makhdoumClasses.isNotEmpty) {
         _selectedClassId = _makhdoumClasses.first.classId;

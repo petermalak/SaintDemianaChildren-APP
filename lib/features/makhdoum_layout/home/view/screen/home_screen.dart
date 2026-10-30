@@ -6,7 +6,10 @@ import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/widgets/app_shell.dart';
 import '../../../../authentication/model/user_model.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
+import '../../../../../core/session/session_context.dart';
+import '../../../../../core/utils/role_helper.dart';
 import '../../../../pope_athanasius/view/widget/meeting_profile_section.dart';
+import '../../../../super_admin_&_khadem_layout/attendance_qr/constants.dart';
 import '../../../attendance/repository/i_attendance_repository.dart';
 import '../../../attendance/viewmodel/attendance_cubit.dart';
 
@@ -28,7 +31,7 @@ class HomeScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildWelcomeSection(user),
-            if (user.isPopeAthnasius == true) ...[
+            if (_showsPopeMeeting(user)) ...[
               const SizedBox(height: 20),
               _buildAgendaCard(context),
               if (user.popeAthnasiusMeetingData != null) ...[
@@ -46,6 +49,22 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  bool _showsPopeMeeting(UserModel? user) {
+    if (user == null) return false;
+    if (user.isPopeAthnasius == true) return true;
+    final session = SessionContext.instance.current;
+    final makhdoumClasses = RoleHelper.getMakhdoumClasses(user);
+    final inContext = session?.role == UserRole.makhdoum
+        ? makhdoumClasses.where((info) => info.classId == session?.classId)
+        : makhdoumClasses;
+    return inContext.any(
+      (info) =>
+          info.classId == kLegacyPopeAthanasiusClassId ||
+          isPopeAthanasiusClassName(info.className) ||
+          isPopeAthanasiusClassName(info.classDescription),
     );
   }
 

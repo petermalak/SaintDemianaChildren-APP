@@ -11,6 +11,7 @@ import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/utils/arabic_search.dart';
 import '../../../attendance_qr/constants.dart';
 import '../../../../../core/di/service_locator.dart';
+import '../../../../../core/session/session_context.dart';
 import '../../../../../core/services/excel_export_service.dart';
 import '../../../../../core/widgets/class_export_selection_dialog.dart';
 import '../../../../../core/widgets/state_views.dart';
@@ -65,16 +66,24 @@ class _MembersScreenState extends State<MembersScreen>
   void initState() {
     super.initState();
     _currentUser = sl<IProfileRepository>().user;
+    _selectedClassId = SessionContext.instance.current?.classId;
     _membersCubit = GetMembersCubit(sl<IMembersRepository>())..getMembers();
+    SessionContext.instance.addListener(_onSessionClass);
     _loadClassesIfNeeded();
+  }
+
+  void _onSessionClass() {
+    if (!mounted) return;
+    setState(() {
+      _selectedClassId = SessionContext.instance.current?.classId;
+    });
   }
 
   Future<void> _loadClassesIfNeeded() async {
     final user = _currentUser;
     if (user == null) return;
-    final userRole = user.role;
-    final isKhadem = userRole == UserRole.khadem;
-    final isSuperAdmin = userRole == UserRole.superAdmin;
+    final isKhadem = SessionContext.isKhademContext(user);
+    final isSuperAdmin = SessionContext.isSuperAdminContext(user);
 
     if (!isKhadem && !isSuperAdmin) return;
 
@@ -97,12 +106,21 @@ class _MembersScreenState extends State<MembersScreen>
       },
       (classes) {
         if (!mounted) return;
-        setState(() {
-          _availableClasses = classes
+        final scoped = classesForContext(
+          user: user,
+          role: UserRole.khadem,
+          classes: classes
               .where((classModel) => !classModel.name.contains('المسرح'))
-              .toList();
-          if (_selectedClassId != null &&
-              !_availableClasses.any((c) => c.id == _selectedClassId)) {
+              .toList(),
+          idOf: (item) => item.id,
+        );
+        setState(() {
+          _availableClasses = scoped;
+          final sessionId = SessionContext.instance.current?.classId;
+          if (sessionId != null && scoped.any((c) => c.id == sessionId)) {
+            _selectedClassId = sessionId;
+          } else if (_selectedClassId != null &&
+              !scoped.any((c) => c.id == _selectedClassId)) {
             _selectedClassId = null;
           }
         });
@@ -118,10 +136,10 @@ class _MembersScreenState extends State<MembersScreen>
   bool get _shouldShowClassFilter {
     final user = _currentUser;
     if (user == null) return false;
-    if (user.role == UserRole.superAdmin) {
+    if (SessionContext.isSuperAdminContext(user)) {
       return _availableClasses.isNotEmpty;
     }
-    if (user.role == UserRole.khadem) {
+    if (SessionContext.isKhademContext(user)) {
       return _availableClasses.length > 1;
     }
     return false;
@@ -186,11 +204,13 @@ class _MembersScreenState extends State<MembersScreen>
   bool get _canManageAssignments {
     final user = _currentUser;
     if (user == null) return false;
-    return user.role == UserRole.superAdmin || user.role == UserRole.khadem;
+    return user.role == UserRole.superAdmin ||
+        SessionContext.isKhademContext(user);
   }
 
   @override
   void dispose() {
+    SessionContext.instance.removeListener(_onSessionClass);
     _searchDebounce?.cancel();
     _searchController.dispose();
     _membersCubit.close();

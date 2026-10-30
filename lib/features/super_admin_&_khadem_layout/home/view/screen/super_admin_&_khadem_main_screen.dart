@@ -12,8 +12,10 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/supe
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/widgets/app_shell.dart';
+import '../../../../../core/session/session_context.dart';
 import '../../../../../core/utils/role_helper.dart';
 import '../../../../authentication/model/user_model.dart';
+import '../../../../authentication/view/widget/role_selection_dialog.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
 import '../../../../scoring/view/screen/scoring_config_screen.dart';
 import '../../../../scoring/repository/i_scoring_repository.dart';
@@ -39,6 +41,7 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   late AnimationController _cardAnimationController;
   late Animation<double> _cardAnimation;
   List<UserModel> _selectedMembers = [];
+  String? _morePage;
   final Map<int, Widget> _cachedTabs = {};
   final Map<int, ScrollController> _scrollControllers = {};
   RoleClassSelection? _selectedRoleClass;
@@ -59,13 +62,25 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     _initializeAnimations();
     _initializeScrollControllers();
     _initializeRoleSelection();
+    SessionContext.instance.addListener(_onSessionContext);
+    _loadClassesForShop();
+  }
+
+  void _onSessionContext() {
+    if (!mounted) return;
+    final selection = SessionContext.instance.current;
+    if (selection == null || selection.role == UserRole.makhdoum) return;
+    setState(() {
+      _selectedRoleClass = selection;
+      _cachedTabs.remove(3);
+    });
     _loadClassesForShop();
   }
 
   Future<void> _loadClassesForShop() async {
     final user = sl<IProfileRepository>().user;
     if (user == null) return;
-    final isSuperAdmin = user.role == UserRole.superAdmin;
+    final isSuperAdmin = SessionContext.isSuperAdminContext(user);
     final repo = sl<IClassRepository>();
     final result =
         isSuperAdmin ? await repo.loadClasses() : await repo.loadMyClasses();
@@ -73,14 +88,29 @@ class _KhademMainScreenState extends State<KhademMainScreen>
       (_) => null,
       (classes) {
         if (mounted) {
+          final scoped = classesForContext(
+            user: user,
+            role: UserRole.khadem,
+            classes: classes,
+            idOf: (item) => item.id,
+          );
           setState(() {
-            _classesForShop = classes;
+            _classesForShop = scoped;
             _classesForShopLoaded = true;
             _cachedTabs.remove(3);
           });
         }
       },
     );
+  }
+
+  bool get _selectedClassHasScoring {
+    final user = sl<IProfileRepository>().user;
+    if (SessionContext.isSuperAdminContext(user)) return true;
+    if (!_classesForShopLoaded) return false;
+    final classId = _selectedRoleClass?.classId;
+    if (classId == null || classId.isEmpty) return false;
+    return _classesForShop.any((c) => c.id == classId && c.scoringEnabled);
   }
 
   bool get _selectedClassHasShop {
@@ -114,20 +144,18 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     final user = sl<IProfileRepository>().user;
     if (user == null) return;
 
-    // Initialize with primary role
-    final primaryRole = RoleHelper.getPrimaryRole(user);
-    if (primaryRole == UserRole.khadem || primaryRole == UserRole.superAdmin) {
-      final khademClasses = RoleHelper.getKhademClasses(user);
-      if (khademClasses.isNotEmpty) {
-        _selectedRoleClass = RoleClassSelection(
-          role: UserRole.khadem,
-          classId: khademClasses.first.classId,
-          className: khademClasses.first.className,
-        );
-      } else {
-        _selectedRoleClass = const RoleClassSelection(role: UserRole.khadem);
-      }
+    final session = SessionContext.instance.current;
+    if (session != null && session.role != UserRole.makhdoum) {
+      _selectedRoleClass = session;
+      return;
     }
+
+    final servantContexts = RoleHelper.membershipContexts(user)
+        .where((selection) => selection.role != UserRole.makhdoum)
+        .toList();
+    if (servantContexts.isEmpty) return;
+    _selectedRoleClass = servantContexts.first;
+    SessionContext.instance.select(servantContexts.first);
   }
 
   void _initializeAnimations() {
@@ -156,6 +184,7 @@ class _KhademMainScreenState extends State<KhademMainScreen>
 
   @override
   void dispose() {
+    SessionContext.instance.removeListener(_onSessionContext);
     _pageController.dispose();
     _fabAnimationController.dispose();
     _cardAnimationController.dispose();
@@ -241,9 +270,8 @@ class _KhademMainScreenState extends State<KhademMainScreen>
           context.push('/profile');
         } else if (value == 'scoring-config') {
           _navigateToGlobalScoringConfig(context);
-        } else if (value == 'switch-to-makhdoum') {
-          // Switch to makhdoum UI
-          context.go('/makhdoum');
+        } else if (value == 'switch-context') {
+          _pickContext(context);
         }
       },
       itemBuilder: (context) => [
@@ -279,18 +307,17 @@ class _KhademMainScreenState extends State<KhademMainScreen>
             ),
           ),
         ],
-        // Role switcher for users with mixed roles
-        if (RoleHelper.hasMixedRoles(sl<IProfileRepository>().user) &&
-            RoleHelper.canAccessMakhdoumFeatures(
-                sl<IProfileRepository>().user)) ...[
+        if (RoleHelper.membershipContexts(sl<IProfileRepository>().user)
+                .length >
+            1) ...[
           const PopupMenuDivider(),
           const PopupMenuItem(
-            value: 'switch-to-makhdoum',
+            value: 'switch-context',
             child: Row(
               children: [
                 Icon(Icons.swap_horiz, color: AppColors.primaryMaroon),
                 SizedBox(width: 12),
-                Text('التبديل إلى واجهة المخدوم'),
+                Text('تبديل الفصل'),
               ],
             ),
           ),
@@ -308,6 +335,16 @@ class _KhademMainScreenState extends State<KhademMainScreen>
         ),
       ],
     );
+  }
+
+  void _openSection(int tab, {String? morePage}) {
+    if (morePage != null) {
+      setState(() {
+        _morePage = morePage;
+        _cachedTabs.remove(3);
+      });
+    }
+    onTabSelected(tab);
   }
 
   void onTabSelected(int index) {
@@ -360,8 +397,13 @@ class _KhademMainScreenState extends State<KhademMainScreen>
       // Khadem-specific content
       switch (index) {
         case 0:
-          return Provider.value(
-            value: onTabSelected,
+          return MultiProvider(
+            providers: [
+              Provider<void Function(int)>.value(value: onTabSelected),
+              Provider<KhademSectionNav>.value(
+                value: KhademSectionNav(_openSection),
+              ),
+            ],
             child: HomeScreen(
               cardAnimation: _cardAnimation,
               scrollController: scrollController,
@@ -382,7 +424,9 @@ class _KhademMainScreenState extends State<KhademMainScreen>
         case 3:
           return KhademMoreScreen(
             hasShop: _selectedClassHasShop,
+            hasScoring: _selectedClassHasScoring,
             shopClassId: _shopClassId ?? _selectedRoleClass?.classId,
+            initialPage: _morePage,
             scrollController: scrollController,
           );
         default:
@@ -497,6 +541,27 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   /// Check if current selected role/class allows makhdoum features
   bool get _isInMakhdoumMode {
     return _selectedRoleClass?.role == UserRole.makhdoum;
+  }
+
+  Future<void> _pickContext(BuildContext context) async {
+    final user = sl<IProfileRepository>().user;
+    final contexts = RoleHelper.membershipContexts(user);
+    if (contexts.length < 2 || !context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => RoleSelectionDialog(
+        contexts: contexts,
+        onContextSelected: (selection) {
+          SessionContext.instance.select(selection);
+          if (!context.mounted) return;
+          if (selection.role == UserRole.makhdoum) {
+            context.go('/makhdoum');
+          } else {
+            context.go('/khadem');
+          }
+        },
+      ),
+    );
   }
 
   void _handleLogout(BuildContext context) {

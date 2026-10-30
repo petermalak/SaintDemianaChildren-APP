@@ -11,6 +11,7 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/supe
 import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
 
 import '../../../../../core/constants/app_colors.dart';
+import '../../../../../core/session/session_context.dart';
 import '../../../attendance_qr/constants.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/data_refresh_cubit.dart';
@@ -42,13 +43,24 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _currentUser = sl<IProfileRepository>().user;
+    _selectedClassId = SessionContext.instance.current?.classId;
     _statsCubit = StatsCubit(sl<IHomeRepository>(), sl<DataRefreshCubit>())
       ..fetchStats(classId: _selectedClassId);
+    SessionContext.instance.addListener(_onSessionClass);
     _loadClassesIfNeeded();
+  }
+
+  void _onSessionClass() {
+    if (!mounted) return;
+    final classId = SessionContext.instance.current?.classId;
+    if (classId == _selectedClassId) return;
+    setState(() => _selectedClassId = classId);
+    _statsCubit.fetchStats(classId: classId);
   }
 
   @override
   void dispose() {
+    SessionContext.instance.removeListener(_onSessionClass);
     _statsCubit.close();
     super.dispose();
   }
@@ -56,9 +68,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadClassesIfNeeded() async {
     final user = _currentUser;
     if (user == null) return;
-    final userRole = user.role;
-    final isKhadem = userRole == UserRole.khadem;
-    final isSuperAdmin = userRole == UserRole.superAdmin;
+    final isSuperAdmin = SessionContext.isSuperAdminContext(user);
+    final isKhadem = SessionContext.isKhademContext(user);
 
     if (!isKhadem && !isSuperAdmin) return;
 
@@ -81,13 +92,26 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       (classes) {
         if (!mounted) return;
+        final scoped = classesForContext(
+          user: user,
+          role: UserRole.khadem,
+          classes: classes,
+          idOf: (item) => item.id,
+        );
+        final previousClassId = _selectedClassId;
         setState(() {
-          _availableClasses = classes;
-          if (_selectedClassId != null &&
-              !_availableClasses.any((c) => c.id == _selectedClassId)) {
+          _availableClasses = scoped;
+          final sessionId = SessionContext.instance.current?.classId;
+          if (sessionId != null && scoped.any((c) => c.id == sessionId)) {
+            _selectedClassId = sessionId;
+          } else if (_selectedClassId != null &&
+              !scoped.any((c) => c.id == _selectedClassId)) {
             _selectedClassId = null;
           }
         });
+        if (_selectedClassId != previousClassId) {
+          _statsCubit.fetchStats(classId: _selectedClassId);
+        }
       },
     );
 
@@ -100,10 +124,10 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get _shouldShowClassFilter {
     final user = _currentUser;
     if (user == null) return false;
-    if (user.role == UserRole.superAdmin) {
+    if (SessionContext.isSuperAdminContext(user)) {
       return _availableClasses.isNotEmpty;
     }
-    if (user.role == UserRole.khadem) {
+    if (SessionContext.isKhademContext(user)) {
       return _availableClasses.length > 1;
     }
     return false;
@@ -236,123 +260,498 @@ class _HomeScreenState extends State<HomeScreen> {
         ]));
   }
 
+  void _openSection(int tab, {String? morePage}) {
+    try {
+      context.read<KhademSectionNav>().open(tab, morePage: morePage);
+    } catch (_) {
+      try {
+        context.read<void Function(int)>().call(tab);
+      } catch (error) {
+        debugPrint('Could not open section: $error');
+      }
+    }
+  }
+
   Widget _buildStatsGrid(StatsModel stats) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('الإحصائيات',
-          style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textPrimary)),
-      const SizedBox(height: 16),
-      GridView.count(
+    final isKhadem = SessionContext.isKhademContext(_currentUser);
+    final absent = stats.lastFridayTotalMembers - stats.lastFridayAttendedCount;
+    final attendanceTypes = _orderedCounts(stats.attendanceByType, const [
+      'mass',
+      'generalMeeting',
+      'specialMeeting',
+      'praise',
+    ]);
+    final eftekadTypes = _orderedCounts(stats.eftekadByType, const [
+      'phone_call',
+      'whatsapp_message',
+      'home_visit',
+    ]);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle(_formatFriday(stats.lastFridayDate)),
+        const SizedBox(height: 10),
+        _progressCard(
+          title: 'الحضور',
+          done: stats.lastFridayAttendedCount,
+          total: stats.lastFridayTotalMembers,
+          detail: absent > 0 ? '$absent غابوا' : 'مفيش غياب',
+          icon: Icons.event_available_rounded,
+          color: AppColors.primaryBrown,
+          onTap: () => _openSection(2),
+        ),
+        const SizedBox(height: 10),
+        _progressCard(
+          title: 'الافتقاد',
+          done: stats.lastFridayEftekadCompleted,
+          total: stats.lastFridayEftekadTotal,
+          detail: 'آخر جمعة',
+          icon: Icons.phone_in_talk_rounded,
+          color: AppColors.accentGold,
+          onTap: () => _openSection(3, morePage: 'eftekad'),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _summaryCard(
+                title: isKhadem ? 'المخدومين' : 'الأعضاء',
+                value: '${stats.totalUsers}',
+                subtitle: stats.totalClasses > 0
+                    ? '${stats.totalClasses} فصل'
+                    : null,
+                icon: Icons.people_rounded,
+                color: AppColors.primaryMaroon,
+                onTap: () => _openSection(1),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _summaryCard(
+                title: 'سجلات الحضور',
+                value: '${stats.totalAttendances}',
+                subtitle: '30 يوم: ${stats.recentAttendances}',
+                icon: Icons.fact_check_rounded,
+                color: AppColors.primaryBrown,
+                onTap: () => _openSection(2),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        _sectionTitle('الحضور حسب النوع'),
+        const SizedBox(height: 10),
+        GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisCount: 2,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.85,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 2.35,
           children: [
-            _buildStatCard('إجمالي الأعضاء', stats.totalUsers.toString(),
-                Icons.people, AppColors.primaryMaroon),
-            _buildStatCard(
-                'حضور آخر جمعة',
-                '${stats.lastFridayAttendedCount}/${stats.lastFridayTotalMembers}',
-                Icons.event_available,
-                AppColors.primaryBrown),
-            _buildStatCard(
-                'افتقاد آخر جمعة',
-                '${stats.lastFridayEftekadCompleted}/${stats.lastFridayEftekadTotal}',
-                Icons.phone_in_talk,
-                AppColors.accentGold),
-            _buildStatCard('عدد الفصول', stats.totalClasses.toString(),
-                Icons.class_, AppColors.success)
-          ])
-    ]);
+            for (final item in attendanceTypes)
+              _metricChip(
+                label: _attendanceTypeLabel(item.key),
+                value: '${item.value}',
+                icon: _attendanceTypeIcon(item.key),
+                color: AppColors.primaryBrown,
+                onTap: () => _openSection(2),
+              ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        _sectionTitle('الافتقاد'),
+        const SizedBox(height: 10),
+        _eftekadCard(stats, eftekadTypes),
+      ],
+    );
   }
 
-  Widget _buildStatCard(
-      String title, String value, IconData icon, Color color) {
-    return AnimatedBuilder(
-      animation: widget.cardAnimation,
-      builder: (context, child) {
-        return Transform.scale(
-          scale: widget.cardAnimation.value,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppColors.backgroundCard,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: color.withValues(alpha: 0.2.clamp(0.0, 1.0)),
-                width: 1,
+  Widget _progressCard({
+    required String title,
+    required num done,
+    required num total,
+    required String detail,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    final percent = _percent(done, total);
+    return Material(
+      color: AppColors.backgroundCard,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: color, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  Text(
+                    '$done/$total',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: color),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$percent%',
+                    style: TextStyle(fontWeight: FontWeight.w700, color: color),
+                  ),
+                  Icon(Icons.chevron_left, color: AppColors.textSecondary, size: 18),
+                ],
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: color.withValues(alpha: 0.08.clamp(0.0, 1.0)),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
-                )
-              ],
-            ),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return FittedBox(
-                fit: BoxFit.scaleDown,
-                child: SizedBox(
-                  width: constraints.maxWidth,
-                  height: constraints.maxHeight,
-                  child: Row(
-                    children: [
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(
+                  value: _ratio(done, total),
+                  minHeight: 8,
+                  backgroundColor: color.withValues(alpha: 0.12),
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                detail,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _metricChip({
+    required String label,
+    required String value,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: AppColors.backgroundCard,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Icon(icon, color: color, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              Text(
+                value,
+                style: TextStyle(fontWeight: FontWeight.bold, color: color),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _eftekadCard(StatsModel stats, List<MapEntry<String, num>> types) {
+    final statuses = stats.eftekadByStatus.entries.toList();
+    return Material(
+      color: AppColors.backgroundCard,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _openSection(3, morePage: 'eftekad'),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.phone_in_talk_rounded,
+                      color: AppColors.accentGold, size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'كل الافتقاد',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  Text(
+                    '${stats.totalEftekads}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.accentGold,
+                      fontSize: 18,
+                    ),
+                  ),
+                  Icon(Icons.chevron_left, color: AppColors.textSecondary, size: 18),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'آخر 30 يوم: ${stats.recentEftekads}',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  for (var i = 0; i < types.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${types[i].value}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.accentGold,
+                            ),
+                          ),
+                          Text(
+                            _eftekadTypeLabel(types[i].key),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              if (statuses.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final status in statuses)
                       Container(
-                        padding: const EdgeInsets.all(6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.12.clamp(0.0, 1.0)),
-                          borderRadius: BorderRadius.circular(8),
+                          color: AppColors.success.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                        child: Icon(icon, color: color, size: 18),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            FittedBox(
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerRight,
-                              child: Text(
-                                value,
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.bold,
-                                  color: color,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              title,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textSecondary,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
+                        child: Text(
+                          '${_eftekadStatusLabel(status.key)} ${status.value}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.success,
+                          ),
                         ),
                       ),
-                    ],
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  double _ratio(num done, num total) {
+    if (total <= 0) return 0;
+    final value = done / total;
+    if (value < 0) return 0;
+    if (value > 1) return 1;
+    return value.toDouble();
+  }
+
+  int _percent(num done, num total) {
+    if (total <= 0) return 0;
+    return ((_ratio(done, total)) * 100).round();
+  }
+
+  Widget _summaryCard({
+    required String title,
+    required String value,
+    required String? subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: AppColors.backgroundCard,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: color, size: 22),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              if (subtitle != null)
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
                   ),
                 ),
-              );
-            },
+            ],
           ),
-          ),
-        );
-      },
+        ),
+      ),
     );
+  }
+
+  Widget _sectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: AppColors.textPrimary,
+      ),
+    );
+  }
+
+  List<MapEntry<String, num>> _orderedCounts(
+    Map<String, num> counts,
+    List<String> order,
+  ) {
+    final items = <MapEntry<String, num>>[];
+    for (final key in order) {
+      items.add(MapEntry(key, counts[key] ?? 0));
+    }
+    for (final entry in counts.entries) {
+      if (!order.contains(entry.key)) items.add(entry);
+    }
+    return items;
+  }
+
+  String _formatFriday(String? iso) {
+    if (iso == null || iso.length < 10) return 'آخر جمعة';
+    const months = [
+      'يناير',
+      'فبراير',
+      'مارس',
+      'أبريل',
+      'مايو',
+      'يونيو',
+      'يوليو',
+      'أغسطس',
+      'سبتمبر',
+      'أكتوبر',
+      'نوفمبر',
+      'ديسمبر',
+    ];
+    final parts = iso.split('-');
+    final month = int.tryParse(parts.length > 1 ? parts[1] : '') ?? 1;
+    final day = int.tryParse(parts.length > 2 ? parts[2] : '') ?? 1;
+    final name = months[(month - 1).clamp(0, 11)];
+    return 'جمعة $day $name';
+  }
+
+  String _attendanceTypeLabel(String type) {
+    switch (type) {
+      case 'mass':
+        return 'قداس';
+      case 'generalMeeting':
+        return 'اجتماع عام';
+      case 'specialMeeting':
+        return 'اجتماع خاص';
+      case 'praise':
+        return 'تسبحة';
+      default:
+        return type;
+    }
+  }
+
+  IconData _attendanceTypeIcon(String type) {
+    switch (type) {
+      case 'mass':
+        return Icons.church_rounded;
+      case 'praise':
+        return Icons.music_note_rounded;
+      default:
+        return Icons.groups_rounded;
+    }
+  }
+
+  String _eftekadTypeLabel(String type) {
+    switch (type) {
+      case 'phone_call':
+        return 'مكالمات';
+      case 'whatsapp_message':
+        return 'واتساب';
+      case 'home_visit':
+        return 'زيارات منزلية';
+      default:
+        return type;
+    }
+  }
+
+  String _eftekadStatusLabel(String status) {
+    switch (status) {
+      case 'completed':
+        return 'تم الافتقاد';
+      case 'no_answer':
+        return 'لم يرد';
+      case 'busy':
+        return 'مشغول';
+      case 'postponed':
+        return 'مؤجل';
+      case 'cancelled':
+        return 'ملغي';
+      default:
+        return status;
+    }
   }
 
   Widget _buildQuickActions(BuildContext context) {
@@ -391,16 +790,7 @@ class _HomeScreenState extends State<HomeScreen> {
           title: 'تسجيل حضور',
           icon: Icons.event_available,
           color: AppColors.primaryBrown,
-          onTap: () {
-            print('📋 Quick action: Navigate to Attendance tab'); // Debug
-            try {
-              context
-                  .read<void Function(int)>()
-                  .call(2); // Tab 2 is AttendanceScreen
-            } catch (e) {
-              print('❌ Error switching tab: $e'); // Debug
-            }
-          },
+          onTap: () => _openSection(2),
         ))
       ])
     ]);
@@ -492,4 +882,10 @@ class _HomeScreenState extends State<HomeScreen> {
                           overflow: TextOverflow.ellipsis)
                     ])));
   }
+}
+
+class KhademSectionNav {
+  final void Function(int tab, {String? morePage}) open;
+
+  KhademSectionNav(this.open);
 }

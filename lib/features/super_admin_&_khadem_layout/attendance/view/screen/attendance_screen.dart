@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../core/constants/app_colors.dart';
+import '../../../../../core/session/session_context.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/data_refresh_cubit.dart';
 import '../../../../../core/services/excel_export_service.dart';
@@ -86,7 +87,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (_rangeFrom.isBefore(kAttendanceSeasonStart)) {
       _rangeFrom = kAttendanceSeasonStart;
     }
-    if (_currentUser?.role == UserRole.khadem) {
+    if (SessionContext.isKhademContext(_currentUser)) {
       _selectedKhademScope = _khademFilterSelfValue;
       _khademFilterSelection = _khademFilterSelfValue;
       _selectedKhademId = _currentUser?.id;
@@ -97,11 +98,26 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       sl<DataRefreshCubit>(),
     );
     _fetchAttendanceWithCurrentFilters();
+    SessionContext.instance.addListener(_onSessionClass);
     _loadClassesIfNeeded();
+  }
+
+  void _onSessionClass() {
+    if (!mounted) return;
+    final classId = SessionContext.instance.current?.classId;
+    if (classId == _selectedClassId) return;
+    setState(() => _selectedClassId = classId);
+    if (classId != null) {
+      _loadAssignmentsForClass(classId, resetSelection: true);
+    } else {
+      _resetKhademOptionsForAllClasses();
+      _fetchAttendanceWithCurrentFilters();
+    }
   }
 
   @override
   void dispose() {
+    SessionContext.instance.removeListener(_onSessionClass);
     _internalScrollController?.dispose();
     _attendanceCubit.close();
     super.dispose();
@@ -110,9 +126,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Future<void> _loadClassesIfNeeded() async {
     final user = _currentUser;
     if (user == null) return;
-    final userRole = user.role;
-    final isKhadem = userRole == UserRole.khadem;
-    final isSuperAdmin = userRole == UserRole.superAdmin;
+    final isSuperAdmin = SessionContext.isSuperAdminContext(user);
+    final isKhadem = SessionContext.isKhademContext(user);
 
     if (!isKhadem && !isSuperAdmin) return;
 
@@ -139,26 +154,35 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       },
       (classes) async {
         if (!mounted) return;
+        final scoped = classesForContext(
+          user: user,
+          role: UserRole.khadem,
+          classes: classes,
+          idOf: (item) => item.id,
+        );
         setState(() {
-          _availableClasses = classes;
+          _availableClasses = scoped;
           String? resolvedPopeId;
           try {
-            resolvedPopeId = classes
+            resolvedPopeId = scoped
                 .firstWhere((c) => isPopeAthanasiusClassName(c.name))
                 .id;
           } catch (_) {
             resolvedPopeId = null;
           }
           _popeAthanasiusClassId = resolvedPopeId ??
-              (classes.any((c) => c.id == kLegacyPopeAthanasiusClassId)
+              (scoped.any((c) => c.id == kLegacyPopeAthanasiusClassId)
                   ? kLegacyPopeAthanasiusClassId
                   : null);
-          if (_selectedClassId != null &&
-              !_availableClasses.any((c) => c.id == _selectedClassId)) {
+          final sessionId = SessionContext.instance.current?.classId;
+          if (sessionId != null && scoped.any((c) => c.id == sessionId)) {
+            _selectedClassId = sessionId;
+          } else if (_selectedClassId != null &&
+              !scoped.any((c) => c.id == _selectedClassId)) {
             _selectedClassId = null;
           }
-          if (_selectedClassId == null && classes.isNotEmpty && isKhadem) {
-            _selectedClassId = classes.first.id;
+          if (_selectedClassId == null && scoped.isNotEmpty && isKhadem) {
+            _selectedClassId = scoped.first.id;
           }
         });
         if (_selectedClassId != null) {
@@ -180,7 +204,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   void _fetchAttendanceWithCurrentFilters({String? classIdOverride}) {
-    final isKhadem = _currentUser?.role == UserRole.khadem;
+    final isKhadem = SessionContext.isKhademContext(_currentUser);
     final scope = isKhadem ? _selectedKhademScope : null;
     final effectiveKhademId = isKhadem
         ? (scope == _khademFilterAllValue
@@ -254,10 +278,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool get _shouldShowClassFilter {
     final user = _currentUser;
     if (user == null) return false;
-    if (user.role == UserRole.superAdmin) {
+    if (SessionContext.isSuperAdminContext(user)) {
       return _availableClasses.isNotEmpty;
     }
-    if (user.role == UserRole.khadem) {
+    if (SessionContext.isKhademContext(user)) {
       return _availableClasses.length > 1;
     }
     return false;
@@ -275,8 +299,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   void _resetKhademOptionsForAllClasses() {
     final user = _currentUser;
-    if (user?.role == UserRole.khadem) {
-      final selfOption = _buildUserOptionFromUser(user!);
+    if (user != null && SessionContext.isKhademContext(user)) {
+      final selfOption = _buildUserOptionFromUser(user);
       setState(() {
         _khademOptions = [selfOption];
         _selectedKhademId = selfOption.id;
@@ -321,7 +345,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       (assignments) {
         final options = [...assignments.khadems];
         final user = _currentUser;
-        if (user != null && user.role == UserRole.khadem) {
+        if (user != null && SessionContext.isKhademContext(user)) {
           final selfOption = _buildUserOptionFromUser(user);
           if (!options.any((option) => option.id == selfOption.id)) {
             options.add(selfOption);
@@ -333,7 +357,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         String? nextScope = _selectedKhademScope;
         String? nextFilterSelection = _khademFilterSelection;
 
-        if (user != null && user.role == UserRole.khadem) {
+        if (user != null && SessionContext.isKhademContext(user)) {
           final userId = user.id;
           final hasUserId = userId != null && userId.isNotEmpty;
           if (_khademFilterSelection == _khademFilterAllValue) {
@@ -408,7 +432,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool get _shouldShowKhademFilter {
     final user = _currentUser;
     if (user == null) return false;
-    if (user.role == UserRole.khadem) return true;
+    if (SessionContext.isKhademContext(user)) return true;
     if (user.role == UserRole.superAdmin) {
       return _khademOptions.isNotEmpty || _isLoadingAssignments;
     }
@@ -418,7 +442,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   bool get _canManageAssignments {
     final user = _currentUser;
     if (user == null) return false;
-    return user.role == UserRole.khadem || user.role == UserRole.superAdmin;
+    return SessionContext.isKhademContext(user) || user.role == UserRole.superAdmin;
   }
 
   Future<void> _openManageAssignmentsDialog() async {
@@ -569,7 +593,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   Widget _buildKhademField() {
     final user = _currentUser;
-    if (user?.role == UserRole.khadem) {
+    if (SessionContext.isKhademContext(user)) {
       final otherKhadems =
           _khademOptions.where((option) => option.id != user?.id).toList();
 
@@ -785,8 +809,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final members = _extractMemberNames(records);
       final attendanceMatrix = _buildAttendanceMatrix(records);
 
-      return SliverFillRemaining(
-        hasScrollBody: true,
+      return SliverToBoxAdapter(
         child: Card(
           elevation: 0,
           margin: EdgeInsets.zero,
@@ -796,10 +819,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 _buildExportButton(records),
-                Expanded(
-                  child: AttendanceTableWidget(
+                AttendanceTableWidget(
                     key: ValueKey('${_iso(_rangeFrom)}|${_iso(_rangeTo)}|$_selectAllDates|${dates.length}'),
                     dates: dates,
                     members: members,
@@ -810,7 +833,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     selectAllDates: _selectAllDates,
                     typeLabels: _viewingPopeClass ? _popeTypeLabels : null,
                   ),
-                ),
               ],
             ),
           ),
@@ -916,8 +938,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   bool get _showQrAttendanceFab {
-    final role = _currentUser?.role;
-    final isStaff = role == UserRole.khadem || role == UserRole.superAdmin;
+    final user = _currentUser;
+    final isStaff = SessionContext.isKhademContext(user) ||
+        SessionContext.isSuperAdminContext(user) ||
+        user?.role == UserRole.superAdmin;
     return isStaff &&
         _popeAthanasiusClassId != null &&
         _popeAthanasiusClassId!.isNotEmpty;
@@ -990,7 +1014,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           backgroundColor: Colors.green,
         ),
       );
-      final isKhadem = _currentUser?.role == UserRole.khadem;
+      final isKhadem = SessionContext.isKhademContext(_currentUser);
       final khademId =
           isKhadem && _selectedKhademScope == _khademFilterAllValue
               ? null
@@ -1034,7 +1058,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       ),
                     ),
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
                       sliver: _buildAttendanceSliver(state),
                     ),
                   ],
@@ -1051,11 +1075,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     try {
       final result = await showDialog<bool>(
         context: context,
-        builder: (context) => const BulkAttendanceDialog(),
+        builder: (context) => BulkAttendanceDialog(classId: _selectedClassId),
       );
 
       if (result == true && context.mounted) {
-        final isKhadem = _currentUser?.role == UserRole.khadem;
+        final isKhadem = SessionContext.isKhademContext(_currentUser);
         final khademId =
             isKhadem && _selectedKhademScope == _khademFilterAllValue
                 ? null
@@ -1079,7 +1103,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     if (records.isEmpty) return const SizedBox.shrink();
 
     final hasMultipleClasses = _availableClasses.length > 1;
-    final isKhadem = _currentUser?.role == UserRole.khadem;
+    final isKhadem = SessionContext.isKhademContext(_currentUser);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1122,12 +1146,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             for (final classId in selectedClassIds) {
               final result = await attendanceRepo.fetchAttendance(
                 classId: classId,
-                khademId: _currentUser?.role == UserRole.khadem
+                khademId: SessionContext.isKhademContext(_currentUser)
                     ? (_selectedKhademScope == _khademFilterAllValue
                         ? null
                         : (_selectedKhademId ?? _currentUser?.id))
                     : _selectedKhademId,
-                khademScope: _currentUser?.role == UserRole.khadem
+                khademScope: SessionContext.isKhademContext(_currentUser)
                     ? _selectedKhademScope
                     : null,
                 from: _iso(_rangeFrom),

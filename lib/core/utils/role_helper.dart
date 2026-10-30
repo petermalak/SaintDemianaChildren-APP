@@ -58,6 +58,40 @@ class RoleHelper {
   static List<UserClassInfo> getMakhdoumClasses(UserModel? user) {
     return getClassesByRole(user, UserRole.makhdoum);
   }
+
+  /// One row per active membership, plus a general-admin row when that is the account role.
+  static List<RoleClassSelection> membershipContexts(UserModel? user) {
+    if (user == null) return const [];
+    final contexts = <RoleClassSelection>[];
+    if (user.role == UserRole.superAdmin) {
+      contexts.add(const RoleClassSelection(role: UserRole.superAdmin));
+    }
+    for (final info in getKhademClasses(user)) {
+      contexts.add(RoleClassSelection(
+        role: UserRole.khadem,
+        classId: info.classId,
+        className: info.className,
+      ));
+    }
+    for (final info in getMakhdoumClasses(user)) {
+      contexts.add(RoleClassSelection(
+        role: UserRole.makhdoum,
+        classId: info.classId,
+        className: info.className,
+      ));
+    }
+    return contexts;
+  }
+
+  static Set<String> classIdsFor(UserModel? user, UserRole role) {
+    final source = role == UserRole.makhdoum
+        ? getMakhdoumClasses(user)
+        : getKhademClasses(user);
+    return source
+        .map((info) => info.classId)
+        .where((id) => id.isNotEmpty)
+        .toSet();
+  }
   
   /// Get the primary role to use for routing (prefers khadem over makhdoum)
   static UserRole? getPrimaryRole(UserModel? user) {
@@ -142,11 +176,19 @@ class RoleClassSelection {
   });
   
   String get displayName {
-    final roleName = role == UserRole.khadem ? 'خادم' : 'مخدوم';
-    if (className != null && className!.isNotEmpty) {
-      return '$roleName - $className';
+    final roleName = switch (role) {
+      UserRole.khadem => 'خادم',
+      UserRole.makhdoum => 'مخدوم',
+      UserRole.superAdmin => 'مدير عام',
+    };
+    if (className != null && className!.trim().isNotEmpty) {
+      return '$roleName — $className';
     }
     return roleName;
+  }
+
+  bool sameAs(RoleClassSelection other) {
+    return role == other.role && classId == other.classId;
   }
 }
 
