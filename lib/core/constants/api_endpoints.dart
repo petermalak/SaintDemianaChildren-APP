@@ -17,8 +17,8 @@ class ApiEndpoints {
   static const String changePassword = 'auth/change-password/';
 
   // PRODUCTION - Your domain configuration
-  static const String baseUrl = "http://localhost:7000/";
-  // static const String baseUrl = "https://www.saint-demiana.com/api/";
+  static const String baseUrl = "https://www.saint-demiana.com/api/";
+  // static const String baseUrl = "http://localhost:7000/";
 
   // DEVELOPMENT - Keep these commented for reference
 //   static const String baseUrl = "http://localhost:7000/";
