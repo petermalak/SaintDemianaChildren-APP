@@ -1,0 +1,142 @@
+workflows:
+  flutter-android:
+    name: Flutter Android
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    environment:
+      # Reference name of the keystore uploaded in Codemagic → Code signing identities.
+      android_signing:
+        - saint_demiana
+      groups:
+        - google_play # GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS
+      vars:
+        PACKAGE_NAME: "com.saint_demiana.services"
+        GOOGLE_PLAY_TRACK: "internal"
+      flutter: stable
+    scripts:
+      - name: Set up local.properties
+        script: |
+          echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+      - name: Build AAB with Flutter
+        script: |
+          LATEST_BUILD_NUMBER=$(google-play get-latest-build-number --package-name "$PACKAGE_NAME" || true)
+          if [ -z "$LATEST_BUILD_NUMBER" ]; then
+            BUILD_NUMBER=14
+          else
+            BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
+          fi
+          if [ "$BUILD_NUMBER" -lt 14 ]; then
+            BUILD_NUMBER=14
+          fi
+          echo "Publishing Android 1.0.${BUILD_NUMBER} (${BUILD_NUMBER})"
+          flutter build appbundle --release \
+            --build-name=1.0.${BUILD_NUMBER} \
+            --build-number=${BUILD_NUMBER}
+    artifacts:
+      - build/**/outputs/**/*.aab
+      - build/**/outputs/**/mapping.txt
+      - flutter_drive.log
+    publishing:
+      email:
+        recipients:
+          - pmalak14@gmail.com
+        notify:
+          success: true
+          failure: true
+      google_play:
+        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT_CREDENTIALS
+        track: $GOOGLE_PLAY_TRACK
+        submit_as_draft: true
+
+  flutter-ios:
+    name: Flutter iOS Workflow
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    integrations:
+      # Name of the App Store Connect API key in Codemagic (key id 6N78627S7N).
+      app_store_connect: SaintDemiana
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.example.saintDemianaChildren
+      vars:
+        # App Store Connect → the app → General → App Information → Apple ID.
+        APP_STORE_APPLE_ID: ""
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Set up code signing settings on Xcode project
+        script: |
+          xcode-project use-profiles
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+      - name: Install pods
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+      - name: Flutter build ipa
+        script: |
+          if [ -z "$APP_STORE_APPLE_ID" ]; then
+            echo "Set APP_STORE_APPLE_ID in codemagic.yaml to the numeric Apple ID."
+            exit 1
+          fi
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" --all-versions)
+          BUILD_NUMBER=$((LATEST_BUILD_NUMBER + 1))
+          if [ "$BUILD_NUMBER" -lt 14 ]; then
+            BUILD_NUMBER=14
+          fi
+          echo "Publishing iOS 1.0.${BUILD_NUMBER} (${BUILD_NUMBER})"
+          flutter build ipa --release \
+            --build-name=1.0.${BUILD_NUMBER} \
+            --build-number=${BUILD_NUMBER} \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+    publishing:
+      email:
+        recipients:
+          - pmalak14@gmail.com
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: false
+        submit_to_app_store: false
+
+  web-workflow:
+    name: Web app workflow
+    max_build_duration: 10
+    environment:
+      flutter: stable
+    scripts:
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+      - name: Flutter analyze
+        script: |
+          flutter analyze
+      - name: Flutter unit tests
+        script: |
+          flutter test
+      - name: Flutter build webapp
+        script: |
+          flutter build web --release
+          cd build/web
+          7z a -r ../web.zip ./*
+    artifacts:
+      - build/web.zip
+      - flutter_drive.log
+    publishing:
+      email:
+        recipients:
+          - pmalak14@gmail.com
+        notify:
+          success: true
+          failure: true
