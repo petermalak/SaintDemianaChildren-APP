@@ -64,7 +64,7 @@ workflows:
         bundle_identifier: com.example.saintDemianaChildren
       vars:
         # App Store Connect → the app → General → App Information → Apple ID.
-        APP_STORE_APPLE_ID: ""
+        APP_STORE_APPLE_ID: "6754520091"
       flutter: stable
       xcode: latest
       cocoapods: default
