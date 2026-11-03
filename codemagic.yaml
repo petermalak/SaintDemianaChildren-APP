@@ -56,28 +56,40 @@ workflows:
     instance_type: mac_mini_m2
     max_build_duration: 120
     integrations:
-      # Name of the App Store Connect API key in Codemagic (key id 6N78627S7N).
+      # Codemagic → Team settings → Integrations → Developer Portal.
+      # Integration name must stay "SaintDemiana".
+      # Upload AuthKey_2VVNRQ87UQ.p8 there (Key ID 2VVNRQ87UQ) plus the Issuer ID.
       app_store_connect: SaintDemiana
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.example.saintDemianaChildren
       vars:
+        BUNDLE_ID: "com.example.saintDemianaChildren"
         # App Store Connect → the app → General → App Information → Apple ID.
         APP_STORE_APPLE_ID: "6754520091"
       flutter: stable
       xcode: latest
       cocoapods: default
     scripts:
-      - name: Set up code signing settings on Xcode project
-        script: |
-          xcode-project use-profiles
       - name: Get Flutter packages
         script: |
           flutter pub get
       - name: Install pods
         script: |
           find . -name "Podfile" -execdir pod install \;
+      - name: Initialize keychain
+        script: |
+          keychain initialize
+      - name: Fetch or create App Store signing files
+        script: |
+          # Creates the distribution certificate and App Store profile when none exist.
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+      - name: Add signing certificate
+        script: |
+          keychain add-certificates
+      - name: Apply provisioning profiles
+        script: |
+          xcode-project use-profiles --code-signing-setup-verbose-logging
       - name: Flutter build ipa
         script: |
           if [ -z "$APP_STORE_APPLE_ID" ]; then
@@ -107,7 +119,7 @@ workflows:
           failure: true
       app_store_connect:
         auth: integration
-        submit_to_testflight: false
+        submit_to_testflight: true
         submit_to_app_store: false
 
   web-workflow:

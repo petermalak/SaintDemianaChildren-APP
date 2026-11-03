@@ -1,0 +1,17 @@
+الإصدار 1.0.14
+
+• لوحة متابعة جديدة للخادم: نسب الحضور والافتقاد، والضغط عليها يفتح الشاشة المناسبة
+• لو الشخص خادم ومخدوم، يختار الفصل والدور، والتطبيق يفضل على الاختيار ده
+• بطاقة العضو توضّح خادم أو مخدوم في كل فصل
+• حضور البابا أثناسيوس يتبع الفصل المختار، ويظهر للمخدوم في صفحته
+• نظام التايو يختفي من الفصول اللي النقاط فيها متوقفة
+• طلب إضافة عضو، ومتابعة طلبات الأعضاء
+
+Version 1.0.14
+
+• New khadem home: attendance and visitation progress, and each card opens its screen
+• If someone is both a servant and a member, they pick the class and role, and the app stays on that choice
+• The member card shows servant or member for each class
+• Pope Athanasius attendance follows the selected class, and members see that meeting on their home
+• Taio points are hidden for classes where scoring is turned off
+• Request to add a member, and a screen to follow member requests

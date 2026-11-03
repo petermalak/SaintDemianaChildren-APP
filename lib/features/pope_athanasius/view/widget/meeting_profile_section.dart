@@ -20,8 +20,10 @@ class MeetingProfileSection extends StatelessWidget {
   };
   static const _groups = {
     1: 'الأسر',
-    2: 'شباب وخريجين',
-    3: 'إعدادي وثانوي',
+    2: 'شباب',
+    3: 'خريجين',
+    4: 'إعدادي',
+    5: 'ثانوي',
   };
   static const _textFields = [
     ['code', 'الكود'],

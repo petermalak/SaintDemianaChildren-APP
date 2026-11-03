@@ -157,7 +157,7 @@ class ExcelExportService {
       final excel = Excel.createExcel();
       final sheet = excel['الحضور'];
 
-      final cleanRecords = records
+      final cleanRecords = collapseAttendanceNames(records)
           .where((r) =>
               (r.userName != null && r.userName!.isNotEmpty) &&
               (r.date != null && r.date!.isNotEmpty) &&

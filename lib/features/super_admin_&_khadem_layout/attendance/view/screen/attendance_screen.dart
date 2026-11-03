@@ -789,14 +789,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final attendanceData = state.attendance;
       final allRecords = attendanceData.attendanceRecords ?? [];
       // Filter out placeholder records with null values
-      final records = allRecords
+      final records = collapseAttendanceNames(allRecords
           .where((record) =>
               record.id != null &&
               record.date != null &&
               record.type != null &&
               record.userName != null &&
               record.userName!.isNotEmpty)
-          .toList();
+          .toList());
       final dates = attendanceData.attendanceDates ?? [];
 
       if (records.isEmpty) {

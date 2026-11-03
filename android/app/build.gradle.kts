@@ -18,17 +18,12 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.saint_demiana.services"
     compileSdk = flutter.compileSdkVersion
-    // Omit ndkVersion so AGP uses installed NDK (avoids strip failure when exact version missing)
-    // ndkVersion = "27.0.12077973"
+    ndkVersion = "27.1.12297006"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
         isCoreLibraryDesugaringEnabled = true
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
     }
 
     defaultConfig {
@@ -45,7 +40,14 @@ android {
 
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
+            val ciKeystorePath = System.getenv("CM_KEYSTORE_PATH")
+            if (!ciKeystorePath.isNullOrBlank()) {
+                // Codemagic android_signing provides an absolute keystore path.
+                storeFile = file(ciKeystorePath)
+                storePassword = System.getenv("CM_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("CM_KEY_ALIAS")
+                keyPassword = System.getenv("CM_KEY_PASSWORD")
+            } else if (keystorePropertiesFile.exists()) {
                 keyAlias = keystoreProperties["keyAlias"] as String
                 keyPassword = keystoreProperties["keyPassword"] as String
                 storeFile = file("../" + keystoreProperties["storeFile"] as String)
@@ -71,12 +73,8 @@ android {
 }
 
 kotlin {
-    jvmToolchain(17)
-}
-
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-    kotlinOptions {
-        incremental = false
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 
