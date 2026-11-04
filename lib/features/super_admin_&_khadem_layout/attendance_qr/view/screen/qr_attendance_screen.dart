@@ -9,11 +9,12 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../authentication/model/user_model.dart';
+import '../../constants.dart';
 import '../../viewmodel/qr_attendance_cubit.dart';
 import '../../viewmodel/qr_attendance_state.dart';
 import '../widget/scanned_member_tile.dart';
 
-/// QR attendance for Pope Athanasius الفرقة الثانية (khadem / super admin).
+/// QR attendance for Pope Athanasius الفرقة الأولى والثانية (khadem / super admin).
 class QrAttendanceScreen extends StatelessWidget {
   const QrAttendanceScreen({
     super.key,
@@ -126,12 +127,13 @@ class _QrAttendanceBodyState extends State<_QrAttendanceBody>
 
   Future<void> _showManualAddDialog(QrAttendanceReady ready) async {
     final options = ready.rosterById.values
-        .where((m) =>
-            m.popeAthnasiusMeetingData?.studyLevel == 2 ||
-            m.classes.any((info) =>
-                info.classId == widget.classId &&
-                info.membershipRole == 'khadem' &&
-                info.isActive != false))
+        .where((m) => acceptsPopeQrCard(
+              m.popeAthnasiusMeetingData?.studyLevel,
+              isClassServant: m.classes.any((info) =>
+                  info.classId == widget.classId &&
+                  info.membershipRole == 'khadem' &&
+                  info.isActive != false),
+            ))
         .toList()
       ..sort((a, b) => (a.name ?? '').compareTo(b.name ?? ''));
 
@@ -216,7 +218,7 @@ class _QrAttendanceBodyState extends State<_QrAttendanceBody>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('تسجيل حضور QR', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                Text('الفرقة الثانية · بطاقات البابا أثناسيوس', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w400)),
+                Text('الفرقة الأولى والثانية · بطاقات البابا أثناسيوس', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w400)),
               ],
             ),
             backgroundColor: AppColors.primaryMaroon,
@@ -390,7 +392,7 @@ class _QrAttendanceBodyState extends State<_QrAttendanceBody>
               ),
               const SizedBox(height: 8),
               Text(
-                'وجّه الكاميرا لبطاقة الفرقة الثانية · ${_eventLabel(ready.selectedEvent)}',
+                'وجّه الكاميرا لبطاقة الفرقة الأولى أو الثانية · ${_eventLabel(ready.selectedEvent)}',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
               ),
@@ -472,7 +474,7 @@ class _QrAttendanceBodyState extends State<_QrAttendanceBody>
                       Icon(Icons.qr_code_2, size: 40, color: AppColors.textSecondary.withValues(alpha: 0.5)),
                       const SizedBox(height: 8),
                       Text(
-                        'ابدأ بمسح بطاقة من الفرقة الثانية',
+                        'ابدأ بمسح بطاقة من الفرقة الأولى أو الثانية',
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
                     ],
@@ -690,7 +692,7 @@ class _ManualAddMemberDialogState extends State<_ManualAddMemberDialog> {
             SizedBox(
               height: maxListHeight,
               child: filtered.isEmpty
-                  ? const Center(child: Text('لا نتائج من الفرقة الثانية'))
+                  ? const Center(child: Text('لا نتائج'))
                   : ListView.builder(
                       itemCount: filtered.length,
                       itemBuilder: (_, i) {

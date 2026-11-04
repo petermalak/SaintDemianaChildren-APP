@@ -3,6 +3,7 @@ class LevelTwoPerson {
   final String name;
   final String phoneNumber;
   final String group;
+  final String cohortLabel;
   final bool bible;
   final bool doctrine;
 
@@ -11,6 +12,7 @@ class LevelTwoPerson {
     required this.name,
     required this.phoneNumber,
     required this.group,
+    required this.cohortLabel,
     required this.bible,
     required this.doctrine,
   });
@@ -21,6 +23,7 @@ class LevelTwoPerson {
       name: json['name']?.toString() ?? '',
       phoneNumber: json['phoneNumber']?.toString() ?? '',
       group: json['group']?.toString() ?? '',
+      cohortLabel: json['cohortLabel']?.toString() ?? '',
       bible: json['bible'] == true,
       doctrine: json['doctrine'] == true,
     );

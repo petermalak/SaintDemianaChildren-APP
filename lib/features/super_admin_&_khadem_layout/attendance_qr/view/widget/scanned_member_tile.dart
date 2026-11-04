@@ -17,9 +17,13 @@ class ScannedMemberTile extends StatelessWidget {
 
   String get _groupLabel {
     final meeting = member.popeAthnasiusMeetingData;
-    if (meeting == null) return 'الفرقة الثانية';
+    if (meeting == null) return 'خادم';
+    const levels = {1: 'الفرقة الأولى', 2: 'الفرقة الثانية'};
     const groups = {1: 'الأسر', 2: 'شباب', 3: 'خريجين', 4: 'إعدادي', 5: 'ثانوي'};
-    return groups[meeting.classPhase] ?? 'الفرقة الثانية';
+    final level = levels[meeting.studyLevel];
+    final group = groups[meeting.classPhase];
+    if (level != null && group != null) return '$level · $group';
+    return level ?? group ?? 'خادم';
   }
 
   @override

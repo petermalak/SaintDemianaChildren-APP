@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../authentication/model/user_model.dart';
 import '../../attendance/repository/i_attendance_repository.dart';
 import '../../members/repository/i_members_repository.dart';
+import '../constants.dart';
 import 'qr_attendance_state.dart';
 
 class QrAttendanceCubit extends Cubit<QrAttendanceState> {
@@ -113,7 +114,7 @@ class QrAttendanceCubit extends Cubit<QrAttendanceState> {
     final trimmed = raw.trim();
     if (!_uuidRegex.hasMatch(trimmed)) {
       emit(s.copyWith(
-        feedback: 'الرمز غير صالح — امسح بطاقة الفرقة الثانية',
+        feedback: 'الرمز غير صالح — امسح بطاقة الفرقة الأولى أو الثانية',
         feedbackIsError: true,
       ));
       return;
@@ -128,9 +129,12 @@ class QrAttendanceCubit extends Cubit<QrAttendanceState> {
       return;
     }
 
-    if (member.popeAthnasiusMeetingData?.studyLevel != 2 && !_isClassServant(member)) {
+    if (!acceptsPopeQrCard(
+      member.popeAthnasiusMeetingData?.studyLevel,
+      isClassServant: _isClassServant(member),
+    )) {
       emit(s.copyWith(
-        feedback: 'هذه البطاقة ليست من الفرقة الثانية. الفرقة الأولى حضورها على الورق',
+        feedback: 'هذه البطاقة ليست من الفرقة الأولى أو الثانية',
         feedbackIsError: true,
       ));
       return;

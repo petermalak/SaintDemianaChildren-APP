@@ -22,6 +22,12 @@ bool canViewPopeAthanasiusData(UserModel? user) {
   );
 }
 
+/// الفرقة الأولى والفرقة الثانية تُسجَّل بالبطاقة. الخادم في الفصل يُقبل حتى لو فرقته فاضية.
+bool acceptsPopeQrCard(int? studyLevel, {required bool isClassServant}) {
+  if (studyLevel == 1 || studyLevel == 2) return true;
+  return isClassServant;
+}
+
 bool isPopeAthanasiusClassName(String? name) {
   if (name == null) return false;
   final n = name.trim().toLowerCase();
