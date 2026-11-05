@@ -1,11 +1,11 @@
 {
-    "name": "saint_demiana_children",
-    "short_name": "saint_demiana_children",
+    "name": "Saint Demiana Church - Children Ministry",
+    "short_name": "Saint Demiana",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#hexcode",
-    "theme_color": "#hexcode",
-    "description": "A new Flutter project.",
+    "background_color": "#8B1538",
+    "theme_color": "#8B1538",
+    "description": "Saint Demiana Church Children Ministry Management System - Track attendance, manage pastoral care (eftekad), and organize church activities for the Coptic Orthodox community.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

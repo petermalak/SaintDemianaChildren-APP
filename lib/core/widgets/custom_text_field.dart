@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
 
-class CustomTextField extends StatelessWidget {
+class CustomTextField extends StatefulWidget {
   final TextEditingController controller;
   final String labelText;
   final String? hintText;
@@ -33,26 +33,51 @@ class CustomTextField extends StatelessWidget {
   });
 
   @override
+  State<CustomTextField> createState() => _CustomTextFieldState();
+}
+
+class _CustomTextFieldState extends State<CustomTextField> {
+  late bool _obscureText;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscureText = widget.isPassword ?? widget.obscureText;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      validator: validator,
-      onFieldSubmitted: onSubmit,
-      focusNode: focusNode,
-      readOnly: readOnly,
+      controller: widget.controller,
+      obscureText: _obscureText,
+      keyboardType: widget.keyboardType,
+      validator: widget.validator,
+      onFieldSubmitted: widget.onSubmit,
+      focusNode: widget.focusNode,
+      readOnly: widget.readOnly,
       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
             color: AppColors.textPrimary,
           ),
       decoration: InputDecoration(
-        labelText: labelText,
-        hintText: hintText,
+        labelText: widget.labelText,
+        hintText: widget.hintText,
         prefixIcon: Icon(
-          prefixIcon,
+          widget.prefixIcon,
           color: AppColors.primaryMaroon,
         ),
-        suffixIcon: suffixIcon,
+        suffixIcon: widget.isPassword == true
+            ? IconButton(
+                icon: Icon(
+                  _obscureText ? Icons.visibility_off : Icons.visibility,
+                  color: AppColors.primaryMaroon,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscureText = !_obscureText;
+                  });
+                },
+              )
+            : widget.suffixIcon,
         filled: true,
         fillColor: AppColors.backgroundCard,
         border: OutlineInputBorder(

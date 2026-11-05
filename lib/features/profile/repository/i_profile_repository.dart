@@ -4,6 +4,7 @@ import 'package:saint_demiana_children/features/authentication/model/user_model.
 abstract class IProfileRepository {
   Future<Either<String, Unit>> updateProfile(UserModel user);
   Future<UserModel?> loadUser();
+  Future<Either<String, UserModel>> refreshUser();
   UserModel? get user;
   set user(UserModel? user);
   UserRole get userRole;

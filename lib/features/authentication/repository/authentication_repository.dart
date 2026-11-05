@@ -1,7 +1,12 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:saint_demiana_children/core/constants/api_endpoints.dart';
 import 'package:saint_demiana_children/core/services/interface/i_api_service.dart';
+import 'package:saint_demiana_children/core/services/interface/i_biometric_service.dart';
+import 'package:saint_demiana_children/core/services/interface/i_storage_service.dart';
+import 'package:saint_demiana_children/core/services/sync_queue_service.dart';
+import 'package:saint_demiana_children/core/session/session_context.dart';
 
 import 'package:saint_demiana_children/features/authentication/model/user_model.dart';
 import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
@@ -13,12 +18,17 @@ class AuthenticationRepository implements IAuthenticationRepository {
   final IApiService _apiService;
   final IProfileRepository _profileRepository;
   final IMembersRepository _membersRepository;
-  AuthenticationRepository(this._apiService, this._profileRepository, this._membersRepository);
+  final IBiometricService _biometricService;
+  final IStorageService _storageService;
+  AuthenticationRepository(this._apiService, this._profileRepository,
+      this._membersRepository, this._biometricService, this._storageService);
 
   @override
   void logout() {
+    SessionContext.instance.clear();
     _profileRepository.user = null;
     _apiService.post(path: ApiEndpoints.logout);
+    SyncQueueService.instance.onUserChanged();
   }
 
   @override
@@ -58,23 +68,67 @@ class AuthenticationRepository implements IAuthenticationRepository {
     // }
 
     try {
+      print('🔐 [AuthRepo] Attempting login for: $email');
+
       final response = await _apiService.post(path: ApiEndpoints.login, body: {
         'email': email,
         'password': password,
       });
-      _profileRepository.user = UserModel.fromJson(response.data['user'],
+
+      print('✅ [AuthRepo] Login successful');
+      print('🔐 [AuthRepo] Token received: ${response.data['token'] != null}');
+
+      if (response.data['token'] != null) {
+        print(
+            '🔐 [AuthRepo] Token preview: ${response.data['token'].toString().substring(0, 20)}...');
+      }
+
+      final user = UserModel.fromJson(response.data['user'],
           token: response.data['token']);
-      if(_profileRepository.user?.role!=UserRole.makhdoum){
-        print("=============================================");
-        print('fetching members');
-       (await _membersRepository.fetchMembers(_profileRepository.user?.role==UserRole.superAdmin)).fold((error){throw error;}, (_){});
-        print("=============================================");
-        print('members fetched');
+
+      print('👤 [AuthRepo] User created: ${user.name}');
+      print('🔐 [AuthRepo] User has token: ${user.token != null}');
+
+      // This setter saves to storage
+      _profileRepository.user = user;
+      await _storageService.saveLoginTime(DateTime.now());
+      SyncQueueService.instance.onUserChanged();
+
+      print('💾 [AuthRepo] User saved to ProfileRepository');
+
+      // Save credentials for biometric login (only on mobile platforms)
+      // This allows users to use fingerprint/Face ID for future logins
+      if (!kIsWeb && _biometricService.isSupported) {
+        try {
+          await _biometricService.saveCredentials(email, password);
+          if (kDebugMode) {
+            print('✅ [AuthRepo] Credentials saved for biometric login');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('⚠️ [AuthRepo] Failed to save credentials for biometric: $e');
+          }
+          // Don't fail login if credential saving fails - biometric is optional
+        }
+      }
+
+      // Warm the members list in the background: login should not wait for it,
+      // and the members screen loads it itself when needed.
+      if (_profileRepository.user?.role != UserRole.makhdoum) {
+        _membersRepository
+            .fetchMembers(
+                _profileRepository.user?.role == UserRole.superAdmin)
+            .then((result) => result.fold(
+                  (error) => print('⚠️ [AuthRepo] Members preload: $error'),
+                  (_) => print('✅ [AuthRepo] Members preloaded'),
+                ));
       }
       return right(_profileRepository.user!);
     } on DioException catch (e) {
+      print('❌ [AuthRepo] DioException during login: ${e.message}');
       return left(_apiService.handleError(e));
     } catch (e) {
+      print('❌ [AuthRepo] Error during login: $e');
       return left(e.toString());
     }
   }
@@ -82,5 +136,34 @@ class AuthenticationRepository implements IAuthenticationRepository {
   @override
   Future<bool> isAuthenticated() async {
     return (await _profileRepository.loadUser()) != null;
+  }
+
+  @override
+  Future<Either<String, Unit>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  }) async {
+    try {
+      print('🔐 [AuthRepo] Attempting to change password...');
+
+      await _apiService.post(
+        path: ApiEndpoints.changePassword,
+        body: {
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+          'confirmPassword': confirmPassword,
+        },
+      );
+
+      print('✅ [AuthRepo] Password changed successfully');
+      return right(unit);
+    } on DioException catch (e) {
+      print('❌ [AuthRepo] DioException during password change: ${e.message}');
+      return left(_apiService.handleError(e));
+    } catch (e) {
+      print('❌ [AuthRepo] Error during password change: $e');
+      return left(e.toString());
+    }
   }
 }

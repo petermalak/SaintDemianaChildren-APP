@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Saint Demiana Children</string>
+	<string>SaintDemiana</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>saint_demiana_children</string>
+	<string>SaintDemiana</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -48,6 +48,12 @@
 	<!-- Permissions for phone calls and WhatsApp -->
 	<key>NSPhoneNumberUsageDescription</key>
 	<string>This app needs access to make phone calls to contact church members.</string>
+	<!-- Biometric Authentication Permission -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Use Face ID or Touch ID to securely login to your account</string>
+	<!-- QR attendance (camera) -->
+	<key>NSCameraUsageDescription</key>
+	<string>This app uses the camera to scan member QR codes for attendance.</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>tel</string>

@@ -31,20 +31,31 @@ class ClassMembershipModel {
   });
 
   factory ClassMembershipModel.fromJson(Map<String, dynamic> json) {
+    DateTime parseDateTime(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is DateTime) return value;
+      if (value is String) {
+        try {
+          return DateTime.parse(value);
+        } catch (e) {
+          print('Error parsing DateTime in ClassMembership: $value, error: $e');
+          return DateTime.now();
+        }
+      }
+      return DateTime.now();
+    }
+
     return ClassMembershipModel(
       id: json['id'] ?? '',
       classId: json['classId'] ?? '',
       userId: json['userId'] ?? '',
       role: UserModel.parseRole(json['role']),
-      joinedAt:
-          DateTime.parse(json['joinedAt'] ?? DateTime.now().toIso8601String()),
+      joinedAt: parseDateTime(json['joinedAt']),
       isActive: json['isActive'] ?? true,
       assignedBy: json['assignedBy'],
       notes: json['notes'],
-      createdAt:
-          DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      updatedAt:
-          DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
+      createdAt: parseDateTime(json['createdAt']),
+      updatedAt: parseDateTime(json['updatedAt']),
       user: json['user'] != null ? UserModel.fromJson(json['user']) : null,
       classModel:
           json['class'] != null ? ClassModel.fromJson(json['class']) : null,

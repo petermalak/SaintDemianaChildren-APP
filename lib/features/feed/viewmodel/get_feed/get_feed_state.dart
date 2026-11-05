@@ -1,15 +1,20 @@
 part of 'get_feed_cubit.dart';
 
-@immutable
 sealed class GetFeedState {}
 
 final class GetFeedInitial extends GetFeedState {}
 
 final class GetFeedLoading extends GetFeedState {}
 
+final class GetFeedLoadingMore extends GetFeedState {
+  final List<FeedModel> feeds;
+  GetFeedLoadingMore(this.feeds);
+}
+
 final class GetFeedSuccess extends GetFeedState {
   final List<FeedModel> feeds;
-  GetFeedSuccess(this.feeds);
+  final bool hasMore;
+  GetFeedSuccess(this.feeds, {this.hasMore = false});
 }
 
 final class GetFeedFailure extends GetFeedState {

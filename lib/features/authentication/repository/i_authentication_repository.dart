@@ -6,4 +6,9 @@ abstract class IAuthenticationRepository {
       {required String email, required String password});
   void logout();
   Future<bool> isAuthenticated();
+  Future<Either<String, Unit>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+    required String confirmPassword,
+  });
 }

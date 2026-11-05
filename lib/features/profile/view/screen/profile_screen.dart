@@ -8,6 +8,7 @@ import '../../../../core/widgets/country_phone_field.dart';
 import '../../../../core/widgets/profile_field.dart';
 import '../../../../core/widgets/profile_image_picker.dart';
 import '../../../authentication/model/user_model.dart';
+import '../../../authentication/view/screen/change_password_screen.dart';
 import '../../repository/i_profile_repository.dart';
 import '../../viewmodel/profile_cubit.dart';
 
@@ -87,6 +88,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         _buildProfileImageSection(),
                         const SizedBox(height: AppSpacing.xl),
                         _buildProfileFieldsSection(),
+                        if (user.theaterProfile != null) ...[
+                          const SizedBox(height: AppSpacing.xl),
+                          _buildTheaterSection(),
+                        ],
+                        const SizedBox(height: AppSpacing.xl),
+                        _buildSecuritySection(),
                         const SizedBox(height: AppSpacing.xl),
                         _buildActionButtons(),
                       ],
@@ -321,6 +328,183 @@ class _ProfileScreenState extends State<ProfileScreen> {
             value: user.id.toString(),
             isEditable: false,
             isRequired: false,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTheaterSection() {
+    final profile = user.theaterProfile!;
+    final participated = profile.participatedBefore == null
+        ? null
+        : (profile.participatedBefore! ? 'نعم' : 'لا');
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'خدمة المسرح',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          ProfileField(
+            label: 'القسم',
+            value: profile.departmentLabel,
+            isEditable: false,
+            isRequired: false,
+          ),
+          if (profile.stage != null && profile.stage!.isNotEmpty)
+            ProfileField(
+              label: 'المرحلة',
+              value: profile.stage!,
+              isEditable: false,
+              isRequired: false,
+            ),
+          if (profile.priority1 != null && profile.priority1!.isNotEmpty)
+            ProfileField(
+              label: 'الأولوية الأولى',
+              value: profile.priority1!,
+              isEditable: false,
+              isRequired: false,
+            ),
+          if (profile.priority2 != null && profile.priority2!.isNotEmpty)
+            ProfileField(
+              label: 'الأولوية التانية',
+              value: profile.priority2!,
+              isEditable: false,
+              isRequired: false,
+            ),
+          if (participated != null)
+            ProfileField(
+              label: 'اشترك في مسرحيات قبل كده',
+              value: participated,
+              isEditable: false,
+              isRequired: false,
+            ),
+          if (profile.previousResponsibility != null &&
+              profile.previousResponsibility!.isNotEmpty)
+            ProfileField(
+              label: 'المسؤولية السابقة',
+              value: profile.previousResponsibility!,
+              isEditable: false,
+              isRequired: false,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecuritySection() {
+    if (_isEditing) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'الأمان',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ChangePasswordScreen(),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.borderLight),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.sm),
+                      decoration: BoxDecoration(
+                        gradient: AppColors.primaryGradient,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.lock_reset,
+                        color: AppColors.accentWhite,
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'تغيير كلمة المرور',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'قم بتحديث كلمة المرور للحفاظ على أمان حسابك',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios,
+                      color: AppColors.textSecondary,
+                      size: 16,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),

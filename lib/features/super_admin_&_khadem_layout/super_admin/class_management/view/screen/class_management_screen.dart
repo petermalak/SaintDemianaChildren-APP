@@ -29,7 +29,8 @@ class _MainClassManagementScreenContent extends StatefulWidget {
       _MainClassManagementScreenContentState();
 }
 
-class _MainClassManagementScreenContentState extends State<_MainClassManagementScreenContent>
+class _MainClassManagementScreenContentState
+    extends State<_MainClassManagementScreenContent>
     with TickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   late AnimationController _fabAnimationController;
@@ -76,11 +77,12 @@ class _MainClassManagementScreenContentState extends State<_MainClassManagementS
         decoration: const BoxDecoration(
           gradient: AppColors.backgroundGradient,
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(),
-              Expanded(
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: SafeArea(
+                top: false,
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
                   child: BlocBuilder<GetClassesCubit, GetClassesState>(
@@ -107,8 +109,8 @@ class _MainClassManagementScreenContentState extends State<_MainClassManagementS
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -123,64 +125,60 @@ class _MainClassManagementScreenContentState extends State<_MainClassManagementS
           );
         },
         backgroundColor: AppColors.primaryMaroon,
-        icon: const Icon(Icons.add,color:AppColors.accentWhite ,),
-        label:  const Text('إضافة فصل جديد', style: TextStyle(color: AppColors.accentWhite),
+        icon: const Icon(
+          Icons.add,
+          color: AppColors.accentWhite,
+        ),
+        label: const Text(
+          'إضافة فصل جديد',
+          style: TextStyle(color: AppColors.accentWhite),
+        ),
       ),
-    ),
     );
   }
 
   Widget _buildHeader() {
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: MediaQuery.of(context).size.width * 0.05,
-        vertical: 20,
+      padding: EdgeInsets.fromLTRB(
+        8,
+        12 + MediaQuery.paddingOf(context).top,
+        16,
+        16,
       ),
+      decoration: const BoxDecoration(gradient: AppColors.primaryGradient),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () {
-              Navigator.pop(context);
-            },
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.backgroundCard,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppColors.primaryMaroon.withValues(alpha: 0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.arrow_back_ios,
-                color: AppColors.textPrimary,
-                size: 20,
-              ),
-            ),
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.arrow_back, color: AppColors.accentWhite),
           ),
-          SizedBox(width: MediaQuery.of(context).size.width * 0.03),
-          Expanded(
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.accentWhite.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.dashboard_rounded,
+                color: AppColors.accentWhite, size: 22),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'إدارة الفصول',
                   style: TextStyle(
-                    fontSize: MediaQuery.of(context).size.width * 0.06,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: AppColors.accentWhite,
                   ),
                 ),
-                const SizedBox(height: 4),
                 Text(
-                  'إدارة الفصول والأعضاء والتعيينات',
+                  'الفصول والأعضاء والتعيينات',
                   style: TextStyle(
-                    fontSize: MediaQuery.of(context).size.width * 0.035,
-                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    color: AppColors.accentWhite,
                   ),
                 ),
               ],
@@ -215,8 +213,9 @@ class _ClassesScreenState extends State<ClassesScreen> {
             itemCount: widget.classes.length,
             itemBuilder: (context, index) {
               return ClassCard(
-                  classItem: widget.classes[index],
-                  cardAnimation: widget.cardAnimation, );
+                classItem: widget.classes[index],
+                cardAnimation: widget.cardAnimation,
+              );
             },
           );
   }

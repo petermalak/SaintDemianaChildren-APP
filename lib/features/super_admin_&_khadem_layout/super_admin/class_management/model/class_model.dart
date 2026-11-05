@@ -3,11 +3,11 @@ import 'class_membership_model.dart';
 
 class ClassModel {
   final String id;
-   String name;
+  String name;
   final String? description;
   final bool isActive;
   final int? maxMembers;
-   String? location;
+  String? location;
   final Map<String, dynamic>? schedule;
   final String createdBy;
   final String? creatorName;
@@ -16,6 +16,8 @@ class ClassModel {
   final int memberCount;
   final int khademCount;
   final int makhdoumCount;
+  final bool hasShop;
+  final bool scoringEnabled;
   final List<ClassMembershipModel>? memberships;
 
   ClassModel({
@@ -33,6 +35,8 @@ class ClassModel {
     this.memberCount = 0,
     this.khademCount = 0,
     this.makhdoumCount = 0,
+    this.hasShop = false,
+    this.scoringEnabled = true,
     this.memberships,
   });
 
@@ -51,6 +55,20 @@ class ClassModel {
       }
     }
 
+    DateTime parseDateTime(dynamic value) {
+      if (value == null) return DateTime.now();
+      if (value is DateTime) return value;
+      if (value is String) {
+        try {
+          return DateTime.parse(value);
+        } catch (e) {
+          print('Error parsing DateTime: $value, error: $e');
+          return DateTime.now();
+        }
+      }
+      return DateTime.now();
+    }
+
     return ClassModel(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
@@ -61,13 +79,13 @@ class ClassModel {
       schedule: schedule,
       createdBy: json['createdBy'] ?? '',
       creatorName: json['creator']?['name'],
-      createdAt:
-          DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
-      updatedAt:
-          DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),
+      createdAt: parseDateTime(json['createdAt']),
+      updatedAt: parseDateTime(json['updatedAt']),
       memberCount: json['memberCount'] ?? 0,
       khademCount: json['khademCount'] ?? 0,
       makhdoumCount: json['makhdoumCount'] ?? 0,
+      hasShop: json['hasShop'] == true,
+      scoringEnabled: json['scoringEnabled'] != false,
       memberships: json['memberships'] != null
           ? (json['memberships'] as List)
               .map((m) => ClassMembershipModel.fromJson(m))
@@ -106,6 +124,8 @@ class ClassModel {
     int? memberCount,
     int? khademCount,
     int? makhdoumCount,
+    bool? hasShop,
+    bool? scoringEnabled,
     List<ClassMembershipModel>? memberships,
   }) {
     return ClassModel(
@@ -123,6 +143,8 @@ class ClassModel {
       memberCount: memberCount ?? this.memberCount,
       khademCount: khademCount ?? this.khademCount,
       makhdoumCount: makhdoumCount ?? this.makhdoumCount,
+      hasShop: hasShop ?? this.hasShop,
+      scoringEnabled: scoringEnabled ?? this.scoringEnabled,
       memberships: memberships ?? this.memberships,
     );
   }

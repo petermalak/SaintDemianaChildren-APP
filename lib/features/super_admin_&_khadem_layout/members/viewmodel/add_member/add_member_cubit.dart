@@ -9,9 +9,10 @@ part 'add_member_state.dart';
 class AddMemberCubit extends Cubit<AddMemberState> {
   AddMemberCubit(this._membersRepository) : super(AddMemberInitial());
   final IMembersRepository _membersRepository;
-  Future<void> addMember(UserModel user) async {
+  Future<void> addMember(UserModel user, {bool confirmDuplicate = false}) async {
     emit(AddMemberLoading());
-    final response = await _membersRepository.addMember(user);
+    final response = await _membersRepository.addMember(user,
+        confirmDuplicate: confirmDuplicate);
     response.fold(
       (failure) => emit(AddMemberFailure(failure)),
       (success) => emit(AddMemberSuccess()),

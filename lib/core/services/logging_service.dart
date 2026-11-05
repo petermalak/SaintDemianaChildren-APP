@@ -12,7 +12,11 @@ enum LogLevel {
 class LoggingService {
   static LoggingService? _instance;
   final List<String> _logBuffer = [];
-  final int _maxBufferSize = 1000; // Maximum number of log entries to keep
+  final int _maxBufferSize = 200; // Maximum number of log entries to keep
+
+  /// Bodies are trimmed before logging: some responses (attendance, members) are
+  /// megabytes of JSON, and printing or buffering them stalls the UI thread.
+  static const int _maxBodyChars = 300;
 
   // Private constructor
   LoggingService._();
@@ -23,8 +27,24 @@ class LoggingService {
     return _instance!;
   }
 
-  // Get current log level from config
-  LogLevel get _currentLogLevel => LogLevel.debug;
+  // Release builds keep only warnings and errors; debug logging is for development.
+  LogLevel get _currentLogLevel =>
+      kDebugMode ? LogLevel.debug : LogLevel.warning;
+
+  String _trim(dynamic value) {
+    if (value == null) return 'null';
+    final text = value is String ? value : value.toString();
+    return text.length <= _maxBodyChars
+        ? text
+        : '${text.substring(0, _maxBodyChars)}… (${text.length} chars)';
+  }
+
+  /// Hides the bearer token so it never reaches logs.
+  Map<String, dynamic>? _safeHeaders(Map<String, dynamic>? headers) {
+    if (headers == null) return null;
+    if (!headers.containsKey('Authorization')) return headers;
+    return {...headers, 'Authorization': '***'};
+  }
 
   // Check if a log level should be processed
   bool _shouldLog(LogLevel level) {
@@ -111,8 +131,9 @@ class LoggingService {
       {String? tag, Object? error, StackTrace? stackTrace}) {
     if (!_shouldLog(LogLevel.error)) return;
 
-    final errorStr = error != null ? '\nError: $error' : '';
-    final stackStr = stackTrace != null ? '\nStackTrace: $stackTrace' : '';
+    final errorStr = error != null ? '\nError: ${_trim(error)}' : '';
+    final stackStr =
+        stackTrace != null && kDebugMode ? '\nStackTrace: $stackTrace' : '';
     final logEntry =
         '[ERROR] ${tag != null ? '[$tag] ' : ''}$message$errorStr$stackStr';
 
@@ -136,8 +157,8 @@ class LoggingService {
 
     final logEntry = '''
 [HTTP REQUEST] $method $url
-Headers: $headers
-Body: $body
+Headers: ${_safeHeaders(headers)}
+Body: ${_trim(body)}
 '''
         .trim();
 
@@ -164,7 +185,7 @@ Body: $body
     final logEntry = '''
 [HTTP RESPONSE]$durationStr $method $url
 Status: $statusCode
-Body: $body
+Body: ${_trim(body)}
 '''
         .trim();
 

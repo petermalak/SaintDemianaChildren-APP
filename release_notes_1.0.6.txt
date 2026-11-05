@@ -1,0 +1,23 @@
+الإصدار 1.0.6 (Version 1.0.6)
+
+— ما الجديد / What's new —
+
+• متجر التايو: إضافة هدية واحدة إلى عدة فصول دفعة واحدة عندما يكون الخادم مسؤولاً عن أكثر من فصل.
+  Shop: Add one gift to multiple classes at once when the khadem manages more than one class.
+
+• تحديث إلزامي: التطبيق يتحقق من الإصدار الأدنى المطلوب من الخادم ويطلب التحديث عند الحاجة.
+  Force update: The app checks the minimum required version from the server and prompts users to update when needed.
+
+• تحسينات واجهة إضافة/تعديل الهدية (منع تجاوز النص، واجهة أوضح).
+  Add/Edit gift dialog improvements (overflow fix, clearer layout).
+
+• إصلاح رفع الصور على نسخة الويب.
+  Fixed image upload on the web version.
+
+• إشعارات المتجر: إشعار عند إضافة هدية جديدة، وعند طلب شراء، وعند الموافقة على الطلب.
+  Shop notifications: New gift, purchase request, and approval notifications.
+
+— تحسينات عامة / General improvements —
+
+• استقرار وأداء أفضل.
+  Improved stability and performance.

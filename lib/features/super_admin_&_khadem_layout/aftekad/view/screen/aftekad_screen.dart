@@ -6,26 +6,102 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/memb
 import 'package:saint_demiana_children/features/authentication/model/user_model.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/aftekad/model/aftekad_model.dart';
 import 'package:intl/intl.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/model/class_model.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/model/class_assignment_model.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/view/widget/manage_assignments_dialog.dart';
 
+import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
+import '../../../../../core/services/data_refresh_cubit.dart';
+import '../../../../../core/services/excel_export_service.dart';
+import '../../../../../core/widgets/class_export_selection_dialog.dart';
 import '../../repository/i_aftekad_repository.dart';
 import '../widget/aftekad_list_tile.dart';
 
+/// Aftekad screen with improved date filtering
+/// Follows Single Responsibility Principle - only manages aftekad display
 class AftekadScreen extends StatefulWidget {
-  const AftekadScreen({super.key});
+  final ScrollController? scrollController;
+
+  const AftekadScreen({super.key, this.scrollController});
 
   @override
   State<AftekadScreen> createState() => _AftekadScreenState();
 }
 
 class _AftekadScreenState extends State<AftekadScreen> {
-  String? selectedFridayDate;
-  List<DateTime> fridayDates = [];
+  late GetAftekadCubit _aftekadCubit;
+  List<DateTime> _fridayDates = [];
+  String? _currentSelectedDate;
+  UserModel? _currentUser;
+  List<UserClassInfo> _assignedClasses = const [];
+  List<UserClassInfo> _classOptions = const [];
+  String? _selectedClassId;
+  bool _isLoadingClasses = false;
+  AftekadSortOption _selectedSortOption = AftekadSortOption.consecutiveMissed;
+  bool _isSortDescending = true;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  ClassAssignmentsModel? _currentAssignments;
+  List<AssignmentUser> _khademOptions = const [];
+  String? _selectedKhademId;
+  String? _selectedKhademScope;
+  String _khademFilterSelection = _khademFilterSelfValue;
+  bool _isLoadingAssignments = false;
+  ScrollController? _internalScrollController;
+
+  static const String _khademFilterSelfValue = 'self';
+  static const String _khademFilterAllValue = 'all';
+  static const String _khademFilterPrefix = 'khadem:';
+
+  ScrollController get _effectiveScrollController =>
+      widget.scrollController ?? _internalScrollController!;
 
   @override
   void initState() {
     super.initState();
+    if (widget.scrollController == null) {
+      _internalScrollController = ScrollController();
+    }
     _generateFridayDates();
+    _aftekadCubit =
+        GetAftekadCubit(sl<IAftekadRepository>(), sl<DataRefreshCubit>());
+
+    _currentUser = sl<IProfileRepository>().user;
+    _assignedClasses = (_currentUser?.classes ?? const [])
+        .where((info) => info.classId.isNotEmpty)
+        .toList();
+    _classOptions = _assignedClasses;
+    if (_currentUser?.role == UserRole.khadem) {
+      _selectedKhademScope = _khademFilterSelfValue;
+      _khademFilterSelection = _khademFilterSelfValue;
+      _selectedKhademId = _currentUser?.id;
+      final selfOption = _assignmentUserFromCurrentUser();
+      if (selfOption != null) {
+        _khademOptions = [selfOption];
+      }
+    }
+    _loadClassOptions();
+
+    _searchController.addListener(_onSearchChanged);
+
+    // Load initial data
+    if (_fridayDates.isNotEmpty && _currentUser?.id != null) {
+      final mostRecentFriday = _fridayDates.first;
+      final formattedDate = DateFormat('yyyy-MM-dd').format(mostRecentFriday);
+      _currentSelectedDate = formattedDate;
+      _fetchAftekadWithCurrentFilters(fridayDateOverride: formattedDate);
+    }
+  }
+
+  @override
+  void dispose() {
+    _internalScrollController?.dispose();
+    _aftekadCubit.close();
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _generateFridayDates() {
@@ -41,117 +117,1500 @@ class _AftekadScreenState extends State<AftekadScreen> {
 
     // Generate all Fridays until current date
     while (current.isBefore(endDate) || current.isAtSameMomentAs(endDate)) {
-      fridayDates.add(current);
+      _fridayDates.add(current);
       current = current.add(const Duration(days: 7));
     }
 
-    // Set the most recent Friday as default
-    if (fridayDates.isNotEmpty) {
-      selectedFridayDate = DateFormat('yyyy-MM-dd').format(fridayDates.last);
+    // Sort in descending order (most recent first)
+    _fridayDates.sort((a, b) => b.compareTo(a));
+  }
+
+  Future<void> _loadClassOptions() async {
+    final userRole = _currentUser?.role;
+    final isKhadem = userRole == UserRole.khadem;
+    final isSuperAdmin = userRole == UserRole.superAdmin;
+
+    if (!isKhadem && !isSuperAdmin) return;
+
+    setState(() {
+      _isLoadingClasses = true;
+    });
+
+    final classRepository = sl<IClassRepository>();
+    final result = isSuperAdmin
+        ? await classRepository.loadClasses()
+        : await classRepository.loadMyClasses();
+
+    if (!mounted) return;
+
+    result.fold(
+      (_) {
+        setState(() {
+          _isLoadingClasses = false;
+          _classOptions = _assignedClasses;
+        });
+        _resetKhademFilterForAllClasses();
+      },
+      (classList) async {
+        final mapped = classList
+            .map(
+              (ClassModel classModel) => UserClassInfo(
+                classId: classModel.id,
+                className: classModel.name,
+                classDescription: classModel.description,
+                membershipRole: 'khadem',
+                isActive: classModel.isActive,
+                joinedAt: classModel.createdAt,
+              ),
+            )
+            .toList();
+
+        final combined = {
+          for (final info in [..._assignedClasses, ...mapped])
+            info.classId: info,
+        };
+
+        String? nextClassId = _selectedClassId;
+        if (nextClassId != null && !combined.containsKey(nextClassId)) {
+          nextClassId = null;
+        }
+        if (nextClassId == null && isKhadem && combined.isNotEmpty) {
+          nextClassId = combined.values.first.classId;
+        }
+
+        setState(() {
+          _classOptions = combined.values.toList();
+          _selectedClassId = nextClassId;
+          _isLoadingClasses = false;
+        });
+
+        if (nextClassId != null) {
+          await _loadAssignmentsForClass(
+            nextClassId,
+            resetSelection: isSuperAdmin,
+          );
+        } else {
+          _resetKhademFilterForAllClasses();
+          _fetchAftekadWithCurrentFilters();
+        }
+      },
+    );
+  }
+
+  void _fetchAftekadWithCurrentFilters({
+    String? fridayDateOverride,
+    String? classIdOverride,
+  }) {
+    final fridayDate = fridayDateOverride ?? _currentSelectedDate;
+    if (fridayDate == null) return;
+
+    final isKhadem = _currentUser?.role == UserRole.khadem;
+    final scope = isKhadem ? _selectedKhademScope : null;
+    final effectiveKhademId = isKhadem
+        ? (scope == _khademFilterAllValue
+            ? null
+            : (_selectedKhademId ?? _currentUser?.id))
+        : _selectedKhademId;
+
+    (_aftekadCubit as dynamic).updateKhademScope(scope);
+    _aftekadCubit.getAftekad(
+      fridayDate,
+      khademId: effectiveKhademId,
+      classId: classIdOverride ?? _selectedClassId,
+    );
+  }
+
+  AssignmentUser? _assignmentUserFromCurrentUser() {
+    final user = _currentUser;
+    if (user?.id == null) return null;
+    return AssignmentUser(
+      id: user!.id!,
+      name: user.name,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      role: user.role?.name,
+    );
+  }
+
+  void _resetKhademFilterForAllClasses() {
+    final user = _currentUser;
+    if (!mounted) return;
+
+    if (user?.role == UserRole.khadem) {
+      final selfOption = _assignmentUserFromCurrentUser();
+      if (selfOption != null) {
+        setState(() {
+          _khademOptions = [selfOption];
+          _selectedKhademId = selfOption.id;
+          _selectedKhademScope = _khademFilterSelfValue;
+          _khademFilterSelection = _khademFilterSelfValue;
+          _currentAssignments = null;
+        });
+      }
+    } else {
+      setState(() {
+        _khademOptions = const [];
+        _selectedKhademId = null;
+        _selectedKhademScope = null;
+        _khademFilterSelection = _khademFilterSelfValue;
+        _currentAssignments = null;
+      });
     }
+  }
+
+  Future<void> _loadAssignmentsForClass(
+    String classId, {
+    bool resetSelection = false,
+  }) async {
+    setState(() {
+      _isLoadingAssignments = true;
+    });
+
+    final classRepository = sl<IClassRepository>();
+    final result = await classRepository.loadClassAssignments(classId);
+
+    if (!mounted) return;
+
+    result.fold(
+      (error) {
+        setState(() {
+          _isLoadingAssignments = false;
+          _currentAssignments = null;
+          _khademOptions = const [];
+        });
+        _fetchAftekadWithCurrentFilters(classIdOverride: _selectedClassId);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(error),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      },
+      (assignments) {
+        final options = [...assignments.khadems];
+        final user = _currentUser;
+        final selfOption = _assignmentUserFromCurrentUser();
+        if (user?.role == UserRole.khadem && selfOption != null) {
+          if (!options.any((option) => option.id == selfOption.id)) {
+            options.add(selfOption);
+          }
+        }
+
+        final optionIds = options.map((option) => option.id).toSet();
+        String? nextSelectedId = _selectedKhademId;
+        String? nextScope = _selectedKhademScope;
+        String? nextFilterSelection = _khademFilterSelection;
+
+        if (user != null && user.role == UserRole.khadem) {
+          final userId = user.id;
+          final hasUserId = userId != null && userId.isNotEmpty;
+
+          if (_khademFilterSelection == _khademFilterAllValue) {
+            nextScope = _khademFilterAllValue;
+            nextSelectedId = null;
+          } else if (_khademFilterSelection.startsWith(_khademFilterPrefix)) {
+            final targetId =
+                _khademFilterSelection.substring(_khademFilterPrefix.length);
+            if (optionIds.contains(targetId)) {
+              nextScope = null;
+              nextSelectedId = targetId;
+              nextFilterSelection = '$_khademFilterPrefix$targetId';
+            } else {
+              nextScope = _khademFilterSelfValue;
+              nextSelectedId = hasUserId ? userId : null;
+              nextFilterSelection = _khademFilterSelfValue;
+            }
+          } else {
+            nextScope = _khademFilterSelfValue;
+            nextSelectedId = hasUserId ? userId : null;
+            nextFilterSelection = _khademFilterSelfValue;
+          }
+        } else {
+          if (resetSelection ||
+              nextSelectedId == null ||
+              !optionIds.contains(nextSelectedId)) {
+            nextSelectedId = null;
+          }
+          nextScope = null;
+          nextFilterSelection = nextSelectedId ?? _khademFilterSelfValue;
+        }
+
+        setState(() {
+          _currentAssignments = assignments;
+          _khademOptions = options;
+          _selectedKhademId = nextSelectedId;
+          _selectedKhademScope = nextScope;
+          _khademFilterSelection =
+              nextFilterSelection ?? _khademFilterSelfValue;
+          _isLoadingAssignments = false;
+        });
+
+        _fetchAftekadWithCurrentFilters(classIdOverride: classId);
+      },
+    );
+  }
+
+  Future<void> _onClassSelectionChanged(String? classId) async {
+    if (_selectedClassId == classId) return;
+    setState(() {
+      _selectedClassId = classId;
+    });
+
+    if (classId == null || classId.isEmpty) {
+      _resetKhademFilterForAllClasses();
+      _fetchAftekadWithCurrentFilters();
+    } else {
+      await _loadAssignmentsForClass(
+        classId,
+        resetSelection: _currentUser?.role == UserRole.superAdmin,
+      );
+    }
+  }
+
+  void _onKhademSelectionChanged(String? khademId) {
+    setState(() {
+      _selectedKhademId = khademId;
+      _selectedKhademScope = null;
+      _khademFilterSelection = khademId ?? _khademFilterSelfValue;
+    });
+    _fetchAftekadWithCurrentFilters();
+  }
+
+  void _handleKhademFilterChangeForKhadem(String? value) {
+    final userId = _currentUser?.id;
+    var selection = value ?? _khademFilterSelfValue;
+
+    if (selection == _khademFilterAllValue && _selectedClassId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('يرجى اختيار فصل أولاً لعرض كل المخدومين'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      selection = _khademFilterSelfValue;
+    }
+
+    setState(() {
+      if (selection == _khademFilterAllValue) {
+        _selectedKhademScope = _khademFilterAllValue;
+        _selectedKhademId = null;
+        _khademFilterSelection = selection;
+      } else if (selection.startsWith(_khademFilterPrefix)) {
+        final targetId = selection.substring(_khademFilterPrefix.length);
+        _selectedKhademScope = null;
+        _selectedKhademId = targetId;
+        _khademFilterSelection = selection;
+      } else {
+        _selectedKhademScope = _khademFilterSelfValue;
+        _selectedKhademId = userId;
+        _khademFilterSelection = _khademFilterSelfValue;
+      }
+    });
+
+    _fetchAftekadWithCurrentFilters();
+  }
+
+  bool get _shouldShowKhademFilter {
+    final user = _currentUser;
+    if (user == null) return false;
+    if (user.role == UserRole.khadem) return true;
+    if (user.role == UserRole.superAdmin) {
+      return _khademOptions.isNotEmpty || _isLoadingAssignments;
+    }
+    return false;
+  }
+
+  Widget _buildKhademFilterDropdown() {
+    final user = _currentUser;
+    if (user == null || !_shouldShowKhademFilter) {
+      return const SizedBox.shrink();
+    }
+
+    if (user.role == UserRole.khadem) {
+      final otherKhadems =
+          _khademOptions.where((option) => option.id != user.id).toList();
+
+      return DropdownButtonFormField<String>(
+        value: _khademFilterSelection,
+        decoration: const InputDecoration(
+          labelText: 'عرض المخدومين',
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        ),
+        isExpanded: true,
+        items: [
+          DropdownMenuItem<String>(
+            value: _khademFilterSelfValue,
+            child: Text('مخدومي (${user.name ?? ''})'),
+          ),
+          DropdownMenuItem<String>(
+            value: _khademFilterAllValue,
+            enabled: _selectedClassId != null,
+            child: Text(
+              'كل مخدومي الفصل',
+              style: TextStyle(
+                color: _selectedClassId == null
+                    ? AppColors.textSecondary
+                    : AppColors.textPrimary,
+              ),
+            ),
+          ),
+          ...otherKhadems.map(
+            (option) => DropdownMenuItem<String>(
+              value: '$_khademFilterPrefix${option.id}',
+              child: Text(option.name ?? 'خادم بدون اسم'),
+            ),
+          ),
+        ],
+        onChanged: _isLoadingAssignments
+            ? null
+            : (value) => _handleKhademFilterChangeForKhadem(value),
+      );
+    }
+
+    final options = _khademOptions;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (_isLoadingAssignments)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 8),
+            child: LinearProgressIndicator(minHeight: 2),
+          ),
+        DropdownButtonFormField<String?>(
+          value: _selectedKhademId,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'اختر خادم',
+            border: OutlineInputBorder(),
+            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+          items: [
+            const DropdownMenuItem<String?>(
+              value: null,
+              child: Text('جميع الخدام'),
+            ),
+            ...options.map(
+              (option) => DropdownMenuItem<String?>(
+                value: option.id,
+                child: Text(option.name ?? 'خادم بدون اسم'),
+              ),
+            ),
+          ],
+          onChanged: _isLoadingAssignments ? null : _onKhademSelectionChanged,
+        ),
+      ],
+    );
+  }
+
+  bool get _canManageAssignments {
+    final user = _currentUser;
+    if (user == null) return false;
+    return user.role == UserRole.khadem || user.role == UserRole.superAdmin;
+  }
+
+  Widget _buildAssignmentsButton() {
+    if (!_canManageAssignments || _selectedClassId == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Align(
+      alignment: Alignment.centerRight,
+      child: TextButton.icon(
+        onPressed: _isLoadingAssignments ? null : _openManageAssignmentsDialog,
+        icon: const Icon(Icons.manage_accounts),
+        label: const Text('توزيع المخدومين'),
+      ),
+    );
+  }
+
+  Future<void> _openManageAssignmentsDialog() async {
+    final classId = _selectedClassId;
+    if (classId == null) return;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => ManageAssignmentsDialog(
+        availableClasses: _classOptions
+            .map(
+              (info) => ClassModel(
+                id: info.classId,
+                name: info.className ?? '',
+                description: info.classDescription,
+                isActive: info.isActive ?? true,
+                maxMembers: null,
+                location: null,
+                schedule: null,
+                createdBy: '',
+                createdAt: info.joinedAt ?? DateTime.now(),
+                updatedAt: info.joinedAt ?? DateTime.now(),
+                memberCount: 0,
+                khademCount: 0,
+                makhdoumCount: 0,
+                memberships: null,
+              ),
+            )
+            .toList(),
+        initialClassId: classId,
+      ),
+    );
+
+    if (result == true) {
+      await _loadAssignmentsForClass(
+        classId,
+        resetSelection: _currentUser?.role == UserRole.superAdmin,
+      );
+    }
+  }
+
+  void _onSearchChanged() {
+    final query = _searchController.text.trim().toLowerCase();
+    if (_searchQuery != query) {
+      setState(() {
+        _searchQuery = query;
+      });
+    }
+  }
+
+  void _onDateSelected(String dateIso) {
+    if (_currentUser?.id == null) return;
+    // Only fetch if date actually changed
+    if (_currentSelectedDate != dateIso) {
+      _currentSelectedDate = dateIso;
+      // Fetch aftekad data for selected date
+      _fetchAftekadWithCurrentFilters(fridayDateOverride: dateIso);
+    }
+  }
+
+  Future<void> _refreshAftekad() {
+    final selectedDate = _currentSelectedDate;
+    if (selectedDate == null) return Future.value();
+    _fetchAftekadWithCurrentFilters(fridayDateOverride: selectedDate);
+    return Future.value();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: BlocProvider(
-        create: (context) {
-          final cubit = GetAftekadCubit(sl<IAftekadRepository>());
-          // Load data for the default selected date
-          if (selectedFridayDate != null) {
-            cubit.getAftekad(selectedFridayDate!, sl<IProfileRepository>().user!.id!); // You may need to pass appropriate khademId
+    return BlocProvider.value(
+      value: _aftekadCubit,
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundSecondary,
+        body: SafeArea(
+          child: BlocBuilder<GetAftekadCubit, GetAftekadState>(
+            builder: (context, state) {
+              _AftekadViewData? viewData;
+              if (state is GetAftekadSuccess) {
+                viewData = _prepareAftekadViewData(state);
+              }
+              return RefreshIndicator(
+                onRefresh: _refreshAftekad,
+                color: AppColors.primaryMaroon,
+                child: CustomScrollView(
+                  controller: _effectiveScrollController,
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: _buildCompactHeader(state, viewData),
+                    ),
+                    if (viewData != null && viewData.displayList.isNotEmpty)
+                      SliverToBoxAdapter(
+                        child: _buildExportButton(viewData.displayList),
+                      ),
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      sliver: _buildAftekadSliver(state, viewData),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Compact header for Aftekad
+  Widget _buildCompactHeader(
+    GetAftekadState state,
+    _AftekadViewData? viewData,
+  ) {
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05.clamp(0.0, 1.0)),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryMaroon
+                      .withValues(alpha: 0.1.clamp(0.0, 1.0)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.person_search,
+                  color: AppColors.primaryMaroon,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'سجل الافتقاد',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    if (_currentSelectedDate != null)
+                      Text(
+                        DateFormat('dd/MM/yyyy')
+                            .format(DateTime.parse(_currentSelectedDate!)),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  _showDatePicker(context);
+                },
+                icon: const Icon(
+                  Icons.calendar_today,
+                  color: AppColors.primaryMaroon,
+                ),
+                tooltip: 'اختر تاريخ',
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildSearchField(),
+          const SizedBox(height: 12),
+          if (_isLoadingClasses) ...[
+            const LinearProgressIndicator(minHeight: 2),
+            const SizedBox(height: 12),
+          ],
+          _buildFilterRow(),
+          const SizedBox(height: 8),
+          _buildAssignmentsButton(),
+          if (viewData != null) ...[
+            const SizedBox(height: 12),
+            _buildAftekadSummary(viewData),
+          ],
+        ],
+      ),
+    );
+  }
+
+  bool get _canFilterByClass {
+    final user = _currentUser;
+    if (user == null) return false;
+    if (user.role == UserRole.superAdmin) {
+      return _classOptions.isNotEmpty;
+    }
+    if (user.role == UserRole.khadem) {
+      return _classOptions.length > 1;
+    }
+    return false;
+  }
+
+  Widget _buildSearchField() {
+    return TextField(
+      controller: _searchController,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: 'ابحث بالاسم',
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: _searchQuery.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.clear),
+                onPressed: () {
+                  _searchController.clear();
+                },
+              )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        filled: true,
+        fillColor: AppColors.backgroundSecondary,
+      ),
+    );
+  }
+
+  Widget _buildFilterRow() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 900;
+        final showKhademFilter = _shouldShowKhademFilter;
+        final showClassFilter = _canFilterByClass;
+
+        if (isNarrow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (showKhademFilter) ...[
+                _buildKhademFilterDropdown(),
+                const SizedBox(height: 12),
+              ],
+              if (showClassFilter) ...[
+                _buildClassFilterDropdown(),
+                const SizedBox(height: 12),
+              ],
+              _buildSortDropdown(),
+              const SizedBox(height: 12),
+              _buildSortDirectionButton(isFullWidth: true),
+            ],
+          );
+        }
+
+        final rowChildren = <Widget>[];
+
+        if (showKhademFilter) {
+          rowChildren.add(Expanded(child: _buildKhademFilterDropdown()));
+        }
+
+        if (showClassFilter) {
+          if (rowChildren.isNotEmpty) {
+            rowChildren.add(const SizedBox(width: 8));
           }
-          return cubit;
+          rowChildren.add(Expanded(child: _buildClassFilterDropdown()));
+        }
+
+        if (rowChildren.isNotEmpty) {
+          rowChildren.add(const SizedBox(width: 8));
+        }
+        rowChildren.add(Expanded(child: _buildSortDropdown()));
+        rowChildren.add(const SizedBox(width: 8));
+        rowChildren.add(_buildSortDirectionButton(isFullWidth: false));
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: rowChildren,
+        );
+      },
+    );
+  }
+
+  Widget _buildClassFilterDropdown() {
+    final options = _classOptions;
+    if (options.isEmpty) return const SizedBox.shrink();
+
+    return DropdownButtonFormField<String?>(
+      value: _selectedClassId,
+      decoration: const InputDecoration(
+        labelText: 'اختر الفصل',
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      isExpanded: true,
+      items: [
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('كل الفصول'),
+        ),
+        ...options.map(
+          (option) => DropdownMenuItem<String?>(
+            value: option.classId,
+            child: Text(option.className ?? 'فصل بدون اسم'),
+          ),
+        ),
+      ],
+      onChanged: _isLoadingAssignments ? null : _onClassSelectionChanged,
+    );
+  }
+
+  Widget _buildSortDropdown() {
+    return DropdownButtonFormField<AftekadSortOption>(
+      value: _selectedSortOption,
+      decoration: const InputDecoration(
+        labelText: 'ترتيب حسب',
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      ),
+      items: AftekadSortOption.values
+          .map(
+            (option) => DropdownMenuItem<AftekadSortOption>(
+              value: option,
+              child: Text(option.label),
+            ),
+          )
+          .toList(),
+      onChanged: (value) {
+        if (value == null) return;
+        setState(() {
+          _selectedSortOption = value;
+        });
+      },
+    );
+  }
+
+  Widget _buildSortDirectionButton({required bool isFullWidth}) {
+    return SizedBox(
+      height: 48,
+      width: isFullWidth ? double.infinity : 48,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          padding: EdgeInsets.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: () {
+          setState(() {
+            _isSortDescending = !_isSortDescending;
+          });
         },
+        child: Icon(
+          _isSortDescending ? Icons.arrow_downward : Icons.arrow_upward,
+          color: AppColors.primaryMaroon,
+        ),
+      ),
+    );
+  }
+
+  _AftekadViewData _prepareAftekadViewData(GetAftekadSuccess state) {
+    final allMembers = sl<IMembersRepository>()
+        .members
+        .where((member) => member.role == UserRole.makhdoum)
+        .toList();
+
+    final allowedMakhdoumIds = _deriveAllowedMakhdoumIds(state);
+    final filteredMembers = _filterMembersByClass(
+      allMembers,
+      allowedMakhdoumIds: allowedMakhdoumIds,
+    );
+
+    final completedAftekad =
+        state.aftekad.where((aftekad) => aftekad.status == true).toList();
+    final makhdoumsMissedFridays = state.makhdoumsMissedFridays ?? {};
+
+    final displayList = _buildAftekadDisplayList(
+      filteredMembers,
+      completedAftekad,
+      makhdoumsMissedFridays,
+    );
+
+    final completedCount =
+        displayList.where((entry) => entry.status == true).length;
+    final pendingCount = displayList.length - completedCount;
+    final atRiskCount = displayList
+        .where((entry) => (entry.consecutiveMissedFridays ?? 0) >= 3)
+        .length;
+
+    return _AftekadViewData(
+      displayList: displayList,
+      completedCount: completedCount,
+      pendingCount: pendingCount,
+      atRiskCount: atRiskCount,
+    );
+  }
+
+  List<AftekadModel> _buildAftekadDisplayList(
+    List<UserModel> members,
+    List<AftekadModel> completed,
+    Map<String, int> missedFridays,
+  ) {
+    final list = members.map((member) {
+      // Find all eftekads for this makhdoum and get the most recent one
+      final makhdoumEftekads = completed
+          .where(
+            (aftekad) =>
+                aftekad.makhdoum?.id == member.id ||
+                aftekad.makhdoumId == member.id,
+          )
+          .toList();
+
+      // If multiple exist, get the most recent one (by completedDate or createdAt)
+      final existing = makhdoumEftekads.isNotEmpty
+          ? makhdoumEftekads.reduce((a, b) {
+              // Compare by completedDate first, then createdAt
+              final aDate = _getDateForComparison(a);
+              final bDate = _getDateForComparison(b);
+              return aDate.isAfter(bDate) ? a : b;
+            })
+          : null;
+
+      if (existing != null) {
+        // Ensure status is set correctly
+        if (existing.status == null || existing.status == false) {
+          existing.status =
+              true; // If it's in the completed list, it should be true
+        }
+
+        if (existing.consecutiveMissedFridays == null &&
+            missedFridays.containsKey(member.id)) {
+          existing.consecutiveMissedFridays = missedFridays[member.id];
+        }
+
+        return existing;
+      } else {
+        // No completed eftekad found, create a pending one
+        final missed = missedFridays[member.id] ?? 0;
+        return AftekadModel(
+          makhdoumId: member.id,
+          status: false,
+          classId: member.classId,
+          consecutiveMissedFridays: missed,
+          makhdoum: Makhdoum(
+            id: member.id,
+            name: member.name,
+          ),
+        );
+      }
+    }).toList();
+
+    list.sort(_compareAftekads);
+    return list;
+  }
+
+  DateTime _getDateForComparison(AftekadModel aftekad) {
+    // Try to get completedDate first, then scheduledDate, then createdAt
+    try {
+      if (aftekad.completedDate != null) {
+        if (aftekad.completedDate is DateTime) {
+          return aftekad.completedDate as DateTime;
+        } else if (aftekad.completedDate is String) {
+          return DateTime.parse(aftekad.completedDate as String);
+        }
+      }
+      if (aftekad.scheduledDate != null) {
+        if (aftekad.scheduledDate is DateTime) {
+          return aftekad.scheduledDate as DateTime;
+        } else if (aftekad.scheduledDate is String) {
+          return DateTime.parse(aftekad.scheduledDate as String);
+        }
+      }
+      if (aftekad.createdAt != null) {
+        return DateTime.parse(aftekad.createdAt!);
+      }
+    } catch (e) {
+      print('Error parsing date for comparison: $e');
+    }
+    return DateTime(1970); // Fallback to very old date
+  }
+
+  Widget _buildAftekadSummary(_AftekadViewData data) {
+    final total = data.displayList.length;
+    final completed = data.completedCount;
+    final pending = data.pendingCount;
+    final atRisk = data.atRiskCount;
+
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+      children: [
+        _buildSummaryTile(
+          icon: Icons.people_alt,
+          label: 'إجمالي المخدومين',
+          value: total.toString(),
+        ),
+        _buildSummaryTile(
+          icon: Icons.check_circle,
+          label: 'تم الافتقاد',
+          value: completed.toString(),
+        ),
+        _buildSummaryTile(
+          icon: Icons.schedule,
+          label: 'قيد المتابعة',
+          value: pending.toString(),
+        ),
+        _buildSummaryTile(
+          icon: Icons.priority_high,
+          label: 'بحاجة لزيارة عاجلة',
+          value: atRisk.toString(),
+          accentColor: Colors.orange.shade600,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSummaryTile({
+    required IconData icon,
+    required String label,
+    required String value,
+    Color? accentColor,
+  }) {
+    final color = accentColor ?? AppColors.primaryMaroon;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAftekadSliver(
+    GetAftekadState state,
+    _AftekadViewData? viewData,
+  ) {
+    if (state is GetAftekadLoading) {
+      return const SliverFillRemaining(
+        hasScrollBody: false,
+        child: Center(
+          child: CircularProgressIndicator(color: AppColors.primaryMaroon),
+        ),
+      );
+    }
+
+    if (state is GetAftekadFailure) {
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: _buildAftekadErrorState(state.errorMessage),
+      );
+    }
+
+    if (state is GetAftekadSuccess) {
+      final data = viewData!;
+      if (data.displayList.isEmpty) {
+        return SliverFillRemaining(
+          hasScrollBody: false,
+          child: _buildAftekadEmptyState(),
+        );
+      }
+
+      return SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final item = data.displayList[index];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: AftekadListTile(aftekad: item),
+            );
+          },
+          childCount: data.displayList.length,
+        ),
+      );
+    }
+
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: _buildSelectDateState(),
+    );
+  }
+
+  Widget _buildAftekadErrorState(String message) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.error_outline,
+            color: AppColors.error,
+            size: 60,
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'حدث خطأ',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAftekadEmptyState() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.people_outline,
+          size: 60,
+          color: AppColors.textSecondary.withValues(alpha: 0.8),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'لا يوجد أعضاء',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'لا يوجد أعضاء لعرض الافتقاد حاليًا.',
+          style: TextStyle(
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSelectDateState() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.calendar_today,
+          size: 60,
+          color: AppColors.textSecondary.withValues(alpha: 0.8),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'اختر جمعة',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'اختر جمعة لعرض سجل الافتقاد.',
+          style: TextStyle(
+            color: AppColors.textSecondary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  List<UserModel> _filterMembersByClass(
+    List<UserModel> members, {
+    Set<String>? allowedMakhdoumIds,
+  }) {
+    Iterable<UserModel> filtered = members;
+
+    if (_selectedClassId != null) {
+      filtered = filtered.where((member) {
+        if (member.classes.isNotEmpty) {
+          return member.classes.any((info) => info.classId == _selectedClassId);
+        }
+        return member.classId == _selectedClassId;
+      });
+    }
+
+    if (allowedMakhdoumIds != null) {
+      if (allowedMakhdoumIds.isEmpty) {
+        return <UserModel>[];
+      }
+      filtered = filtered.where((member) {
+        final id = member.id;
+        if (id == null || id.isEmpty) return false;
+        return allowedMakhdoumIds.contains(id);
+      });
+    }
+
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((member) {
+        final name = member.name?.toLowerCase() ?? '';
+        return name.contains(_searchQuery);
+      });
+    }
+
+    return filtered.toList();
+  }
+
+  Set<String>? _deriveAllowedMakhdoumIds(GetAftekadSuccess state) {
+    final selectedKhadem = _selectedKhademId;
+    if (selectedKhadem == null) {
+      return null;
+    }
+
+    final ids = <String>{};
+
+    for (final aftekad in state.aftekad) {
+      final id = aftekad.makhdoum?.id ?? aftekad.makhdoumId;
+      if (id != null && id.isNotEmpty) {
+        ids.add(id);
+      }
+    }
+
+    final missedEntries =
+        state.makhdoumsMissedFridays?.keys ?? const <String>{};
+    for (final id in missedEntries) {
+      if (id.isNotEmpty) {
+        ids.add(id);
+      }
+    }
+
+    final assignments = _currentAssignments;
+    if (assignments != null &&
+        (_selectedClassId == null || assignments.classId == _selectedClassId)) {
+      final assignedMakhdoums =
+          assignments.groupedAssignments[selectedKhadem] ??
+              const <AssignedMakhdoum>[];
+      for (final entry in assignedMakhdoums) {
+        if (entry.id.isNotEmpty) {
+          ids.add(entry.id);
+        }
+      }
+    }
+
+    return ids;
+  }
+
+  int _compareAftekads(AftekadModel a, AftekadModel b) {
+    int result;
+    switch (_selectedSortOption) {
+      case AftekadSortOption.consecutiveMissed:
+        result = (b.consecutiveMissedFridays ?? 0) -
+            (a.consecutiveMissedFridays ?? 0);
+        if (result != 0) {
+          return _isSortDescending ? result : -result;
+        }
+        result =
+            (b.fridayAttendanceCount ?? 0) - (a.fridayAttendanceCount ?? 0);
+        if (result != 0) {
+          return _isSortDescending ? result : -result;
+        }
+        result = _compareByName(a, b);
+        break;
+      case AftekadSortOption.attendance:
+        result =
+            (b.fridayAttendanceCount ?? 0) - (a.fridayAttendanceCount ?? 0);
+        if (result != 0) {
+          return _isSortDescending ? result : -result;
+        }
+        result = (b.consecutiveMissedFridays ?? 0) -
+            (a.consecutiveMissedFridays ?? 0);
+        if (result != 0) {
+          return _isSortDescending ? result : -result;
+        }
+        result = _compareByName(a, b);
+        break;
+      case AftekadSortOption.nameAZ:
+        result = _compareByName(a, b);
+        break;
+    }
+    return _isSortDescending ? result : -result;
+  }
+
+  int _compareByName(AftekadModel a, AftekadModel b) {
+    final nameA = (a.makhdoum?.name ?? '').toLowerCase();
+    final nameB = (b.makhdoum?.name ?? '').toLowerCase();
+    return nameA.compareTo(nameB);
+  }
+
+  void _showDatePicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (modalContext) => Container(
+        height: MediaQuery.of(modalContext).size.height * 0.6,
+        decoration: const BoxDecoration(
+          color: AppColors.backgroundCard,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
         child: Column(
           children: [
-            // FilterChip section
-            SizedBox(
-              height: 50,
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: Colors.grey.shade200),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Text(
+                    'اختر جمعة',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () => Navigator.pop(modalContext),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
               child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: fridayDates.length,
+                padding: const EdgeInsets.all(16),
+                itemCount: _fridayDates.length,
                 itemBuilder: (context, index) {
-                  final date = fridayDates[index];
-                  final dateString = DateFormat('yyyy-MM-dd').format(date);
-                  final displayDate = DateFormat('MMM dd').format(date);
+                  final date = _fridayDates[index];
+                  final dateStr = DateFormat('yyyy-MM-dd').format(date);
+                  final isSelected = dateStr == _currentSelectedDate;
 
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: FilterChip(
-                      label: Text(displayDate),
-                      selected: selectedFridayDate == dateString,
-                      onSelected: (selected) {
-                        if (selected) {
-                          setState(() {
-                            selectedFridayDate = dateString;
-                          });
-                          // Fetch data for selected date
-                          context.read<GetAftekadCubit>().getAftekad(dateString, sl<IProfileRepository>().user!.id!);
-                        }
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primaryMaroon
+                          : Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
+                      onTap: () {
+                        setState(() {
+                          _currentSelectedDate = dateStr;
+                        });
+                        _onDateSelected(dateStr);
+                        Navigator.pop(modalContext);
                       },
-                      selectedColor: Theme.of(context).primaryColor.withValues(alpha: 0.2),
-                      checkmarkColor: Theme.of(context).primaryColor,
+                      leading: Icon(
+                        Icons.calendar_today,
+                        color: isSelected
+                            ? AppColors.accentWhite
+                            : AppColors.primaryMaroon,
+                      ),
+                      title: Text(
+                        DateFormat('dd/MM/yyyy').format(date),
+                        style: TextStyle(
+                          color: isSelected
+                              ? AppColors.accentWhite
+                              : AppColors.textPrimary,
+                          fontWeight:
+                              isSelected ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? const Icon(
+                              Icons.check_circle,
+                              color: AppColors.accentWhite,
+                            )
+                          : null,
                     ),
                   );
                 },
               ),
             ),
-            const SizedBox(height: 10,),
-            BlocBuilder<GetAftekadCubit, GetAftekadState>(
-              builder: (context, state) {
-                if (state is GetAftekadLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                } else if (state is GetAftekadFailure) {
-                  return Text(state.errorMessage);
-                } else {
-                  // Get all members from repository
-                  final allMembers = sl<IMembersRepository>().members
-                      .where((member) => member.role == UserRole.makhdoum)
-                      .toList();
-
-                  // Get completed aftekad data if available
-                  List<AftekadModel> completedAftekad = [];
-                  if (state is GetAftekadSuccess) {
-                    completedAftekad = state.aftekad.where((aftekad) => aftekad.status == true).toList();
-                  }
-
-                  // Create a combined list showing completion status for each member
-                  final displayList = allMembers.map((member) {
-                    // Check if this member has completed aftekad
-                    final memberAftekad = completedAftekad.firstWhere(
-                      (aftekad) => aftekad.makhdoum?.id == member.id,
-                      orElse: () => AftekadModel(
-                        makhdoumId: member.id,
-                        status: false,
-                        classId: member.classId,
-                        makhdoum: Makhdoum(
-                          id: member.id,
-                          name: member.name,
-                        ),
-                      ),
-                    );
-
-                    return memberAftekad;
-                  }).toList();
-
-                  return Expanded(
-                    child: ListView.separated(
-                        itemBuilder: (context, index) => AftekadListTile(
-                              aftekad: displayList[index],
-                            ),
-                        separatorBuilder: (_, __) => const SizedBox(
-                              height: 10,
-                            ),
-                        itemCount: displayList.length),
-                  );
-                }
-              },
-            ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildExportButton(List<AftekadModel> records) {
+    if (records.isEmpty) return const SizedBox.shrink();
+
+    final hasMultipleClasses = _classOptions.length > 1;
+    final isKhadem = _currentUser?.role == UserRole.khadem;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ElevatedButton.icon(
+        onPressed: () async {
+          if (hasMultipleClasses && isKhadem) {
+            // Show class selection dialog
+            final selectedClassIds = await showDialog<List<String>>(
+              context: context,
+              builder: (context) => ClassExportSelectionDialog(
+                availableClasses: _classOptions
+                    .map((c) =>
+                        ClassOption(id: c.classId, name: c.className ?? ''))
+                    .toList(),
+                title: 'اختر الفصول لتصدير الأفتقاد',
+              ),
+            );
+
+            if (selectedClassIds == null || selectedClassIds.isEmpty) {
+              return; // User cancelled
+            }
+
+            // Filter records by selected classes
+            final filteredRecords = records.where((record) {
+              return selectedClassIds.contains(record.classId);
+            }).toList();
+
+            if (filteredRecords.isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('لا توجد سجلات أفتقاد في الفصول المحددة'),
+                  backgroundColor: AppColors.warning,
+                ),
+              );
+              return;
+            }
+
+            final classNamesMap = {
+              for (var classInfo in _classOptions)
+                classInfo.classId: classInfo.className ?? ''
+            };
+
+            final scaffoldMessenger = ScaffoldMessenger.of(context);
+            scaffoldMessenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                    'جاري تصدير ${filteredRecords.length} سجل من ${selectedClassIds.length} فصل...'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+
+            final className = selectedClassIds.length == 1
+                ? classNamesMap[selectedClassIds.first]
+                : 'عدة_فصول';
+
+            final result = await ExcelExportService.exportEftekad(
+              filteredRecords,
+              className,
+              classNamesMap: selectedClassIds.length > 1 ? classNamesMap : null,
+            );
+
+            if (result != null) {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: const Text('تم تصدير البيانات بنجاح'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            } else {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: const Text('حدث خطأ أثناء التصدير'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+          } else {
+            // Single class or super admin - export current filtered data
+            final className = _selectedClassId != null
+                ? _classOptions
+                    .firstWhere(
+                      (c) => c.classId == _selectedClassId,
+                      orElse: () =>
+                          const UserClassInfo(classId: '', className: ''),
+                    )
+                    .className
+                : null;
+
+            final scaffoldMessenger = ScaffoldMessenger.of(context);
+            scaffoldMessenger.showSnackBar(
+              const SnackBar(
+                content: Text('جاري تصدير البيانات...'),
+                duration: Duration(seconds: 1),
+              ),
+            );
+
+            final result = await ExcelExportService.exportEftekad(
+              records,
+              className,
+            );
+
+            if (result != null) {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: const Text('تم تصدير البيانات بنجاح'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            } else {
+              scaffoldMessenger.showSnackBar(
+                SnackBar(
+                  content: const Text('حدث خطأ أثناء التصدير'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
+          }
+        },
+        icon: const Icon(Icons.download),
+        label: Text(hasMultipleClasses && isKhadem
+            ? 'تصدير إلى Excel (اختر الفصول)'
+            : 'تصدير إلى Excel'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryMaroon,
+          foregroundColor: AppColors.accentWhite,
+        ),
+      ),
+    );
+  }
+}
+
+class _AftekadViewData {
+  _AftekadViewData({
+    required this.displayList,
+    required this.completedCount,
+    required this.pendingCount,
+    required this.atRiskCount,
+  });
+
+  final List<AftekadModel> displayList;
+  final int completedCount;
+  final int pendingCount;
+  final int atRiskCount;
+}
+
+enum AftekadSortOption {
+  consecutiveMissed,
+  attendance,
+  nameAZ,
+}
+
+extension AftekadSortOptionLabel on AftekadSortOption {
+  String get label {
+    switch (this) {
+      case AftekadSortOption.consecutiveMissed:
+        return 'أكثر غيابًا متتاليًا';
+      case AftekadSortOption.attendance:
+        return 'أعلى حضور قداسات';
+      case AftekadSortOption.nameAZ:
+        return 'الاسم (أ-ي)';
+    }
   }
 }

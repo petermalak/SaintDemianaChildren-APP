@@ -102,6 +102,28 @@ class AftekadListTile extends StatelessWidget {
               ],
             ),
 
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _buildInfoChip(
+                  icon: Icons.church,
+                  label: 'عدد حضور القداسات',
+                  value: (aftekad.fridayAttendanceCount ?? 0).toString(),
+                  background: AppColors.primaryMaroon.withValues(alpha: 0.1),
+                  foreground: AppColors.primaryMaroon,
+                ),
+                _buildInfoChip(
+                  icon: Icons.warning_amber_rounded,
+                  label: 'عدد الجمع المتتالية بدون حضور',
+                  value: (aftekad.consecutiveMissedFridays ?? 0).toString(),
+                  background: AppColors.warning.withValues(alpha: 0.12),
+                  foreground: AppColors.warning,
+                ),
+              ],
+            ),
+
             if (aftekad.status == true) ...[
               const SizedBox(height: 16),
               Container(
@@ -143,7 +165,7 @@ class AftekadListTile extends StatelessWidget {
                       _buildDetailRow(
                         icon: Icons.calendar_today,
                         label: 'تاريخ الافتقاد',
-                        value: _formatDate(aftekad.completedDate!),
+                        value: _formatDate(aftekad.completedDate),
                       ),
                   ],
                 ),
@@ -151,6 +173,46 @@ class AftekadListTile extends StatelessWidget {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildInfoChip({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color background,
+    required Color foreground,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: foreground.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18, color: foreground),
+          const SizedBox(width: 6),
+          Text(
+            '$label: ',
+            style: TextStyle(
+              color: foreground,
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: foreground,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -211,8 +273,24 @@ class AftekadListTile extends StatelessWidget {
     }
   }
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
+  String _formatDate(dynamic date) {
+    try {
+      if (date == null) return 'غير محدد';
+
+      DateTime dateTime;
+      if (date is DateTime) {
+        dateTime = date;
+      } else if (date is String) {
+        dateTime = DateTime.parse(date);
+      } else {
+        return 'غير محدد';
+      }
+
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    } catch (e) {
+      print('Error formatting date: $date, error: $e');
+      return 'غير محدد';
+    }
   }
 
   void _showAddAftekadDialog(BuildContext context) {

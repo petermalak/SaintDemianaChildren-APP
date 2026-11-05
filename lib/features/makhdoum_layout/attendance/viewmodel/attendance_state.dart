@@ -12,4 +12,7 @@ final class AttendanceFailure extends AttendanceState {
   AttendanceFailure(this.errorMessage);
 }
 
-final class AttendanceSuccess {}
+final class AttendanceSuccess extends AttendanceState {
+  final AttendanceModel attendanceModel;
+  AttendanceSuccess(this.attendanceModel);
+}

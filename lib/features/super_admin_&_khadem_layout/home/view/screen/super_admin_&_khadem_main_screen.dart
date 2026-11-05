@@ -4,18 +4,27 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:saint_demiana_children/features/authentication/repository/i_authentication_repository.dart';
 import 'package:saint_demiana_children/features/feed/view/screen/feed_screen.dart';
-import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/aftekad/view/screen/aftekad_screen.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/attendance/view/screen/attendance_screen.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/home/view/screen/home_screen.dart';
-import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/repository/i_members_repository.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/view/screen/members_screen.dart';
-import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/members/viewmodel/get_members/get_members_cubit.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/model/class_model.dart';
+import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
+import '../../../../../core/widgets/app_shell.dart';
+import '../../../../../core/session/session_context.dart';
+import '../../../../../core/utils/role_helper.dart';
 import '../../../../authentication/model/user_model.dart';
+import '../../../../authentication/view/widget/role_selection_dialog.dart';
 import '../../../../profile/repository/i_profile_repository.dart';
+import '../../../../scoring/view/screen/scoring_config_screen.dart';
+import '../../../../scoring/repository/i_scoring_repository.dart';
+import '../../../../scoring/viewmodel/config_cubit/config_cubit.dart';
+import '../../../../scoring/viewmodel/score_definition_cubit/score_definition_cubit.dart';
 import '../../../members/view/widget/add_user_dialog.dart';
+import '../../../members/view/widget/request_member_dialog.dart';
 import '../../../members/view/widget/attendance_dialog.dart';
+import 'khadem_more_screen.dart';
 
 class KhademMainScreen extends StatefulWidget {
   const KhademMainScreen({super.key});
@@ -27,11 +36,17 @@ class KhademMainScreen extends StatefulWidget {
 class _KhademMainScreenState extends State<KhademMainScreen>
     with TickerProviderStateMixin {
   int _selectedTab = 0;
+  late PageController _pageController;
   late AnimationController _fabAnimationController;
   late AnimationController _cardAnimationController;
   late Animation<double> _cardAnimation;
   List<UserModel> _selectedMembers = [];
+  String? _morePage;
   final Map<int, Widget> _cachedTabs = {};
+  final Map<int, ScrollController> _scrollControllers = {};
+  RoleClassSelection? _selectedRoleClass;
+  List<ClassModel> _classesForShop = [];
+  bool _classesForShopLoaded = false;
 
   @override
   void initState() {
@@ -43,7 +58,104 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     //         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjA0OTBlOTk3LWQ5N2QtNDhlNC04NzFlLTQyYjhmM2FhNGU0ZSIsIm5hbWUiOiJTdXBlciBBZG1pbiIsImVtYWlsIjoic3VwZXJhZG1pbkB0ZXN0LmNvbSIsInBob25lTnVtYmVyIjoiKzEyMzQ1Njc4OTAiLCJyb2xlIjoic3VwZXJfYWRtaW4iLCJwcm9maWxlSW1hZ2UiOm51bGwsInBhc3N3b3JkSGFzaCI6IiQyYiQxMCRTdWZEdy51cjVHM0dXVEtleGVPR1JPaXY1aUouODZmRmQ5aGguRC50S3VoQUZabEQ4U0NycSIsImZhdGhlcnNQaG9uZU51bWJlciI6bnVsbCwibW90aGVyc1Bob25lTnVtYmVyIjpudWxsLCJiaXJ0aGRhdGUiOm51bGwsImFkZHJlc3MiOiIxMjMgU3VwZXIgQWRtaW4gU3QiLCJhZGRyZXNzTG9jYXRpb25MaW5rIjpudWxsLCJmYXRoZXJPZkNvbmZlc3Npb24iOm51bGwsImNyZWF0ZWRBdCI6IjIwMjUtMTAtMDFUMTE6NTE6MjAuMDAwWiIsInVwZGF0ZWRBdCI6IjIwMjUtMTAtMDFUMTE6NTE6MjAuMDAwWiIsImlhdCI6MTc1OTg0MzMyMSwiZXhwIjoxNzYwNDQ4MTIxfQ.S3HoTHbZ8HhsPgFNmz_UZJJP8vcPR2MHeW8iS0LD-KM",
     //     email: "superAdmin@test.com");
     super.initState();
+    _pageController = PageController();
     _initializeAnimations();
+    _initializeScrollControllers();
+    _initializeRoleSelection();
+    SessionContext.instance.addListener(_onSessionContext);
+    _loadClassesForShop();
+  }
+
+  void _onSessionContext() {
+    if (!mounted) return;
+    final selection = SessionContext.instance.current;
+    if (selection == null || selection.role == UserRole.makhdoum) return;
+    setState(() {
+      _selectedRoleClass = selection;
+      _cachedTabs.remove(3);
+    });
+    _loadClassesForShop();
+  }
+
+  Future<void> _loadClassesForShop() async {
+    final user = sl<IProfileRepository>().user;
+    if (user == null) return;
+    final isSuperAdmin = SessionContext.isSuperAdminContext(user);
+    final repo = sl<IClassRepository>();
+    final result =
+        isSuperAdmin ? await repo.loadClasses() : await repo.loadMyClasses();
+    result.fold(
+      (_) => null,
+      (classes) {
+        if (mounted) {
+          final scoped = classesForContext(
+            user: user,
+            role: UserRole.khadem,
+            classes: classes,
+            idOf: (item) => item.id,
+          );
+          setState(() {
+            _classesForShop = scoped;
+            _classesForShopLoaded = true;
+            _cachedTabs.remove(3);
+          });
+        }
+      },
+    );
+  }
+
+  bool get _selectedClassHasScoring {
+    final user = sl<IProfileRepository>().user;
+    if (SessionContext.isSuperAdminContext(user)) return true;
+    if (!_classesForShopLoaded) return false;
+    final classId = _selectedRoleClass?.classId;
+    if (classId == null || classId.isEmpty) return false;
+    return _classesForShop.any((c) => c.id == classId && c.scoringEnabled);
+  }
+
+  bool get _selectedClassHasShop {
+    if (!_classesForShopLoaded) {
+      return false;
+    }
+    // Show shop tab if ANY class has shop enabled (not just the selected one)
+    // This allows users to switch to a class with shop even when viewing a class without shop
+    return _classesForShop.any((c) => c.hasShop);
+  }
+
+  // Get the first class with shop, or the selected class if it has shop
+  String? get _shopClassId {
+    if (!_classesForShopLoaded) return null;
+    // If current class has shop, use it
+    if (_selectedRoleClass?.classId != null) {
+      final currentHasShop = _classesForShop.any(
+        (c) => c.id == _selectedRoleClass!.classId && c.hasShop,
+      );
+      if (currentHasShop) return _selectedRoleClass!.classId;
+    }
+    // Otherwise, use the first class with shop
+    final shopClass = _classesForShop.firstWhere(
+      (c) => c.hasShop,
+      orElse: () => _classesForShop.first,
+    );
+    return shopClass.id;
+  }
+
+  void _initializeRoleSelection() {
+    final user = sl<IProfileRepository>().user;
+    if (user == null) return;
+
+    final session = SessionContext.instance.current;
+    if (session != null && session.role != UserRole.makhdoum) {
+      _selectedRoleClass = session;
+      return;
+    }
+
+    final servantContexts = RoleHelper.membershipContexts(user)
+        .where((selection) => selection.role != UserRole.makhdoum)
+        .toList();
+    if (servantContexts.isEmpty) return;
+    _selectedRoleClass = servantContexts.first;
+    SessionContext.instance.select(servantContexts.first);
   }
 
   void _initializeAnimations() {
@@ -64,108 +176,71 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     _cardAnimationController.forward();
   }
 
+  void _initializeScrollControllers() {
+    for (int i = 0; i < 7; i++) {
+      _scrollControllers[i] = ScrollController();
+    }
+  }
+
   @override
   void dispose() {
+    SessionContext.instance.removeListener(_onSessionContext);
+    _pageController.dispose();
     _fabAnimationController.dispose();
     _cardAnimationController.dispose();
+    for (var controller in _scrollControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppColors.backgroundGradient,
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildEnhancedAppBar(),
-              _buildTabNavigation(),
-              Expanded(
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  transitionBuilder: (child, animation) {
-                    return SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(1.0, 0.0),
-                        end: Offset.zero,
-                      ).animate(CurvedAnimation(
-                        parent: animation,
-                        curve: Curves.easeInOut,
-                      )),
-                      child: child,
-                    );
-                  },
-                  child: _buildTabContent(),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    final user = sl<IProfileRepository>().user;
+    final name = firstNameOf(user?.name, fallback: 'الخادم');
+    return AppShell(
+      title: 'مرحباً $name',
+      subtitle: user?.role == UserRole.superAdmin
+          ? 'لوحة المدير'
+          : 'لوحة الخادم',
+      headerIcon: Icons.church,
+      actions: [_buildProfileMenu()],
+      tabs: _tabItems(),
+      selectedIndex: _selectedTab,
+      onTabSelected: onTabSelected,
       floatingActionButton: _buildEnhancedFAB(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      body: PageView.builder(
+        controller: _pageController,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: _tabCount,
+        onPageChanged: (index) {
+          setState(() => _selectedTab = index);
+          _fabAnimationController.reset();
+          _fabAnimationController.forward();
+        },
+        itemBuilder: (context, index) =>
+            _buildTabWidget(index, _scrollControllers[index]),
+      ),
     );
   }
 
-  Widget _buildEnhancedAppBar() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        gradient: AppColors.primaryGradient,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1.clamp(0.0, 1.0)),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color:
-              AppColors.accentWhite.withValues(alpha: 0.2.clamp(0.0, 1.0)),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.admin_panel_settings,
-              color: AppColors.accentWhite,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'لوحة التحكم',
-                  style: TextStyle(
-                    color: AppColors.accentWhite,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'مرحباً بك أيها الخادم',
-                  style: TextStyle(
-                    color: AppColors.accentWhite
-                        .withValues(alpha: 0.9.clamp(0.0, 1.0)),
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          _buildProfileMenu(),
-        ],
-      ),
-    );
+  int get _tabCount => _tabItems().length;
+
+  List<AppTabItem> _tabItems() {
+    if (_isInMakhdoumMode) {
+      return const [
+        AppTabItem(icon: Icons.home_rounded, label: 'الرئيسية'),
+        AppTabItem(icon: Icons.event_note_rounded, label: 'الحضور'),
+        AppTabItem(icon: Icons.newspaper_rounded, label: 'الأخبار'),
+        AppTabItem(icon: Icons.emoji_events_rounded, label: 'التايو'),
+      ];
+    }
+    return [
+      const AppTabItem(icon: Icons.home_rounded, label: 'الرئيسية'),
+      const AppTabItem(icon: Icons.people_rounded, label: 'الأعضاء'),
+      const AppTabItem(icon: Icons.event_note_rounded, label: 'الحضور'),
+      const AppTabItem(icon: Icons.grid_view_rounded, label: 'المزيد'),
+    ];
   }
 
   Widget _buildProfileMenu() {
@@ -193,10 +268,13 @@ class _KhademMainScreenState extends State<KhademMainScreen>
           context.push('/class-management');
         } else if (value == 'profile') {
           context.push('/profile');
+        } else if (value == 'scoring-config') {
+          _navigateToGlobalScoringConfig(context);
+        } else if (value == 'switch-context') {
+          _pickContext(context);
         }
       },
-      itemBuilder: (context) =>
-      [
+      itemBuilder: (context) => [
         const PopupMenuItem(
           value: 'profile',
           child: Row(
@@ -218,6 +296,31 @@ class _KhademMainScreenState extends State<KhademMainScreen>
               ],
             ),
           ),
+          const PopupMenuItem(
+            value: 'scoring-config',
+            child: Row(
+              children: [
+                Icon(Icons.emoji_events, color: AppColors.accentGold),
+                SizedBox(width: 12),
+                Text('نظام التايو العام'),
+              ],
+            ),
+          ),
+        ],
+        if (RoleHelper.membershipContexts(sl<IProfileRepository>().user)
+                .length >
+            1) ...[
+          const PopupMenuDivider(),
+          const PopupMenuItem(
+            value: 'switch-context',
+            child: Row(
+              children: [
+                Icon(Icons.swap_horiz, color: AppColors.primaryMaroon),
+                SizedBox(width: 12),
+                Text('تبديل الفصل'),
+              ],
+            ),
+          ),
         ],
         const PopupMenuDivider(),
         const PopupMenuItem(
@@ -234,142 +337,110 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     );
   }
 
-  Widget _buildTabNavigation() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05.clamp(0.0, 1.0)),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          _buildTabButton(0, Icons.dashboard, 'الرئيسية'),
-          _buildTabDivider(),
-          _buildTabButton(1, Icons.newspaper, "الأخبار"),
-          _buildTabDivider(),
-          _buildTabButton(2, Icons.people, 'الأعضاء'),
-          _buildTabDivider(),
-          _buildTabButton(3, Icons.event_note, 'الحضور'),
-          _buildTabDivider(),
-          _buildTabButton(4, Icons.person, "الأفتقاد"),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabButton(int index, IconData icon, String label) {
-    final isSelected = _selectedTab == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => onTabSelected(index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.primaryMaroon : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.accentWhite
-                      : AppColors.primaryMaroon
-                      .withValues(alpha: 0.1.clamp(0.0, 1.0)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  icon,
-                  color: AppColors.primaryMaroon,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isSelected
-                      ? AppColors.accentWhite
-                      : AppColors.textPrimary,
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTabDivider() {
-    return Container(
-      height: 30,
-      width: 1,
-      color: AppColors.borderLight,
-    );
+  void _openSection(int tab, {String? morePage}) {
+    if (morePage != null) {
+      setState(() {
+        _morePage = morePage;
+        _cachedTabs.remove(3);
+      });
+    }
+    onTabSelected(tab);
   }
 
   void onTabSelected(int index) {
-    setState(() {
-      _selectedTab = index;
-    });
-    _fabAnimationController.reset();
-    _fabAnimationController.forward();
-  }
-
-  Widget _buildTabContent() {
-    return IndexedStack(
-      index: _selectedTab,
-      children: List.generate(5, (index) {
-        return _cachedTabs.putIfAbsent(index, () => _buildTabWidget(index));
-      }),
+    _pageController.animateToPage(
+      index,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
     );
   }
 
-  Widget _buildTabWidget(int index) {
-    switch (index) {
-      case 0:
-        return Provider.value(
-          value: onTabSelected,
-          child: HomeScreen(
+  Widget _buildTabWidget(int index, ScrollController? scrollController) {
+    // Use cached widget if available
+    return _cachedTabs.putIfAbsent(
+      index,
+      () => _buildTabContent(index, scrollController),
+    );
+  }
+
+  Widget _buildTabContent(int index, ScrollController? scrollController) {
+    if (_isInMakhdoumMode) {
+      // Makhdoum-specific content
+      switch (index) {
+        case 0:
+          // Home screen for makhdoum
+          return Provider.value(
+            value: onTabSelected,
+            child: HomeScreen(
+              cardAnimation: _cardAnimation,
+              scrollController: scrollController,
+            ),
+          );
+        case 1:
+          // Attendance screen for makhdoum
+          return AttendanceScreen(
+            scrollController: scrollController,
+          );
+        case 2:
+          // Feed screen
+          return FeedScreen(scrollController: scrollController);
+        case 3:
+          // Scoring screen for makhdoum
+          return const SizedBox(); // TODO: Add makhdoum scoring screen
+        default:
+          return HomeScreen(
             cardAnimation: _cardAnimation,
-          ),
-        );
-      case 1:
-        return const FeedScreen();
-      case 2:
-        return MembersScreen(
-          cardAnimation: _cardAnimation,
-          onSelectionChanged: (selected) {
-            setState(() {
-              _selectedMembers = List<UserModel>.from(selected);
-            });
-          },
-        );
-      case 3:
-        return const AttendanceScreen();
-      case 4:
-        return const AftekadScreen();
-      default:
-        return HomeScreen(cardAnimation: _cardAnimation);
+            scrollController: scrollController,
+          );
+      }
+    } else {
+      // Khadem-specific content
+      switch (index) {
+        case 0:
+          return MultiProvider(
+            providers: [
+              Provider<void Function(int)>.value(value: onTabSelected),
+              Provider<KhademSectionNav>.value(
+                value: KhademSectionNav(_openSection),
+              ),
+            ],
+            child: HomeScreen(
+              cardAnimation: _cardAnimation,
+              scrollController: scrollController,
+            ),
+          );
+        case 1:
+          return MembersScreen(
+            cardAnimation: _cardAnimation,
+            scrollController: scrollController,
+            onSelectionChanged: (selected) {
+              setState(() {
+                _selectedMembers = List<UserModel>.from(selected);
+              });
+            },
+          );
+        case 2:
+          return AttendanceScreen(scrollController: scrollController);
+        case 3:
+          return KhademMoreScreen(
+            hasShop: _selectedClassHasShop,
+            hasScoring: _selectedClassHasScoring,
+            shopClassId: _shopClassId ?? _selectedRoleClass?.classId,
+            initialPage: _morePage,
+            scrollController: scrollController,
+          );
+        default:
+          return HomeScreen(
+            cardAnimation: _cardAnimation,
+            scrollController: scrollController,
+          );
+      }
     }
   }
 
   Widget _buildEnhancedFAB() {
-    final shouldShowFAB = _selectedTab == 2;
-    final isMemberSelected = _selectedTab == 2 && _selectedMembers.isNotEmpty;
+    final shouldShowFAB = _selectedTab == 1;
+    final isMemberSelected = _selectedTab == 1 && _selectedMembers.isNotEmpty;
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 250),
@@ -387,24 +458,24 @@ class _KhademMainScreenState extends State<KhademMainScreen>
       },
       child: shouldShowFAB
           ? FloatingActionButton.extended(
-        key: const ValueKey('fab'),
-        onPressed: isMemberSelected
-            ? () => _showAddAttendanceDialog()
-            : () => _showAddUserDialog(),
-        backgroundColor:
-        isMemberSelected ? Colors.green : AppColors.primaryMaroon,
-        icon: Icon(
-          isMemberSelected ? Icons.check : Icons.person_add,
-          color: AppColors.accentWhite,
-        ),
-        label: Text(
-          isMemberSelected ? 'تسجيل حضور' : 'إضافة عضو',
-          style: const TextStyle(
-            color: AppColors.accentWhite,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      )
+              key: const ValueKey('fab'),
+              onPressed: isMemberSelected
+                  ? () => _showAddAttendanceDialog()
+                  : () => _showAddUserDialog(),
+              backgroundColor:
+                  isMemberSelected ? Colors.green : AppColors.primaryMaroon,
+              icon: Icon(
+                isMemberSelected ? Icons.check : Icons.person_add,
+                color: AppColors.accentWhite,
+              ),
+              label: Text(
+                isMemberSelected ? 'تسجيل حضور' : 'إضافة عضو',
+                style: const TextStyle(
+                  color: AppColors.accentWhite,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            )
           : const SizedBox.shrink(key: ValueKey('empty')),
     );
   }
@@ -413,12 +484,16 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     showDialog(
       context: context,
       builder: (dialogContext) {
+        final user = sl<IProfileRepository>().user;
+        if (user?.role == UserRole.khadem) {
+          return RequestMemberDialog(onSuccess: () {});
+        }
         return AddUserDialog(
           onSuccess: () {
             // Force the members screen to refresh by switching tabs
-            if (_selectedTab == 2) {
+            if (_selectedTab == 1) {
               setState(() {
-                _cachedTabs.remove(2); // Clear cached members screen
+                _cachedTabs.remove(1); // Clear cached members screen
               });
             }
           },
@@ -434,39 +509,93 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     );
   }
 
+  void _navigateToGlobalScoringConfig(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MultiBlocProvider(
+          providers: [
+            BlocProvider(
+              create: (context) => ConfigCubit(sl<IScoringRepository>()),
+            ),
+            BlocProvider(
+              create: (context) =>
+                  ScoreDefinitionCubit(sl<IScoringRepository>()),
+            ),
+          ],
+          child: const ScoringConfigScreen(
+            classId: null,
+            className: null,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Check if current selected role/class allows khadem features
+  bool get _isInKhademMode {
+    return _selectedRoleClass?.role == UserRole.khadem ||
+        _selectedRoleClass?.role == UserRole.superAdmin;
+  }
+
+  /// Check if current selected role/class allows makhdoum features
+  bool get _isInMakhdoumMode {
+    return _selectedRoleClass?.role == UserRole.makhdoum;
+  }
+
+  Future<void> _pickContext(BuildContext context) async {
+    final user = sl<IProfileRepository>().user;
+    final contexts = RoleHelper.membershipContexts(user);
+    if (contexts.length < 2 || !context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => RoleSelectionDialog(
+        contexts: contexts,
+        onContextSelected: (selection) {
+          SessionContext.instance.select(selection);
+          if (!context.mounted) return;
+          if (selection.role == UserRole.makhdoum) {
+            context.go('/makhdoum');
+          } else {
+            context.go('/khadem');
+          }
+        },
+      ),
+    );
+  }
+
   void _handleLogout(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) =>
-          AlertDialog(
-            title: const Text('تسجيل الخروج'),
-            content: const Text('هل أنت متأكد من تسجيل الخروج؟'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('إلغاء'),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  Navigator.pop(context);
-                  try {
-                    sl<IAuthenticationRepository>().logout();
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      context.go('/login');
-                    });
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('حدث خطأ أثناء تسجيل الخروج'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
-                child: const Text('تسجيل الخروج'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('تسجيل الخروج'),
+        content: const Text('هل أنت متأكد من تسجيل الخروج؟'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء'),
           ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              try {
+                sl<IAuthenticationRepository>().logout();
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  context.go('/login');
+                });
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('حدث خطأ أثناء تسجيل الخروج'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text('تسجيل الخروج'),
+          ),
+        ],
+      ),
     );
   }
 }

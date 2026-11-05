@@ -4,7 +4,8 @@ const cors = require('cors');
 
 const app = express();
 
-const API_TARGET = 'http://72.60.83.197:7000/';
+// const API_TARGET = 'http://72.60.83.197:7000/';
+const API_TARGET = 'http://localhost:7000/';
 
 // فعل CORS لكل الطلبات
 app.use(cors({

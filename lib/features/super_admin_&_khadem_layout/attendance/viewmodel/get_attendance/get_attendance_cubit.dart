@@ -1,21 +1,90 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../../core/services/data_refresh_cubit.dart';
 import '../../model/attendance_model.dart';
 import '../../repository/i_attendance_repository.dart';
 
 part 'get_attendance_state.dart';
 
 class GetAttendanceCubit extends Cubit<GetAttendanceState> {
-  GetAttendanceCubit(this._attendanceRepository)
-      : super(GetAttendanceInitial());
   final IAttendanceRepository _attendanceRepository;
-  Future<void> fetchAttendance() async {
-    emit(GetAttendanceLoading());
-    final result = await _attendanceRepository.fetchAttendance();
-    result.fold(
-      (failure) => emit(GetAttendanceFailure(failure)),
-      (attendance) => emit(GetAttendanceSuccess(attendance)),
+  final DataRefreshCubit? _refreshCubit;
+  StreamSubscription? _refreshSubscription;
+  String? _lastClassId;
+  String? _lastKhademId;
+  String? _lastKhademName;
+  String? _lastKhademScope;
+  String? _lastFrom;
+  String? _lastTo;
+  AttendanceModel? _lastAttendance;
+
+  GetAttendanceCubit(this._attendanceRepository, [this._refreshCubit])
+      : super(GetAttendanceInitial()) {
+    // Listen to refresh events
+    _refreshSubscription = _refreshCubit?.stream.listen((refreshState) {
+      if (refreshState.shouldRefresh(RefreshType.attendance) ||
+          refreshState.shouldRefresh(RefreshType.all)) {
+        print('📋 [GetAttendanceCubit] Refresh triggered');
+        fetchAttendance(
+          classId: _lastClassId,
+          khademId: _lastKhademId,
+          khademName: _lastKhademName,
+          khademScope: _lastKhademScope,
+          from: _lastFrom,
+          to: _lastTo,
+        );
+      }
+    });
+  }
+
+  Future<void> fetchAttendance({
+    String? classId,
+    String? khademId,
+    String? khademName,
+    String? khademScope,
+    String? from,
+    String? to,
+  }) async {
+    _lastClassId = classId;
+    _lastKhademId = khademId;
+    _lastKhademName = khademName;
+    _lastKhademScope = khademScope;
+    _lastFrom = from;
+    _lastTo = to;
+    if (isClosed) return;
+    if (_lastAttendance == null) {
+      emit(GetAttendanceLoading());
+    }
+    final result = await _attendanceRepository.fetchAttendance(
+      classId: classId,
+      khademId: khademId,
+      khademName: khademName,
+      khademScope: khademScope,
+      from: from,
+      to: to,
     );
+    if (isClosed) return;
+    result.fold(
+      (failure) {
+        final stale = _lastAttendance;
+        if (stale != null) {
+          if (!isClosed) emit(GetAttendanceSuccess(stale));
+        } else if (!isClosed) {
+          emit(GetAttendanceFailure(failure));
+        }
+      },
+      (attendance) {
+        _lastAttendance = attendance;
+        if (!isClosed) emit(GetAttendanceSuccess(attendance));
+      },
+    );
+  }
+
+  @override
+  Future<void> close() {
+    _refreshSubscription?.cancel();
+    return super.close();
   }
 }

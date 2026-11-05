@@ -1,11 +1,14 @@
-import 'dart:io';
 import 'package:dio/dio.dart';
+import 'network_utils_stub.dart' if (dart.library.io) 'network_utils_io.dart'
+    as network_utils;
 import 'package:flutter/foundation.dart';
 import 'package:saint_demiana_children/core/constants/api_endpoints.dart';
 import 'package:saint_demiana_children/core/services/interface/i_api_service.dart';
+import 'package:saint_demiana_children/core/services/interface/i_storage_service.dart';
 import 'package:saint_demiana_children/features/profile/repository/i_profile_repository.dart';
 import '../di/service_locator.dart';
 import 'logging_service.dart';
+import 'sync_queue_service.dart';
 
 class ApiService implements IApiService {
   late Dio _dio;
@@ -14,7 +17,7 @@ class ApiService implements IApiService {
   ApiService._() {
     _dio = Dio(BaseOptions(
       baseUrl: ApiEndpoints.baseUrl,
-      connectTimeout: const Duration(seconds: 45),
+      connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 45),
       sendTimeout: const Duration(seconds: 45),
       headers: {
@@ -32,13 +35,36 @@ class ApiService implements IApiService {
     return _instance!;
   }
 
+  /// The configured client (auth, logging, offline cache), used to replay queued writes.
+  Dio get dio => _dio;
+
   void _setupInterceptors() {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           final token = sl<IProfileRepository>().user?.token;
+
+          // Debug logging
+          if (kDebugMode) {
+            print('🔐 [API] Making request to: ${options.path}');
+            print('🔐 [API] Token exists: ${token != null}');
+            if (token != null) {
+              print('🔐 [API] Token preview: ${token.substring(0, 20)}...');
+            }
+          }
+
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
+          }
+
+          final queue = SyncQueueService.instance;
+          if (queue.isQueueable(options)) {
+            queue.tagRequest(options);
+            // Earlier operations are still waiting: queue behind them to keep order.
+            if (queue.hasPendingForCurrentUser()) {
+              await queue.enqueue(options);
+              return handler.resolve(queue.queuedResponse(options));
+            }
           }
 
           // Log the request
@@ -52,18 +78,32 @@ class ApiService implements IApiService {
           handler.next(options);
         },
         onResponse: (response, handler) {
-          print(response.data);
+          final status = response.statusCode ?? 0;
+          final fromCache = response.extra['fromCache'] == true;
+          final queued = response.isQueued;
+          if (fromCache) {
+            SyncQueueService.instance.noteOffline(usingCache: true);
+          } else if (!queued && status < 400) {
+            SyncQueueService.instance.noteOnline();
+            if (response.requestOptions.method == 'GET' &&
+                (_shouldAlwaysCache(response.requestOptions) ||
+                    !_isBulkPayload(response.data)) &&
+                (response.data is Map || response.data is List)) {
+              sl<IStorageService>().cacheResponse(
+                  _cacheKey(response.requestOptions), response.data);
+            }
+          }
           // Log the response
           _logger.logResponse(
             response.requestOptions.method,
             '${response.requestOptions.baseUrl}${response.requestOptions.path}',
             response.statusCode ?? 0,
-            body: response.data,
+            body: _responseSummary(response.data),
           );
 
           handler.next(response);
         },
-        onError: (error, handler) {
+        onError: (error, handler) async {
           // Log the error
           _logger.error(
             'API Error: ${error.message}',
@@ -72,13 +112,98 @@ class ApiService implements IApiService {
             stackTrace: error.stackTrace,
           );
 
-          // Handle common errors
-          if (error.response?.statusCode == 401) {}
+          // Token expired or invalid: clear session so user must login again
+          if (error.response?.statusCode == 401) {
+            sl<IProfileRepository>().user = null;
+            if (kDebugMode) {
+              print('🔐 [API] 401 Unauthorized - session cleared');
+            }
+          }
+
+          // Offline: serve the last successful response for this GET, if any
+          if (error.requestOptions.method == 'GET' && _isOfflineError(error)) {
+            SyncQueueService.instance.noteOffline();
+            final cacheKey = _cacheKey(error.requestOptions);
+            final cached = sl<IStorageService>().getCachedResponse(cacheKey);
+            if (cached != null) {
+              if (kDebugMode) {
+                print('📴 [API] Offline - serving cached ${error.requestOptions.path}');
+              }
+              return handler.resolve(Response(
+                requestOptions: error.requestOptions,
+                data: cached,
+                statusCode: 200,
+                extra: {'fromCache': true},
+              ));
+            }
+          }
+
+          // Offline write: keep it on the device and send it when the connection is back
+          final queue = SyncQueueService.instance;
+          if (_isOfflineError(error)) queue.noteOffline();
+          if (_isOfflineError(error) && queue.isQueueable(error.requestOptions)) {
+            await queue.enqueue(error.requestOptions);
+            return handler.resolve(queue.queuedResponse(error.requestOptions));
+          }
 
           handler.next(error);
         },
       ),
     );
+  }
+
+  /// Large member/class/attendance lists must still be cached for offline QR
+  /// and attendance (otherwise [_isBulkPayload] skips them and offline fails).
+  bool _shouldAlwaysCache(RequestOptions options) {
+    final path = options.path;
+    return path.contains('members') ||
+        path.contains('my-classes') ||
+        path.contains('classes') ||
+        path.contains('attendance');
+  }
+
+  bool _isBulkPayload(dynamic data) {
+    if (data is List) return data.length > 40;
+    if (data is Map) {
+      for (final key in const [
+        'data',
+        'makhdoum',
+        'khadem',
+        'attendanceRecords',
+        'attendance_records',
+        'people',
+        'marks',
+      ]) {
+        final value = data[key];
+        if (value is List && value.length > 40) return true;
+      }
+    }
+    return false;
+  }
+
+  String _responseSummary(dynamic data) {
+    if (data is List) return 'list of ${data.length}';
+    if (data is Map) return 'map keys: ${data.keys.take(8).join(', ')}';
+    return data.runtimeType.toString();
+  }
+
+  String _cacheKey(RequestOptions options) {
+    final userId = sl<IProfileRepository>().user?.id ?? '';
+    return '$userId|${options.uri}';
+  }
+
+  bool _isOfflineError(DioException error) {
+    switch (error.type) {
+      case DioExceptionType.connectionError:
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return true;
+      case DioExceptionType.unknown:
+        return error.response == null;
+      default:
+        return false;
+    }
   }
 
   @override
@@ -87,9 +212,6 @@ class ApiService implements IApiService {
     Map<String, dynamic>? queryParameters,
   }) async {
     final response = await _dio.get(path, queryParameters: queryParameters);
-    if (kDebugMode) {
-      print(response.data);
-    }
     return response;
   }
 
@@ -98,10 +220,8 @@ class ApiService implements IApiService {
       {required String path,
       Map<String, dynamic>? queryParameters,
       body}) async {
-    final response = await _dio.patch(path, queryParameters: queryParameters);
-    if (kDebugMode) {
-      print(response.data);
-    }
+    final response =
+        await _dio.patch(path, queryParameters: queryParameters, data: body);
     return response;
   }
 
@@ -116,9 +236,6 @@ class ApiService implements IApiService {
       queryParameters: queryParameters,
       data: body,
     );
-    if (kDebugMode) {
-      print(response.data);
-    }
     return response;
   }
 
@@ -126,11 +243,13 @@ class ApiService implements IApiService {
   Future<Response> delete({
     required String path,
     Map<String, dynamic>? queryParameters,
+    dynamic body,
   }) async {
-    final response = await _dio.delete(path, queryParameters: queryParameters);
-    if (kDebugMode) {
-      print(response.data);
-    }
+    final response = await _dio.delete(
+      path,
+      queryParameters: queryParameters,
+      data: body,
+    );
     return response;
   }
 
@@ -145,70 +264,77 @@ class ApiService implements IApiService {
       queryParameters: queryParameters,
       data: body,
     );
-    if (kDebugMode) {
-      print(response.data);
+    return response;
+  }
+
+  @override
+  Future<Response> postMultipart({
+    required String path,
+    String? filePath,
+    List<int>? fileBytes,
+    String fieldName = 'image',
+    String fileName = 'image.jpg',
+    String? contentType,
+  }) async {
+    assert(filePath != null || (fileBytes != null && fileBytes.isNotEmpty));
+    final MultipartFile multipartFile;
+    // On web, dart:io and MultipartFile.fromFile are not available; always use bytes.
+    if (!kIsWeb && filePath != null && filePath.isNotEmpty) {
+      multipartFile =
+          await MultipartFile.fromFile(filePath, filename: fileName);
+    } else {
+      multipartFile = MultipartFile.fromBytes(
+        fileBytes!,
+        filename: fileName,
+      );
     }
+    final formData = FormData.fromMap({fieldName: multipartFile});
+    final response = await _dio.post(path, data: formData);
     return response;
   }
 
   @override
   Future<bool> hasInternet() async {
-    if (kIsWeb) {
-      try {
-        final response = await Dio().get('https://www.google.com',
-            options: Options(
-              receiveTimeout: const Duration(seconds: 10),
-              sendTimeout: const Duration(seconds: 10),
-            ));
-        return response.statusCode == 200;
-      } catch (_) {
-        return false;
-      }
-    } else {
-      try {
-        final result = await InternetAddress.lookup('google.com')
-            .timeout(const Duration(seconds: 15));
-        return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
-      } on SocketException {
-        return false;
-      }
-    }
+    return network_utils.checkNetworkConnectivity();
   }
-
 
   @override
   String handleError(DioException error) {
-    print(error.response?.data);
+    if (kDebugMode) {
+      print('🔐 [API] Error ${error.response?.statusCode} ${error.requestOptions.path}');
+    }
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
-        return 'Connection timeout. Please check your internet connection.';
+        return 'انتهت مهلة الاتصال. تحقق من الإنترنت ثم أعد المحاولة.';
       case DioExceptionType.badResponse:
         final int? statusCode = error.response?.statusCode;
-        final String message =
-            error.response?.data?['message'] ?? 'An error occurred';
+        final rawMessage = error.response?.data;
+        final String message = rawMessage is Map && rawMessage['message'] != null
+            ? rawMessage['message'].toString()
+            : 'حدث خطأ';
 
         switch (statusCode) {
           case 400:
-            return 'Bad request: $message';
+            return message;
           case 401:
-            return 'Unauthorized. Please login again.';
+            return 'انتهت الجلسة. سجّل الدخول مرة أخرى.';
           case 403:
-            return 'Access denied. You don\'t have permission to perform this action.';
+            return 'ليس لديك صلاحية لهذا الإجراء.';
           case 404:
-            return 'Resource not found.';
+            return 'البيانات غير موجودة.';
           case 500:
-            return 'Server error. Please try again later.';
+            return 'خطأ في الخادم. حاول مرة أخرى.';
           default:
-            return 'Error $statusCode: $message';
+            return message;
         }
       case DioExceptionType.cancel:
-        return 'Request was cancelled.';
+        return 'تم إلغاء الطلب.';
       case DioExceptionType.connectionError:
-        return 'No internet connection. Please check your network.';
+        return 'لا يوجد اتصال بالإنترنت.';
       default:
-        return 'An unexpected error occurred. Please try again.';
+        return 'حدث خطأ غير متوقع. حاول مرة أخرى.';
     }
   }
 }

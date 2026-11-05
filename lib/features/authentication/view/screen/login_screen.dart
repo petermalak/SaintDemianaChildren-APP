@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, kIsWeb;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saint_demiana_children/features/authentication/viewmodel/login_cubit.dart';
@@ -6,10 +7,16 @@ import 'package:saint_demiana_children/features/authentication/viewmodel/login_c
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/di/service_locator.dart';
+import '../../../../core/services/interface/i_notification_service.dart';
+import '../../../../core/services/interface/i_biometric_service.dart';
+import '../../../../core/session/session_context.dart';
+import '../../../../core/utils/role_helper.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/loading_button.dart';
+import '../../../notifications/repository/i_notification_repository.dart';
 import '../../model/user_model.dart';
 import '../../repository/i_authentication_repository.dart';
+import '../widget/role_selection_dialog.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,6 +36,9 @@ class _LoginScreenState extends State<LoginScreen>
   late AnimationController _formController;
   late AnimationController _backgroundController;
 
+  bool _biometricAvailable = false;
+  bool _checkingBiometric = true;
+
   late Animation<double> _logoScale;
   late Animation<double> _logoRotation;
   late Animation<double> _formSlide;
@@ -38,7 +48,13 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void initState() {
     super.initState();
+    _initializeAnimations();
+    _startAnimations();
+    _initializeBiometricState();
+  }
 
+  /// Initializes all animation controllers and animations.
+  void _initializeAnimations() {
     _logoController = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
@@ -73,14 +89,188 @@ class _LoginScreenState extends State<LoginScreen>
     _backgroundOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _backgroundController, curve: Curves.easeIn),
     );
-
-    _startAnimations();
   }
 
-  void _startAnimations() async {
-    await _backgroundController.forward();
-    await _logoController.forward();
+  /// Starts the login screen animations in sequence.
+  Future<void> _startAnimations() async {
+    _backgroundController.forward();
+    _logoController.forward();
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (!mounted) return;
     await _formController.forward();
+  }
+
+  /// Initializes biometric authentication state.
+  void _initializeBiometricState() {
+    if (kIsWeb) {
+      _biometricAvailable = false;
+      _checkingBiometric = false;
+    } else {
+      // On mobile, start with checking state
+      _checkingBiometric = true;
+      _biometricAvailable = false;
+    }
+  }
+
+  /// Checks if biometric authentication is available and ready to use.
+  /// 
+  /// This method is called after the LoginCubit is created to check
+  /// if biometric login should be displayed to the user.
+  Future<void> _checkBiometricAvailability(BuildContext context) async {
+    if (kIsWeb || !mounted) {
+      _updateBiometricState(false, false);
+      return;
+    }
+
+    try {
+      if (kDebugMode) {
+        print('🔍 [LoginScreen] Checking biometric availability...');
+      }
+      final biometricService = sl<IBiometricService>();
+      
+      if (!biometricService.isSupported) {
+        if (kDebugMode) {
+          print('❌ [LoginScreen] Biometric not supported on this platform');
+        }
+        _updateBiometricState(false, false);
+        return;
+      }
+
+      if (kDebugMode) {
+        print('✅ [LoginScreen] Biometric is supported, checking availability...');
+      }
+      final isAvailable = await biometricService.isAvailable();
+      if (kDebugMode) {
+        print('📱 [LoginScreen] Biometric available: $isAvailable');
+      }
+      
+      if (!isAvailable) {
+        if (kDebugMode) {
+          print('❌ [LoginScreen] Biometric not available on device');
+        }
+        _updateBiometricState(false, false);
+        return;
+      }
+
+      final hasCredentials = await biometricService.hasSavedCredentials();
+      if (kDebugMode) {
+        print('🔐 [LoginScreen] Has saved credentials: $hasCredentials');
+      }
+      
+      if (!hasCredentials) {
+        if (kDebugMode) {
+          print('⚠️ [LoginScreen] No saved credentials - user needs to login first');
+        }
+        _updateBiometricState(false, false);
+        return;
+      }
+
+      if (kDebugMode) {
+        print('✅ [LoginScreen] Biometric login is available!');
+      }
+      _updateBiometricState(true, false);
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        print('❌ [LoginScreen] Error checking biometric: $e');
+        print('❌ [LoginScreen] StackTrace: $stackTrace');
+      }
+      // Log error but don't show to user - biometric is optional
+      _updateBiometricState(false, false);
+    }
+  }
+
+  /// Updates the biometric availability state safely.
+  void _updateBiometricState(bool available, bool checking) {
+    if (!mounted) return;
+    setState(() {
+      _biometricAvailable = available;
+      _checkingBiometric = checking;
+    });
+  }
+
+  /// Builds the biometric login section with divider and button.
+  Widget _buildBiometricLoginSection(BuildContext context, bool isMobile) {
+    return Column(
+      children: [
+        SizedBox(height: AppSpacing.md),
+        _buildDivider(context),
+        SizedBox(height: AppSpacing.md),
+        _buildBiometricLoginButton(context, isMobile),
+      ],
+    );
+  }
+
+  /// Builds the divider with "أو" (or) text.
+  Widget _buildDivider(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Divider(
+            color: AppColors.textSecondary.withValues(alpha: 0.3),
+            thickness: 1,
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          child: Text(
+            'أو',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+        ),
+        Expanded(
+          child: Divider(
+            color: AppColors.textSecondary.withValues(alpha: 0.3),
+            thickness: 1,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Builds the biometric login button.
+  Widget _buildBiometricLoginButton(BuildContext context, bool isMobile) {
+    return BlocBuilder<LoginCubit, LoginState>(
+      builder: (context, state) {
+        final isLoading = state is LoginLoading;
+        return OutlinedButton.icon(
+          onPressed: isLoading
+              ? null
+              : () => context.read<LoginCubit>().loginWithBiometrics(),
+          icon: Icon(
+            Icons.fingerprint,
+            color: isLoading
+                ? AppColors.textSecondary
+                : AppColors.primaryMaroon,
+          ),
+          label: Text(
+            'تسجيل الدخول بالبصمة',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: isLoading
+                      ? AppColors.textSecondary
+                      : AppColors.primaryMaroon,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          style: OutlinedButton.styleFrom(
+            padding: EdgeInsets.symmetric(
+              vertical: isMobile ? AppSpacing.md : AppSpacing.lg,
+              horizontal: AppSpacing.lg,
+            ),
+            side: BorderSide(
+              color: isLoading
+                  ? AppColors.textSecondary.withValues(alpha: 0.3)
+                  : AppColors.primaryMaroon,
+              width: 2,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -91,6 +281,43 @@ class _LoginScreenState extends State<LoginScreen>
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  /// Initialize notifications after successful login
+  Future<void> _initializeNotifications() async {
+    try {
+      print('🔔 Initializing notifications after login...');
+
+      // Get notification service
+      final notificationService = sl<INotificationService>();
+
+      // Initialize notification service
+      await notificationService.initialize();
+
+      // Get FCM token
+      final fcmToken = await notificationService.getToken();
+
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        print('✅ FCM Token received: ${fcmToken.substring(0, 20)}...');
+
+        // Send FCM token to backend
+        final notificationRepository = sl<INotificationRepository>();
+        final result = await notificationRepository.updateFcmToken(fcmToken);
+
+        result.fold(
+          (error) {
+            print('❌ Failed to update FCM token on server: $error');
+          },
+          (_) {
+            print('✅ FCM token updated on server successfully');
+          },
+        );
+      } else {
+        print('⚠️ No FCM token received');
+      }
+    } catch (e) {
+      print('❌ Error initializing notifications: $e');
+    }
   }
 
   @override
@@ -228,7 +455,7 @@ class _LoginScreenState extends State<LoginScreen>
                   child: Column(
                     children: [
                       Text(
-                        'Saint Demiana Children',
+                        'Saint Demiana Church',
                         style: Theme.of(context)
                             .textTheme
                             .headlineMedium
@@ -242,7 +469,7 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                       const SizedBox(height: AppSpacing.sm),
                       Text(
-                        'أطفال القديسة دميانة',
+                        'كنيسة القديسة دميانة',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               color: AppColors.textSecondary,
                               fontWeight: FontWeight.w500,
@@ -279,7 +506,21 @@ class _LoginScreenState extends State<LoginScreen>
     final isMobile = MediaQuery.of(context).size.width < 768;
 
     return BlocProvider(
-      create: (context) => LoginCubit(sl<IAuthenticationRepository>()),
+      create: (context) {
+        final cubit = LoginCubit(
+          sl<IAuthenticationRepository>(),
+          sl<IBiometricService>(),
+        );
+        // Check biometric availability after cubit is created and widget is built
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            // Use the context from the widget tree that has the cubit
+            final cubitContext = context;
+            _checkBiometricAvailability(cubitContext);
+          }
+        });
+        return cubit;
+      },
       child: AnimatedBuilder(
         animation: _formController,
         builder: (context, child) {
@@ -416,17 +657,44 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                             );
                           } else if (state is LoginSuccess) {
+                            // Initialize notifications after successful login
+                            _initializeNotifications();
+
                             final currentUser = state.user;
-                            switch (currentUser.role!) {
-                              case UserRole.khadem:
-                                context.go('/khadem');
-                                break;
-                              case UserRole.makhdoum:
+                            final contexts =
+                                RoleHelper.membershipContexts(currentUser);
+
+                            void openContext(RoleClassSelection selection) {
+                              SessionContext.instance.select(selection);
+                              if (selection.role == UserRole.makhdoum) {
                                 context.go('/makhdoum');
-                                break;
-                              case UserRole.superAdmin:
+                              } else {
                                 context.go('/khadem');
-                                break;
+                              }
+                            }
+
+                            if (contexts.length > 1) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (!context.mounted) return;
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (dialogContext) => RoleSelectionDialog(
+                                    contexts: contexts,
+                                    onContextSelected: openContext,
+                                  ),
+                                );
+                              });
+                            } else if (contexts.length == 1) {
+                              openContext(contexts.first);
+                            } else {
+                              final primaryRole =
+                                  RoleHelper.getPrimaryRole(currentUser);
+                              if (primaryRole == null) {
+                                context.go('/login');
+                              } else {
+                                openContext(RoleClassSelection(role: primaryRole));
+                              }
                             }
                           }
                         },
@@ -450,46 +718,14 @@ class _LoginScreenState extends State<LoginScreen>
                         },
                       ),
 
+                      // Biometric Login Button (only on mobile)
+                      // Show button if: not web, not checking, and biometric is available
+                      if (!kIsWeb && !_checkingBiometric && _biometricAvailable)
+                        _buildBiometricLoginSection(context, isMobile),
+
                       // Login Button
                       SizedBox(
                           height: isMobile ? AppSpacing.lg : AppSpacing.xl),
-
-                      // Help Text
-                      Container(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentGold
-                              .withValues(alpha: 0.1.clamp(0.0, 1.0)),
-                          borderRadius:
-                              BorderRadius.circular(AppSpacing.radiusMd),
-                          border: Border.all(
-                            color: AppColors.accentGold
-                                .withValues(alpha: 0.3.clamp(0.0, 1.0)),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.info_outline,
-                              color: AppColors.primaryMaroon,
-                              size: 20,
-                            ),
-                            const SizedBox(width: AppSpacing.sm),
-                            Expanded(
-                              child: Text(
-                                'Need help? Contact your church administrator',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: AppColors.textSecondary,
-                                      fontSize: AppSpacing.sm,
-                                    ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ),

@@ -1,0 +1,15 @@
+الإصدار 1.0.13
+
+• تسجيل حضور QR (لقاء البابا أثناسيوس)
+• بحث وإضافة يدوية أثناء المسح، مع تحسين واجهة المسح
+• الحضور بدون نقاط افتراضياً (يمكن تفعيل النقاط عند الحاجة)
+• تحسين العمل دون اتصال: فتح الحضور ومسح QR من البيانات المحفوظة، وإرسال العمليات عند عودة الإنترنت
+• إصلاحات استقرار لشاشة الحضور ونافذة البحث والإضافة
+
+Version 1.0.13
+
+• QR attendance for Pope Athanasius 
+• Manual search-and-add during scanning, with improved scan UI
+• Points off by default for QR attendance (can be turned on when needed)
+• Better offline support: open attendance and QR from cached data; queued writes sync when back online
+• Stability fixes for attendance and the search-and-add dialog

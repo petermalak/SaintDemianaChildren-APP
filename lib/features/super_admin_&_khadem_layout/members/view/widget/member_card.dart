@@ -1,21 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../core/constants/app_colors.dart';
+import '../../../attendance_qr/constants.dart';
+import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/services/communication_service.dart';
 import '../../../../authentication/model/user_model.dart';
+import '../../../../pope_athanasius/view/widget/meeting_profile_section.dart';
+import '../../../../scoring/view/widget/manage_points_dialog.dart';
+import '../../../../scoring/view/widget/score_badge_widget.dart';
+import '../../../../scoring/viewmodel/scoring_cubit/scoring_cubit.dart';
+import '../../../../scoring/repository/i_scoring_repository.dart';
+import '../../../../profile/repository/i_profile_repository.dart';
+import '../../repository/i_members_repository.dart';
 import 'add_user_dialog.dart';
 
 class MemberCard extends StatefulWidget {
-  const MemberCard({super.key,
+  const MemberCard({
+    super.key,
     required this.cardAnimation,
     required this.user,
     required this.selectedList,
-    this.onSelectionChanged,required this.onUpdate});
+    this.onSelectionChanged,
+    required this.onUpdate,
+    this.isCompact = false,
+    this.isListView = false,
+    this.showTheaterDetails = false,
+  });
 
   final Animation<double> cardAnimation;
   final UserModel user;
   final List<UserModel> selectedList;
   final ValueChanged<bool>? onSelectionChanged;
   final VoidCallback onUpdate;
+  final bool isCompact;
+  final bool isListView;
+  final bool showTheaterDetails;
 
   @override
   State<MemberCard> createState() => _MemberCardState();
@@ -23,112 +42,562 @@ class MemberCard extends StatefulWidget {
 
 class _MemberCardState extends State<MemberCard> {
   bool isSelected = false;
+  int _refreshKey = 0;
+
+  Future<void> _editDepartment(UserModel person) async {
+    final profile = person.theaterProfile;
+    final userId = person.id;
+    if (profile == null || userId == null || userId.isEmpty) return;
+    final departments = await sl<IMembersRepository>().theaterDepartments();
+    final names = departments.fold((_) => <String>[], (value) => value);
+    if (!mounted) return;
+    final controller = TextEditingController(
+      text: profile.missingDepartment ? '' : profile.department,
+    );
+    final next = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('القسم'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                decoration: const InputDecoration(labelText: 'القسم'),
+              ),
+              ...names.map(
+                (name) => ListTile(
+                  title: Text(name),
+                  onTap: () => Navigator.pop(dialogContext, name),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, ''),
+            child: const Text('بدون قسم'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, controller.text.trim()),
+            child: const Text('حفظ'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (next == null || !mounted) return;
+    final saved = await sl<IMembersRepository>().updateTheaterDepartment(
+      userId,
+      next.isEmpty ? null : next,
+    );
+    if (!mounted) return;
+    saved.fold(
+      (error) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error))),
+      (_) {
+        final updated = TheaterMemberProfile(
+          id: profile.id,
+          userId: profile.userId,
+          department: next.isEmpty ? null : next,
+          stage: profile.stage,
+          priority1: profile.priority1,
+          priority2: profile.priority2,
+          participatedBefore: profile.participatedBefore,
+          previousResponsibility: profile.previousResponsibility,
+          registeredAt: profile.registeredAt,
+          photoUrl: profile.photoUrl,
+        );
+        person.theaterProfile = updated;
+        widget.user.theaterProfile = updated;
+        widget.onUpdate();
+        setState(() {});
+      },
+    );
+  }
 
   void _showContactDrawer(BuildContext context) {
+    final detail = _loadDetail();
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return FutureBuilder<UserModel>(
+          future: detail,
+          builder: (context, snapshot) {
+            final person = snapshot.data ?? widget.user;
+            final loading = snapshot.connectionState != ConnectionState.done;
+            final communicationService = CommunicationService();
+            final meeting = canViewPopeAthanasiusData(sl<IProfileRepository>().user)
+                ? person.popeAthnasiusMeetingData
+                : null;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+              padding: const EdgeInsets.only(right: 18, left: 18, top: 12, bottom: 24),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.sizeOf(context).height * 0.85,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        person.name ?? '',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                      ),
+                      if (loading)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 16),
+                          child: LinearProgressIndicator(color: AppColors.primaryMaroon),
+                        ),
+                      if (!loading && widget.showTheaterDetails && person.theaterProfile != null) ...[
+                        const SizedBox(height: 12),
+                        _buildTheaterDetails(person),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => _editDepartment(person),
+                            child: const Text('تعديل القسم'),
+                          ),
+                        ),
+                      ],
+                      if (!loading && meeting != null) ...[
+                        const SizedBox(height: 12),
+                        MeetingProfileSection(meeting: meeting),
+                      ],
+                      const SizedBox(height: 16),
+                      ListTile(
+                        leading: const Icon(Icons.edit, color: AppColors.accentDark),
+                        title: const Text('Edit profile'),
+                        onTap: () async {
+                          Navigator.pop(context);
+                          showDialog(
+                            context: context,
+                            builder: (dialogContext) => AddUserDialog(
+                              onSuccess: widget.onUpdate,
+                              user: person,
+                            ),
+                          );
+                        },
+                      ),
+                      _buildManagePointsTile(context),
+                      if (person.classSummaries.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        _buildClassMembershipSection(person),
+                      ],
+                      ListTile(
+                        leading: const Icon(Icons.phone, color: AppColors.primaryMaroon),
+                        title: const Text('Call the number'),
+                        onTap: () async {
+                          final response = await communicationService.makePhoneCall(person.phoneNumber!);
+                          if (!context.mounted) return;
+                          response.fold(
+                            (failure) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(failure), backgroundColor: Colors.red),
+                              );
+                            },
+                            (success) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('جاري الاتصال بـ ${person.phoneNumber}'),
+                                  backgroundColor: Colors.green,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            },
+                          );
+                          Navigator.pop(context);
+                        },
+                      ),
+                      ListTile(
+                        leading: const Icon(Icons.message, color: Colors.green),
+                        title: const Text('Send WhatsApp message'),
+                        onTap: () async {
+                          final response = await communicationService.openWhatsAppChat(person.phoneNumber!);
+                          if (!context.mounted) return;
+                          response.fold(
+                            (failure) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(failure), backgroundColor: Colors.red),
+                              );
+                            },
+                            (success) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('جاري فتح واتساب للتواصل مع ${person.phoneNumber}'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            },
+                          );
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<UserModel> _loadDetail() async {
+    final id = widget.user.id;
+    if (id == null || id.isEmpty) return widget.user;
+    final result = await sl<IMembersRepository>().fetchMember(id);
+    return result.fold((_) => widget.user, (full) => full);
+  }
+  Widget _buildManagePointsTile(BuildContext context) {
+    if (widget.user.role != UserRole.makhdoum) {
+      return const SizedBox.shrink();
+    }
+
+    final currentUser = sl<IProfileRepository>().user;
+    final currentUserId = currentUser?.id;
+    final isSuperAdmin = currentUser?.role == UserRole.superAdmin;
+
+    final currentUserClasses = currentUser?.classes ?? const <UserClassInfo>[];
+    final currentKhademClassIds = currentUserClasses
+        .where((info) =>
+            info.membershipRole == 'khadem' && (info.isActive ?? true))
+        .map((info) => info.classId)
+        .toSet();
+
+    final permittedSummaries = widget.user.classSummaries.where((summary) {
+      final isMakhdoumMembership =
+          summary.membershipRole == 'makhdoum' || summary.membershipRole == null;
+      if (!isMakhdoumMembership) {
+        return false;
+      }
+
+      if (isSuperAdmin == true) {
+        return true;
+      }
+
+      if (currentUserId == null) {
+        return false;
+      }
+
+      final explicitlyAssigned = summary.assignedKhadems
+          .any((khadem) => khadem.id == currentUserId);
+
+      final sharesClass =
+          currentKhademClassIds.contains(summary.classId);
+
+      return explicitlyAssigned || sharesClass;
+    }).where((summary) => summary.scoringEnabled).toList();
+
+    if (permittedSummaries.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final uniqueSummaries = {
+      for (final summary in permittedSummaries) summary.classId: summary
+    }.values.toList();
+
+    return ListTile(
+      leading: const Icon(Icons.emoji_events, color: AppColors.accentGold),
+      title: const Text('إدارة النقاط'),
+      subtitle: uniqueSummaries.length == 1
+          ? Text(uniqueSummaries.first.className ?? 'الفصل الحالي')
+          : const Text('اختر الفصل لإدارة النقاط'),
+      onTap: () => _openManagePointsSelector(
+        uniqueSummaries,
+        isSuperAdmin == true ? widget.user.primaryClassId : null,
+      ),
+    );
+  }
+
+  void _openManagePointsSelector(
+    List<UserClassSummary> summaries,
+    String? fallbackClassId,
+  ) {
+    final availableSummaries = summaries.isNotEmpty
+        ? summaries
+        : (fallbackClassId != null
+            ? [
+                _buildFallbackSummary(fallbackClassId),
+              ]
+            : <UserClassSummary>[]);
+
+    if (availableSummaries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا يوجد فصل مرتبط لإدارة النقاط'),
+        ),
+      );
+      return;
+    }
+
+    if (availableSummaries.length == 1) {
+      Navigator.pop(context);
+      _openManagePointsForClass(availableSummaries.first);
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       showDragHandle: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
-        final communicationService = CommunicationService();
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-          padding:
-          const EdgeInsets.only(right: 18, left: 18, top: 12, bottom: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                widget.user.name!,
-                style: const TextStyle(
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'اختر الفصل لإدارة النقاط',
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 20,
+                  fontSize: 16,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            ...availableSummaries.map(
+              (summary) => ListTile(
+                leading: const Icon(Icons.class_rounded),
+                title: Text(summary.className ?? 'فصل بدون اسم'),
+                subtitle: Text(summary.khademNames),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.pop(context);
+                  _openManagePointsForClass(summary);
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openManagePointsForClass(UserClassSummary summary) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => BlocProvider(
+        create: (context) => ScoringCubit(sl<IScoringRepository>()),
+        child: ManagePointsDialog(
+          userId: widget.user.id!,
+          userName: widget.user.name ?? '',
+          classId: summary.classId,
+          className: summary.className,
+        ),
+      ),
+    ).then((_) {
+      setState(() {
+        _refreshKey++;
+      });
+      widget.onUpdate();
+    });
+  }
+
+  UserClassSummary _buildFallbackSummary(String classId) {
+    UserClassInfo? membership;
+    try {
+      membership = widget.user.classes.firstWhere(
+        (info) => info.classId == classId,
+      );
+    } catch (_) {
+      membership = null;
+    }
+
+    return UserClassSummary(
+      classId: classId,
+      className: membership?.className,
+      membershipRole: membership?.membershipRole ?? 'makhdoum',
+    );
+  }
+
+  Widget _buildClassMembershipSection([UserModel? person]) {
+    final summaries = (person ?? widget.user).classSummaries;
+    if (summaries.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(bottom: 4),
+          child: Text(
+            'الفصول المرتبطة',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+        ...summaries.map(
+          (summary) => ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              Icons.class_outlined,
+              color: AppColors.primaryMaroon.withValues(alpha: 0.8),
+            ),
+            title: Text(
+              '${summary.className ?? 'فصل بدون اسم'} — ${_localizeMembershipRole(summary.membershipRole)}',
+            ),
+            subtitle: summary.membershipRole == 'makhdoum' &&
+                    summary.khademNames.trim().isNotEmpty
+                ? Text(summary.khademNames)
+                : null,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget? _buildClassAssignmentsSection({required bool compact}) {
+    final summaries = widget.user.classSummaries;
+    if (summaries.isEmpty) {
+      return null;
+    }
+
+    if (compact) {
+      final names = summaries
+          .map((summary) => summary.className?.trim())
+          .whereType<String>()
+          .where((name) => name.isNotEmpty)
+          .join(' • ');
+      if (names.isEmpty) return null;
+      return Text(
+        names,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 10,
+          color: AppColors.textSecondary,
+          fontWeight: FontWeight.w500,
+        ),
+      );
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: summaries
+          .map((summary) => _buildClassChip(summary, compact: compact))
+          .toList(),
+    );
+  }
+
+  Widget _buildClassChip(UserClassSummary summary,
+      {required bool compact}) {
+    final roleLabel = _localizeMembershipRole(summary.membershipRole);
+    final description = summary.membershipRole == 'makhdoum' &&
+            summary.khademNames.trim().isNotEmpty
+        ? summary.khademNames
+        : null;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.primaryMaroon.withValues(alpha: 0.05.clamp(0.0, 1.0)),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppColors.primaryMaroon.withValues(alpha: 0.2.clamp(0.0, 1.0)),
+        ),
+      ),
+      constraints: const BoxConstraints(minWidth: 90),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${summary.className ?? 'فصل بدون اسم'} — $roleLabel',
+            style: TextStyle(
+              fontSize: compact ? 10 : 12,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (description != null) ...[
+            const SizedBox(height: 2),
+            Text(
+              description,
+              style: TextStyle(
+                fontSize: compact ? 8 : 10,
+                color: AppColors.textSecondary,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTheaterDetails([UserModel? person]) {
+    final profile = (person ?? widget.user).theaterProfile;
+    if (profile == null) return const SizedBox.shrink();
+    final lines = <String>[
+      'القسم: ${profile.departmentLabel}',
+      if (profile.stage != null && profile.stage!.trim().isNotEmpty)
+        'المرحلة: ${profile.stage}',
+      if (profile.priority1 != null && profile.priority1!.trim().isNotEmpty)
+        'الأولوية الأولى: ${profile.priority1}',
+      if (profile.priority2 != null && profile.priority2!.trim().isNotEmpty)
+        'الأولوية التانية: ${profile.priority2}',
+      if (profile.participatedBefore != null)
+        'اشترك قبل كده: ${profile.participatedBefore! ? 'نعم' : 'لا'}',
+      if (profile.previousResponsibility != null &&
+          profile.previousResponsibility!.trim().isNotEmpty)
+        'المسؤولية السابقة: ${profile.previousResponsibility}',
+    ];
+    return Align(
+      alignment: Alignment.centerRight,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: lines
+            .map(
+              (line) => Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  line,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.edit, color: AppColors.accentDark),
-                title: const Text('Edit profile'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  showDialog(
-                    context: context,
-                    builder: (dialogContext) =>
-                        AddUserDialog(
-                          onSuccess: () {
-                            widget.onUpdate();
-                          },
-                          user: widget.user,
-                        ),
-                  );
-                },
-              ),
-              ListTile(
-                leading:
-                const Icon(Icons.phone, color: AppColors.primaryMaroon),
-                title: const Text('Call the number'),
-                onTap: () async {
-                  final response = await communicationService.makePhoneCall(
-                    widget.user.phoneNumber!,
-                  );
-                  response.fold(
-                        (failure) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(failure),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    },
-                        (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              'جاري الاتصال بـ ${widget.user.phoneNumber}'),
-                          backgroundColor: Colors.green,
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    },
-                  );
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                  leading: const Icon(Icons.message, color: Colors.green),
-                  title: const Text('Send WhatsApp message'),
-                  onTap: () async {
-                    (await communicationService.openWhatsAppChat(
-                      widget.user.phoneNumber!,
-                    ))
-                        .fold((failure) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(failure),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }, (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              'جاري فتح واتساب للتواصل مع ${widget.user
-                                  .phoneNumber!}'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    });
-                    Navigator.pop(context);
-                  }),
-            ],
-          ),
-        );
-      },
-      isScrollControlled: true,
+            )
+            .toList(),
+      ),
     );
+  }
+
+  String _localizeMembershipRole(String? role) {
+    switch (role) {
+      case 'khadem':
+        return 'خادم';
+      case 'makhdoum':
+        return 'مخدوم';
+      default:
+        return 'عضو';
+    }
   }
 
   @override
@@ -169,76 +638,262 @@ class _MemberCardState extends State<MemberCard> {
                   setState(() {});
                 }
               },
-              child: Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primaryMaroon
-                        .withValues(alpha: 0.3.clamp(0.0, 1.0))
-                        : AppColors.backgroundCard,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black
-                            .withValues(alpha: 0.05.clamp(0.0, 1.0)),
-                        blurRadius: 10,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundColor: _getRoleColor(widget.user.role!),
-                        child: Text(
-                          widget.user.name!.isNotEmpty
-                              ? widget.user.name![0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            color: AppColors.accentWhite,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Flexible(
-                        child: Text(
-                          widget.user.name!,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Flexible(
-                        child: Text(
-                          widget.user.role!.name,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: _getRoleColor(widget.user.role!),
-                            fontWeight: FontWeight.w600,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                          maxLines: 1,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  )),
+              child: widget.isListView
+                  ? _buildListViewCard()
+                  : _buildGridViewCard(),
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildGridViewCard() {
+    final badgeClassId = widget.user.primaryClassId;
+    final classAssignmentsSection =
+        _buildClassAssignmentsSection(compact: true);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? AppColors.primaryMaroon.withValues(alpha: 0.3.clamp(0.0, 1.0))
+            : AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05.clamp(0.0, 1.0)),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return FittedBox(
+            fit: BoxFit.scaleDown,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: constraints.maxWidth),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: widget.isCompact ? 22 : 28,
+                    backgroundColor: _getRoleColor(widget.user.role!),
+                    child: Text(
+                      widget.user.name!.isNotEmpty
+                          ? widget.user.name![0].toUpperCase()
+                          : '?',
+                      style: TextStyle(
+                        color: AppColors.accentWhite,
+                        fontWeight: FontWeight.bold,
+                        fontSize: widget.isCompact ? 15 : 18,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.user.name!,
+                    style: TextStyle(
+                      fontSize: widget.isCompact ? 12 : 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                  ),
+                  if (widget.showTheaterDetails &&
+                      widget.user.theaterProfile != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.user.theaterProfile!.departmentLabel,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.primaryMaroon,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.isCompact
+                        ? widget.user.roleDisplayName
+                        : widget.user.role!.name,
+                    style: TextStyle(
+                      fontSize: widget.isCompact ? 10 : 11,
+                      color: _getRoleColor(widget.user.role!),
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                  ),
+                  if (widget.user.role == UserRole.makhdoum &&
+                      badgeClassId != null &&
+                      widget.user.scoringEnabledFor(badgeClassId)) ...[
+                    const SizedBox(height: 6),
+                    ScoreBadgeWidget(
+                      key: ValueKey('score_${widget.user.id}_$_refreshKey'),
+                      userId: widget.user.id!,
+                      classId: badgeClassId,
+                      compact: true,
+                    ),
+                  ],
+                  if (classAssignmentsSection != null) ...[
+                    const SizedBox(height: 4),
+                    classAssignmentsSection,
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildListViewCard() {
+    final badgeClassId = widget.user.primaryClassId;
+    final classAssignmentsSection =
+        _buildClassAssignmentsSection(compact: false);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? AppColors.primaryMaroon.withValues(alpha: 0.3.clamp(0.0, 1.0))
+            : AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05.clamp(0.0, 1.0)),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 25,
+            backgroundColor: _getRoleColor(widget.user.role!),
+            child: Text(
+              widget.user.name!.isNotEmpty
+                  ? widget.user.name![0].toUpperCase()
+                  : '?',
+              style: const TextStyle(
+                color: AppColors.accentWhite,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.user.name!,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+                if (widget.showTheaterDetails &&
+                    widget.user.theaterProfile != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.user.theaterProfile!.departmentLabel,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.primaryMaroon,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ],
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.badge,
+                      size: 12,
+                      color: _getRoleColor(widget.user.role!),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      widget.user.roleDisplayName,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _getRoleColor(widget.user.role!),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                if (widget.user.phoneNumber != null &&
+                    widget.user.phoneNumber!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.phone,
+                        size: 12,
+                        color: AppColors.primaryMaroon
+                            .withValues(alpha: 0.7.clamp(0.0, 1.0)),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          widget.user.phoneNumber!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.primaryMaroon
+                                .withValues(alpha: 0.7.clamp(0.0, 1.0)),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                // Show score badge for makhdoum only
+                if (widget.user.role == UserRole.makhdoum &&
+                    badgeClassId != null &&
+                    widget.user.scoringEnabledFor(badgeClassId)) ...[
+                  const SizedBox(height: 6),
+                  ScoreBadgeWidget(
+                    key: ValueKey('score_${widget.user.id}_$_refreshKey'),
+                    userId: widget.user.id!,
+                    classId: badgeClassId,
+                    compact: true,
+                  ),
+                ],
+                if (classAssignmentsSection != null) ...[
+                  const SizedBox(height: 8),
+                  classAssignmentsSection,
+                ],
+              ],
+            ),
+          ),
+          Icon(
+            Icons.arrow_forward_ios,
+            size: 16,
+            color:
+                AppColors.textSecondary.withValues(alpha: 0.5.clamp(0.0, 1.0)),
+          ),
+        ],
+      ),
     );
   }
 
