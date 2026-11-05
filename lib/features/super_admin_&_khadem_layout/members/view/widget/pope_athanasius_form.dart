@@ -399,8 +399,10 @@ class _PopeAthanasiusFormState extends State<PopeAthanasiusForm> {
         items: const [
           DropdownMenuItem<int?>(value: null, child: Text('لا شيء')),
           DropdownMenuItem<int?>(value: 1, child: Text('الاسر')),
-          DropdownMenuItem<int?>(value: 2, child: Text('شباب و خريجين')),
-          DropdownMenuItem<int?>(value: 3, child: Text('اعدادى و ثانوى')),
+          DropdownMenuItem<int?>(value: 2, child: Text('شباب')),
+          DropdownMenuItem<int?>(value: 3, child: Text('خريجين')),
+          DropdownMenuItem<int?>(value: 4, child: Text('اعدادي')),
+          DropdownMenuItem<int?>(value: 5, child: Text('ثانوي')),
         ],
         onChanged: (value) {
           setState(() {

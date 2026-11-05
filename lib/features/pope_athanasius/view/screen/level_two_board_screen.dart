@@ -79,7 +79,7 @@ class _PopeLevelTwoBoardScreenState extends State<PopeLevelTwoBoardScreen> {
     return Scaffold(
       backgroundColor: AppColors.backgroundPrimary,
       appBar: AppBar(
-        title: const Text('حضور الفرقة الثانية'),
+        title: const Text('حضور الفرقة الأولى والثانية'),
         backgroundColor: AppColors.primaryMaroon,
         foregroundColor: AppColors.accentWhite,
       ),
@@ -190,6 +190,7 @@ class _PopeLevelTwoBoardScreenState extends State<PopeLevelTwoBoardScreen> {
           child: ListTile(
             title: Text(person.name),
             subtitle: Text([
+              if (person.cohortLabel.isNotEmpty) person.cohortLabel,
               if (person.group.isNotEmpty) person.group,
               if (person.phoneNumber.isNotEmpty) person.phoneNumber,
             ].join(' · ')),

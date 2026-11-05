@@ -806,7 +806,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const SizedBox(height: 12),
         _popeLink(context, Icons.menu_book, 'منهج الدراسة', '/pope-agenda'),
-        _popeLink(context, Icons.qr_code_2, 'حضور الفرقة الثانية', '/pope-level-two'),
+        _popeLink(context, Icons.qr_code_2, 'حضور الفرقة الأولى والثانية', '/pope-level-two'),
         _popeLink(context, Icons.fact_check, 'سجل الفرقة الأولى', '/pope-level-one-marks'),
       ],
     );

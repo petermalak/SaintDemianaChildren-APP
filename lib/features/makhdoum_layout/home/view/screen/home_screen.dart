@@ -139,8 +139,10 @@ class HomeScreen extends StatelessWidget {
     };
     final groupLabel = switch (meeting?.classPhase) {
       1 => 'الاسر',
-      2 => 'شباب و خريجين',
-      3 => 'اعدادى و ثانوى',
+      2 => 'شباب',
+      3 => 'خريجين',
+      4 => 'اعدادي',
+      5 => 'ثانوي',
       _ => null,
     };
     final phaseLabel = groupLabel == null ? levelLabel : '$levelLabel · $groupLabel';
