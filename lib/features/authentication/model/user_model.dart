@@ -30,6 +30,7 @@ class UserModel extends Equatable {
   bool? isPopeAthnasius;
   PopeAthnasiusMeetingData? popeAthnasiusMeetingData;
   TheaterMemberProfile? theaterProfile;
+  final List<ProgramMembership> programs;
   List<String>?
       classIds; // Temporary field for class assignment during creation
   UserModel({
@@ -55,9 +56,11 @@ class UserModel extends Equatable {
     this.isPopeAthnasius,
     this.popeAthnasiusMeetingData,
     this.theaterProfile,
+    List<ProgramMembership>? programs,
     this.classIds,
   })  : classes = classes ?? const [],
-        classAssignments = classAssignments ?? const [];
+        classAssignments = classAssignments ?? const [],
+        programs = programs ?? const [];
 
   factory UserModel.fromJson(Map<String, dynamic> json, {String? token}) {
     final List<UserClassInfo> parsedClasses = (json['classes'] is List)
@@ -179,6 +182,12 @@ class UserModel extends Equatable {
               ? TheaterMemberProfile.fromJson(
                   Map<String, dynamic>.from(json['theaterProfile'] as Map))
               : null,
+      programs: (json['programs'] is List)
+          ? (json['programs'] as List)
+              .whereType<Map>()
+              .map((row) => ProgramMembership.fromJson(Map<String, dynamic>.from(row)))
+              .toList()
+          : const <ProgramMembership>[],
     );
   }
 
@@ -203,6 +212,7 @@ class UserModel extends Equatable {
       'addressLocationLink': addressLocationLink,
       'fatherOfConfession': fatherOfConfession,
       'classes': classes.map((c) => c.toJson()).toList(),
+      'programs': programs.map((program) => program.toJson()).toList(),
       'isPopeAthnasius': isPopeAthnasius ?? false,
       'theaterProfile': theaterProfile?.toJson(),
     };
@@ -281,6 +291,7 @@ class UserModel extends Equatable {
     bool? isPopeAthnasius,
     PopeAthnasiusMeetingData? popeAthnasiusMeetingData,
     TheaterMemberProfile? theaterProfile,
+    List<ProgramMembership>? programs,
     List<String>? classIds,
   }) {
     return UserModel(
@@ -307,6 +318,7 @@ class UserModel extends Equatable {
       popeAthnasiusMeetingData:
           popeAthnasiusMeetingData ?? this.popeAthnasiusMeetingData,
       theaterProfile: theaterProfile ?? this.theaterProfile,
+      programs: programs ?? this.programs,
       classIds: classIds ?? this.classIds,
     );
   }
@@ -362,6 +374,7 @@ class UserModel extends Equatable {
         isPopeAthnasius,
         popeAthnasiusMeetingData,
         theaterProfile,
+        programs,
       ];
 
   bool get hasTheaterProfile => theaterProfile != null;
@@ -695,6 +708,49 @@ class PopeAthnasiusMeetingData extends Equatable {
         createdAt,
         updatedAt,
       ];
+}
+
+class ProgramMembership extends Equatable {
+  final String id;
+  final String name;
+  final String? scope;
+  final List<String> roles;
+  final List<String>? classIds;
+  final Map<String, dynamic> features;
+
+  const ProgramMembership({
+    required this.id,
+    required this.name,
+    this.scope,
+    this.roles = const [],
+    this.classIds,
+    this.features = const {},
+  });
+
+  factory ProgramMembership.fromJson(Map<String, dynamic> json) {
+    return ProgramMembership(
+      id: json['id'].toString(),
+      name: (json['name'] ?? '').toString(),
+      scope: json['scope']?.toString(),
+      roles: (json['roles'] is List) ? (json['roles'] as List).map((e) => e.toString()).toList() : const [],
+      classIds: json['classIds'] is List ? (json['classIds'] as List).map((e) => e.toString()).toList() : null,
+      features: json['features'] is Map ? Map<String, dynamic>.from(json['features'] as Map) : const {},
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'scope': scope,
+      'roles': roles,
+      'classIds': classIds,
+      'features': features,
+    };
+  }
+
+  @override
+  List<Object?> get props => [id, name, scope, roles, classIds, features];
 }
 
 class TheaterMemberProfile extends Equatable {

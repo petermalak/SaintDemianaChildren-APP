@@ -99,6 +99,44 @@ class ApiEndpoints {
   static String shopRejectRequest(String requestId) =>
       "shop/purchase-requests/$requestId/reject";
 
+  static String programMe(String programId) => 'programs/$programId/me';
+  static String programSessions(String programId) => 'programs/$programId/sessions';
+  static String programScans(String programId) => 'programs/$programId/scans';
+  static String programPoints(String programId) => 'programs/$programId/points';
+  static String programCashout(String programId) => 'programs/$programId/cashout';
+  static String programCashouts(String programId) => 'programs/$programId/cashouts';
+  static String programEftekad(String programId) => 'programs/$programId/eftekad';
+  static String programRankings(String programId) => 'programs/$programId/rankings';
+  static String programBudget(String programId) => 'programs/$programId/budget';
+  static String programCatalog(String programId) => 'programs/$programId/catalog';
+  static String programClassMembers(String programId, String classId) =>
+      'programs/$programId/classes/$classId/members';
+  static String programPointExemption(String programId, String userId) =>
+      'programs/$programId/members/$userId/point-exemption';
+  static String programEventBooking(String eventId) => 'programs/events/$eventId/bookings';
+  static String programQuizzes(String programId) => 'programs/$programId/quizzes';
+  static String programQuiz(String quizId) => 'programs/quizzes/$quizId';
+  static String programQuizAnswers(String quizId) => 'programs/quizzes/$quizId/answers';
+  static String programAbsences(String programId) => 'programs/$programId/absences';
+  static String programYearClosePreview(String programId) =>
+      'programs/$programId/year-close/preview';
+  static String programYearClose(String programId) => 'programs/$programId/year-close';
+  static String programCarryOver(String programId) => 'programs/$programId/carry-over';
+  static String programQr(String programId) => 'programs/$programId/qr';
+  static String programBookings(String programId) => 'programs/$programId/bookings';
+  static String programEventBookings(String eventId) => 'programs/events/$eventId/bookings';
+  static String programBookingCash(String bookingId) => 'programs/bookings/$bookingId/cash';
+  static String programBookingRefund(String bookingId) => 'programs/bookings/$bookingId/refund';
+  static String programEventAttendance(String eventId) => 'programs/events/$eventId/attendance';
+  static String programCashoutReview(String id) => 'programs/cashout/$id/review';
+  static String programCashoutPause(String programId) => 'programs/$programId/cashout-pause';
+  static String programSettings(String programId) => 'programs/$programId/settings';
+  static String programReport(String programId) => 'programs/$programId/report';
+  static String programLedgerReverse(String ledgerId) => 'programs/ledger/$ledgerId/reverse';
+  static String programSessionClose(String sessionId) => 'programs/sessions/$sessionId/close';
+  static String programErase(String programId) => 'programs/$programId/me/erase';
+  static const String programDeleteAccount = 'programs/account/delete';
+
   /// App version config for force-update (public, no auth).
   static const String appVersion = 'app-version/';
 

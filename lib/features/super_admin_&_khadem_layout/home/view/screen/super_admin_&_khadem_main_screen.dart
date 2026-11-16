@@ -12,6 +12,8 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/supe
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/widgets/app_shell.dart';
+import '../../../../../core/widgets/role_guide_sheet.dart';
+import '../../../../../core/widgets/screen_tour.dart';
 import '../../../../../core/session/session_context.dart';
 import '../../../../../core/utils/role_helper.dart';
 import '../../../../authentication/model/user_model.dart';
@@ -25,6 +27,7 @@ import '../../../members/view/widget/add_user_dialog.dart';
 import '../../../members/view/widget/request_member_dialog.dart';
 import '../../../members/view/widget/attendance_dialog.dart';
 import 'khadem_more_screen.dart';
+import '../../../../program/view/program_shell.dart';
 
 class KhademMainScreen extends StatefulWidget {
   const KhademMainScreen({super.key});
@@ -47,6 +50,8 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   RoleClassSelection? _selectedRoleClass;
   List<ClassModel> _classesForShop = [];
   bool _classesForShopLoaded = false;
+  bool _offeredGuide = false;
+  int? _tourStep;
 
   @override
   void initState() {
@@ -64,6 +69,80 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     _initializeRoleSelection();
     SessionContext.instance.addListener(_onSessionContext);
     _loadClassesForShop();
+    _restoreServiceContext();
+  }
+
+  /// A saved login can omit the Taio membership. Load it again and open that role
+  /// when this session is not already inside a class or a service.
+  Future<void> _restoreServiceContext() async {
+    final profile = sl<IProfileRepository>();
+    final current = profile.user;
+    if (current == null) return;
+    if (current.programs.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _applySingleService(current);
+        _offerFirstLoginGuide();
+      });
+      return;
+    }
+    final result = await profile.refreshUser();
+    if (!mounted) return;
+    result.fold((_) {}, _applySingleService);
+    _offerFirstLoginGuide();
+  }
+
+  void _offerFirstLoginGuide() {
+    if (_offeredGuide || !mounted) return;
+    final user = sl<IProfileRepository>().user;
+    final id = user?.id;
+    if (id == null || id.isEmpty || guideWasSeen(id)) return;
+    _offeredGuide = true;
+    final services = RoleHelper.membershipContexts(user)
+        .where((row) => row.programId != null && row.role != UserRole.makhdoum)
+        .toList();
+    if (services.length == 1) {
+      SessionContext.instance.select(services.first);
+      _selectedRoleClass = services.first;
+    }
+    markGuideSeen(id);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _beginTour();
+    });
+  }
+
+  List<TourBeat> _beats() {
+    return tourBeats(
+      _tabItems().map((tab) => tab.label).toList(),
+      programRole: _selectedRoleClass?.programRole,
+    );
+  }
+
+  void _beginTour() {
+    if (_beats().isEmpty || !mounted) return;
+    setState(() => _tourStep = 0);
+    onTabSelected(0);
+  }
+
+  void _moveTour(int next) {
+    final beats = _beats();
+    if (next < 0 || next >= beats.length) {
+      setState(() => _tourStep = null);
+      return;
+    }
+    setState(() => _tourStep = next);
+    onTabSelected(beats[next].tabIndex);
+  }
+
+  void _applySingleService(UserModel user) {
+    final session = SessionContext.instance.current;
+    if (session?.programId != null || session?.classId != null) return;
+    final services = RoleHelper.membershipContexts(user)
+        .where((row) => row.programId != null && row.role != UserRole.makhdoum)
+        .toList();
+    if (services.length != 1) return;
+    SessionContext.instance.select(services.first);
   }
 
   void _onSessionContext() {
@@ -72,8 +151,10 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     if (selection == null || selection.role == UserRole.makhdoum) return;
     setState(() {
       _selectedRoleClass = selection;
+      _selectedTab = 0;
       _cachedTabs.remove(3);
     });
+    if (_pageController.hasClients) _pageController.jumpToPage(0);
     _loadClassesForShop();
   }
 
@@ -132,12 +213,10 @@ class _KhademMainScreenState extends State<KhademMainScreen>
       );
       if (currentHasShop) return _selectedRoleClass!.classId;
     }
-    // Otherwise, use the first class with shop
-    final shopClass = _classesForShop.firstWhere(
-      (c) => c.hasShop,
-      orElse: () => _classesForShop.first,
-    );
-    return shopClass.id;
+    for (final shopClass in _classesForShop) {
+      if (shopClass.hasShop) return shopClass.id;
+    }
+    return null;
   }
 
   void _initializeRoleSelection() {
@@ -194,39 +273,66 @@ class _KhademMainScreenState extends State<KhademMainScreen>
     super.dispose();
   }
 
+  ProgramMembership? get _activeProgram {
+    return RoleHelper.programFor(sl<IProfileRepository>().user, _selectedRoleClass);
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = sl<IProfileRepository>().user;
     final name = firstNameOf(user?.name, fallback: 'الخادم');
+    final tabs = _tabItems();
+    final index = _selectedTab.clamp(0, tabs.length - 1);
+    final beats = _beats();
+    final beatIndex = _tourStep == null || beats.isEmpty
+        ? null
+        : _tourStep!.clamp(0, beats.length - 1);
     return AppShell(
       title: 'مرحباً $name',
-      subtitle: user?.role == UserRole.superAdmin
-          ? 'لوحة المدير'
-          : 'لوحة الخادم',
+      subtitle: _selectedRoleClass?.programId != null
+          ? RoleClassSelection.programRoleTitle(_selectedRoleClass?.programRole)
+          : (user?.role == UserRole.superAdmin ? 'لوحة المدير' : 'لوحة الخادم'),
       headerIcon: Icons.church,
-      actions: [_buildProfileMenu()],
-      tabs: _tabItems(),
-      selectedIndex: _selectedTab,
+      actions: [
+        GuideButton(onPressed: _beginTour),
+        _buildProfileMenu(),
+      ],
+      tabs: tabs,
+      selectedIndex: index,
       onTabSelected: onTabSelected,
-      floatingActionButton: _buildEnhancedFAB(),
-      body: PageView.builder(
+      spotlightTab: beatIndex != null,
+      floatingActionButton: beatIndex == null ? _buildEnhancedFAB() : null,
+      body: Column(
+        children: [
+          Expanded(child: PageView.builder(
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: _tabCount,
-        onPageChanged: (index) {
-          setState(() => _selectedTab = index);
+        onPageChanged: (page) {
+          setState(() => _selectedTab = page);
           _fabAnimationController.reset();
           _fabAnimationController.forward();
         },
-        itemBuilder: (context, index) =>
-            _buildTabWidget(index, _scrollControllers[index]),
+        itemBuilder: (context, page) =>
+            _buildTabWidget(page, _scrollControllers[page]),
+      )),
+          if (beatIndex != null)
+            ScreenTourCard(
+              index: beatIndex,
+              count: beats.length,
+              beat: beats[beatIndex],
+              onBack: () => _moveTour(beatIndex - 1),
+              onNext: () => _moveTour(beatIndex + 1),
+              onClose: () => setState(() => _tourStep = null),
+            ),
+        ],
       ),
     );
   }
 
   int get _tabCount => _tabItems().length;
 
-  List<AppTabItem> _tabItems() {
+  List<AppTabItem> _legacyTabs() {
     if (_isInMakhdoumMode) {
       return const [
         AppTabItem(icon: Icons.home_rounded, label: 'الرئيسية'),
@@ -235,12 +341,20 @@ class _KhademMainScreenState extends State<KhademMainScreen>
         AppTabItem(icon: Icons.emoji_events_rounded, label: 'التايو'),
       ];
     }
-    return [
-      const AppTabItem(icon: Icons.home_rounded, label: 'الرئيسية'),
-      const AppTabItem(icon: Icons.people_rounded, label: 'الأعضاء'),
-      const AppTabItem(icon: Icons.event_note_rounded, label: 'الحضور'),
-      const AppTabItem(icon: Icons.grid_view_rounded, label: 'المزيد'),
+    return const [
+      AppTabItem(icon: Icons.home_rounded, label: 'الرئيسية'),
+      AppTabItem(icon: Icons.people_rounded, label: 'الأعضاء'),
+      AppTabItem(icon: Icons.event_note_rounded, label: 'الحضور'),
+      AppTabItem(icon: Icons.grid_view_rounded, label: 'المزيد'),
     ];
+  }
+
+  List<AppTabItem> _tabItems() {
+    final legacy = _legacyTabs();
+    final program = _activeProgram;
+    final role = _selectedRoleClass?.programRole;
+    if (program == null || role == null || _isInMakhdoumMode) return legacy;
+    return [...legacy, ...ProgramWorkspace.tabs(program, role)];
   }
 
   Widget _buildProfileMenu() {
@@ -262,7 +376,9 @@ class _KhademMainScreenState extends State<KhademMainScreen>
         borderRadius: BorderRadius.circular(12),
       ),
       onSelected: (value) {
-        if (value == 'logout') {
+        if (value == 'guide') {
+          _beginTour();
+        } else if (value == 'logout') {
           _handleLogout(context);
         } else if (value == '/class-management') {
           context.push('/class-management');
@@ -282,6 +398,16 @@ class _KhademMainScreenState extends State<KhademMainScreen>
               Icon(Icons.person, color: AppColors.primaryMaroon),
               SizedBox(width: 12),
               Text('الملف الشخصي'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'guide',
+          child: Row(
+            children: [
+              Icon(Icons.help_outline, color: AppColors.primaryMaroon),
+              SizedBox(width: 12),
+              Text('دليل الاستخدام'),
             ],
           ),
         ),
@@ -356,7 +482,17 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   }
 
   Widget _buildTabWidget(int index, ScrollController? scrollController) {
-    // Use cached widget if available
+    final program = _activeProgram;
+    final role = _selectedRoleClass?.programRole;
+    final legacyCount = _legacyTabs().length;
+    if (program != null && role != null && index >= legacyCount) {
+      return ProgramWorkspace(
+        key: ValueKey('${program.id}-$role-${index - legacyCount}'),
+        program: program,
+        role: role,
+        tabIndex: index - legacyCount,
+      );
+    }
     return _cachedTabs.putIfAbsent(
       index,
       () => _buildTabContent(index, scrollController),

@@ -21,6 +21,7 @@ class AppShell extends StatelessWidget {
   final ValueChanged<int> onTabSelected;
   final Widget body;
   final Widget? floatingActionButton;
+  final bool spotlightTab;
 
   const AppShell({
     super.key,
@@ -33,6 +34,7 @@ class AppShell extends StatelessWidget {
     required this.body,
     this.actions = const [],
     this.floatingActionButton,
+    this.spotlightTab = false,
   });
 
   @override
@@ -98,6 +100,7 @@ class AppShell extends StatelessWidget {
           tabs: tabs,
           selectedIndex: selectedIndex,
           onTabSelected: onTabSelected,
+          spotlight: spotlightTab,
         ),
       ),
     );
@@ -108,11 +111,13 @@ class _AppBottomTabs extends StatefulWidget {
   final List<AppTabItem> tabs;
   final int selectedIndex;
   final ValueChanged<int> onTabSelected;
+  final bool spotlight;
 
   const _AppBottomTabs({
     required this.tabs,
     required this.selectedIndex,
     required this.onTabSelected,
+    required this.spotlight,
   });
 
   @override
@@ -216,6 +221,7 @@ class _AppBottomTabsState extends State<_AppBottomTabs> {
                         child: _TabButton(
                           item: widget.tabs[i],
                           selected: widget.selectedIndex == i,
+                          spotlight: widget.spotlight && widget.selectedIndex == i,
                           onTap: () => widget.onTabSelected(i),
                         ),
                       ),
@@ -241,6 +247,7 @@ class _AppBottomTabsState extends State<_AppBottomTabs> {
                       itemBuilder: (context, i) => _TabButton(
                         item: widget.tabs[i],
                         selected: widget.selectedIndex == i,
+                        spotlight: widget.spotlight && widget.selectedIndex == i,
                         onTap: () => widget.onTabSelected(i),
                       ),
                     ),
@@ -308,11 +315,13 @@ class _ScrollHint extends StatelessWidget {
 class _TabButton extends StatelessWidget {
   final AppTabItem item;
   final bool selected;
+  final bool spotlight;
   final VoidCallback onTap;
 
   const _TabButton({
     required this.item,
     required this.selected,
+    required this.spotlight,
     required this.onTap,
   });
 
@@ -321,32 +330,41 @@ class _TabButton extends StatelessWidget {
     final color = selected ? AppColors.primaryMaroon : AppColors.textSecondary;
     return InkWell(
       onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: selected
-                  ? AppColors.primaryMaroon.withValues(alpha: 0.12)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+        decoration: BoxDecoration(
+          color: spotlight ? AppColors.accentGold.withValues(alpha: 0.28) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          border: spotlight ? Border.all(color: AppColors.accentGold, width: 2.5) : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: selected && !spotlight
+                    ? AppColors.primaryMaroon.withValues(alpha: 0.12)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(item.icon, size: spotlight ? 26 : 22, color: color),
             ),
-            child: Icon(item.icon, size: 22, color: color),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            item.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              color: color,
+            const SizedBox(height: 2),
+            Text(
+              item.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: spotlight ? 13 : 11,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: color,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

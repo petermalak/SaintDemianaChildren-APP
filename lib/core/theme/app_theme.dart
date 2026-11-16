@@ -1,13 +1,40 @@
 import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../constants/app_colors.dart';
 import '../constants/spacing.dart';
 
+TextStyle cairo({
+  double? fontSize,
+  FontWeight? fontWeight,
+  Color? color,
+  double? height,
+}) {
+  return TextStyle(
+    fontFamily: 'Cairo',
+    fontFamilyFallback: const ['CairoArabic'],
+    fontSize: fontSize,
+    fontWeight: fontWeight,
+    color: color,
+    height: height,
+  );
+}
+
 class AppTheme {
   static ThemeData get lightTheme {
+    final baseText = ThemeData(
+      useMaterial3: true,
+      fontFamily: 'Cairo',
+      fontFamilyFallback: const ['CairoArabic'],
+    ).textTheme.apply(
+          fontFamily: 'Cairo',
+          fontFamilyFallback: const ['CairoArabic'],
+          bodyColor: AppColors.textPrimary,
+          displayColor: AppColors.textPrimary,
+        );
     return ThemeData(
       useMaterial3: true,
+      fontFamily: 'Cairo',
+      fontFamilyFallback: const ['CairoArabic'],
       scaffoldBackgroundColor: AppColors.backgroundPrimary,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primaryMaroon,
@@ -20,92 +47,92 @@ class AppTheme {
       ),
 
       // Text Theme with responsive typography
-      textTheme: GoogleFonts.cairoTextTheme().copyWith(
-        displayLarge: GoogleFonts.cairo(
+      textTheme: baseText.copyWith(
+        displayLarge: cairo(
           fontSize: AppSpacing.xxxl, // 64px
           fontWeight: FontWeight.bold,
           color: AppColors.textPrimary,
           height: 1.2,
         ),
-        displayMedium: GoogleFonts.cairo(
+        displayMedium: cairo(
           fontSize: AppSpacing.xxl, // 48px
           fontWeight: FontWeight.bold,
           color: AppColors.textPrimary,
           height: 1.2,
         ),
-        displaySmall: GoogleFonts.cairo(
+        displaySmall: cairo(
           fontSize: AppSpacing.xl, // 32px
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
           height: 1.3,
         ),
-        headlineLarge: GoogleFonts.cairo(
+        headlineLarge: cairo(
           fontSize: AppSpacing.lg + 6, // 30px
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
           height: 1.3,
         ),
-        headlineMedium: GoogleFonts.cairo(
+        headlineMedium: cairo(
           fontSize: AppSpacing.lg + 2, // 26px
           fontWeight: FontWeight.w500,
           color: AppColors.textPrimary,
           height: 1.3,
         ),
-        headlineSmall: GoogleFonts.cairo(
+        headlineSmall: cairo(
           fontSize: AppSpacing.lg, // 24px
           fontWeight: FontWeight.w500,
           color: AppColors.textPrimary,
           height: 1.4,
         ),
-        titleLarge: GoogleFonts.cairo(
+        titleLarge: cairo(
           fontSize: AppSpacing.md, // 16px
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
           height: 1.4,
         ),
-        titleMedium: GoogleFonts.cairo(
+        titleMedium: cairo(
           fontSize: AppSpacing.md - 2, // 14px
           fontWeight: FontWeight.w500,
           color: AppColors.textPrimary,
           height: 1.4,
         ),
-        titleSmall: GoogleFonts.cairo(
+        titleSmall: cairo(
           fontSize: AppSpacing.sm + 4, // 12px
           fontWeight: FontWeight.w500,
           color: AppColors.textSecondary,
           height: 1.4,
         ),
-        bodyLarge: GoogleFonts.cairo(
+        bodyLarge: cairo(
           fontSize: AppSpacing.md, // 16px
           fontWeight: FontWeight.normal,
           color: AppColors.textPrimary,
           height: 1.5,
         ),
-        bodyMedium: GoogleFonts.cairo(
+        bodyMedium: cairo(
           fontSize: AppSpacing.md - 2, // 14px
           fontWeight: FontWeight.normal,
           color: AppColors.textPrimary,
           height: 1.5,
         ),
-        bodySmall: GoogleFonts.cairo(
+        bodySmall: cairo(
           fontSize: AppSpacing.sm + 4, // 12px
           fontWeight: FontWeight.normal,
           color: AppColors.textSecondary,
           height: 1.5,
         ),
-        labelLarge: GoogleFonts.cairo(
+        labelLarge: cairo(
           fontSize: AppSpacing.md - 2, // 14px
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
           height: 1.4,
         ),
-        labelMedium: GoogleFonts.cairo(
+        labelMedium: cairo(
           fontSize: AppSpacing.sm + 2, // 10px
           fontWeight: FontWeight.w500,
           color: AppColors.textSecondary,
           height: 1.4,
         ),
-        labelSmall: GoogleFonts.cairo(
+        labelSmall: cairo(
           fontSize: AppSpacing.sm, // 8px
           fontWeight: FontWeight.w500,
           color: AppColors.textSecondary,
@@ -120,7 +147,7 @@ class AppTheme {
         elevation: 0,
         centerTitle: true,
         toolbarHeight: AppSpacing.appBarHeight,
-        titleTextStyle: GoogleFonts.cairo(
+        titleTextStyle: cairo(
           fontSize: AppSpacing.lg - 2, // 22px
           fontWeight: FontWeight.w600,
           color: AppColors.accentWhite,
@@ -151,7 +178,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           ),
-          textStyle: GoogleFonts.cairo(
+          textStyle: cairo(
             fontSize: AppSpacing.md,
             fontWeight: FontWeight.w600,
           ),
@@ -171,7 +198,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           ),
-          textStyle: GoogleFonts.cairo(
+          textStyle: cairo(
             fontSize: AppSpacing.md,
             fontWeight: FontWeight.w600,
           ),
@@ -184,7 +211,7 @@ class AppTheme {
           foregroundColor: AppColors.buttonPrimary,
           padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-          textStyle: GoogleFonts.cairo(
+          textStyle: cairo(
             fontSize: AppSpacing.md - 2, // 14px
             fontWeight: FontWeight.w600,
           ),
@@ -220,11 +247,11 @@ class AppTheme {
         ),
         contentPadding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.md, vertical: AppSpacing.md),
-        labelStyle: GoogleFonts.cairo(
+        labelStyle: cairo(
           color: AppColors.textSecondary,
           fontSize: AppSpacing.md - 2, // 14px
         ),
-        hintStyle: GoogleFonts.cairo(
+        hintStyle: cairo(
           color: AppColors.textSecondary,
           fontSize: AppSpacing.md - 2, // 14px
         ),
@@ -241,11 +268,11 @@ class AppTheme {
         unselectedItemColor: AppColors.textSecondary,
         type: BottomNavigationBarType.fixed,
         elevation: AppSpacing.shadowBlurMd,
-        selectedLabelStyle: GoogleFonts.cairo(
+        selectedLabelStyle: cairo(
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
-        unselectedLabelStyle: GoogleFonts.cairo(fontSize: 11),
+        unselectedLabelStyle: cairo(fontSize: 11),
       ),
 
       snackBarTheme: SnackBarThemeData(
@@ -254,7 +281,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         ),
-        contentTextStyle: GoogleFonts.cairo(
+        contentTextStyle: cairo(
           color: AppColors.accentWhite,
           fontSize: 14,
         ),
@@ -271,7 +298,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         ),
-        titleTextStyle: GoogleFonts.cairo(
+        titleTextStyle: cairo(
           fontSize: 18,
           fontWeight: FontWeight.w700,
           color: AppColors.textPrimary,

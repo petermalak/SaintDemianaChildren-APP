@@ -71,6 +71,7 @@ dependencies:
   shorebird_code_push: ^2.0.5
   package_info_plus: ^8.0.0
   mobile_scanner: ^7.2.0
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:
@@ -84,6 +85,22 @@ flutter:
   assets:
     - assets/images/
     - shorebird.yaml
+
+  fonts:
+    - family: Cairo
+      fonts:
+        - asset: assets/fonts/Cairo-Regular.ttf
+        - asset: assets/fonts/Cairo-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Cairo-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Cairo-Bold.ttf
+          weight: 700
+    - family: CairoArabic
+      fonts:
+        - asset: assets/fonts/Cairo-Arabic-Regular.ttf
+        - asset: assets/fonts/Cairo-Arabic-Bold.ttf
+          weight: 700
   
   # App icon configuration
   # flutter_icons:

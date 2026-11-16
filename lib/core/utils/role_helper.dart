@@ -80,7 +80,41 @@ class RoleHelper {
         className: info.className,
       ));
     }
+    for (final program in user.programs) {
+      for (final role in programRoles(program)) {
+        contexts.add(RoleClassSelection(
+          role: role == 'makhdoum' ? UserRole.makhdoum : UserRole.khadem,
+          className: program.name,
+          programId: program.id,
+          programRole: role,
+        ));
+      }
+    }
     return contexts;
+  }
+
+  /// The highest program role. It includes every role below it in the Taio table.
+  static List<String> programRoles(ProgramMembership program) {
+    if (program.scope == 'all' || program.roles.contains('amin')) return const ['amin'];
+    if (program.scope == 'class' || program.roles.contains('class_servant')) return const ['class'];
+    if (program.scope == 'score' || program.roles.contains('score_servant')) return const ['score'];
+    return const ['makhdoum'];
+  }
+
+  static ProgramMembership? programFor(UserModel? user, RoleClassSelection? session) {
+    final programId = session?.programId;
+    if (user == null || programId == null) return null;
+    for (final program in user.programs) {
+      if (program.id == programId) return program;
+    }
+    return null;
+  }
+
+  static String legacyHomePath(UserModel? user) {
+    final contexts = membershipContexts(user);
+    final onlyMakhdoum = contexts.isNotEmpty &&
+        contexts.every((selection) => selection.role == UserRole.makhdoum);
+    return onlyMakhdoum ? '/makhdoum' : '/khadem';
   }
 
   static Set<String> classIdsFor(UserModel? user, UserRole role) {
@@ -168,14 +202,23 @@ class RoleClassSelection {
   final UserRole role;
   final String? classId;
   final String? className;
+  final String? programId;
+  final String? programRole;
   
   const RoleClassSelection({
     required this.role,
     this.classId,
     this.className,
+    this.programId,
+    this.programRole,
   });
   
   String get displayName {
+    if (programId != null) {
+      final roleName = programRoleTitle(programRole);
+      final name = className?.trim();
+      return name == null || name.isEmpty ? roleName : '$roleName — $name';
+    }
     final roleName = switch (role) {
       UserRole.khadem => 'خادم',
       UserRole.makhdoum => 'مخدوم',
@@ -187,8 +230,37 @@ class RoleClassSelection {
     return roleName;
   }
 
+  /// Short boundary for this row, using the Taio role table.
+  String get detail {
+    if (programId != null) {
+      return switch (programRole) {
+        'amin' => 'كل الفصول، اعتماد السحب، الميزانية والأحداث. يشمل خادم الفصل وخادم السكور والمخدوم.',
+        'class' => 'حضور فصله وأولاده والافتقاد. يشمل بنود السكور وحساب المخدوم. يعفي مخدوم من شرط 25% لحجز الرحلة. من غير ميزانية.',
+        'score' => 'بنود التقييم لكل الفصول: المبادرة والخلوة والمسابقات. يشمل حساب المخدوم. لا يسجّل حضور الفصل.',
+        _ => 'رصيده وسجله ورمزه وطلب السحب. لا يرى الترتيب ولا يسجّل نقاط غيره.',
+      };
+    }
+    return switch (role) {
+      UserRole.superAdmin => 'إدارة الكنيسة. هذا ليس أمين الخدمة.',
+      UserRole.khadem => 'خادم هذا الفصل في الكنيسة، خارج طايو.',
+      UserRole.makhdoum => 'مخدوم هذا الفصل في الكنيسة، خارج طايو.',
+    };
+  }
+
+  static String programRoleTitle(String? role) {
+    return switch (role) {
+      'amin' => 'أمين الخدمة',
+      'class' => 'خادم الفصل',
+      'score' => 'خادم السكور',
+      _ => 'مخدوم',
+    };
+  }
+
   bool sameAs(RoleClassSelection other) {
-    return role == other.role && classId == other.classId;
+    return role == other.role &&
+        classId == other.classId &&
+        programId == other.programId &&
+        programRole == other.programRole;
   }
 }
 

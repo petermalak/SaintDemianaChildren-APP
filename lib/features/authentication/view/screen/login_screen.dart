@@ -32,6 +32,16 @@ class _LoginScreenState extends State<LoginScreen>
   final _passwordController = TextEditingController();
   final FocusNode _passwordFocusNode = FocusNode();
 
+  String _accountId() {
+    final value = _emailController.text.trim();
+    if (value.contains('@')) return value;
+    var digits = value.replaceAll(RegExp(r'\D'), '');
+    if (digits.startsWith('00')) digits = digits.substring(2);
+    if (digits.startsWith('0')) return '+20${digits.substring(1)}';
+    if (digits.startsWith('20')) return '+$digits';
+    return '+$digits';
+  }
+
   late AnimationController _logoController;
   late AnimationController _formController;
   late AnimationController _backgroundController;
@@ -579,18 +589,23 @@ class _LoginScreenState extends State<LoginScreen>
                       // Email Field
                       CustomTextField(
                         controller: _emailController,
-                        labelText: 'البريد الإلكتروني',
-                        hintText: 'Enter your email',
+                        labelText: 'البريد أو الموبايل',
+                        hintText: 'email or 01xxxxxxxxx',
                         keyboardType: TextInputType.emailAddress,
-                        prefixIcon: Icons.email_outlined,
+                        prefixIcon: Icons.person_outline,
                         onSubmit: (_) => _passwordFocusNode.requestFocus(),
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Please enter your email';
+                          final text = value?.trim() ?? '';
+                          if (text.isEmpty) return 'اكتب البريد أو رقم الموبايل';
+                          if (text.contains('@')) {
+                            if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(text)) {
+                              return 'البريد غير مكتمل';
+                            }
+                            return null;
                           }
-                          if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$')
-                              .hasMatch(value)) {
-                            return 'Please enter a valid email';
+                          final digits = text.replaceAll(RegExp(r'\D'), '');
+                          if (digits.length < 10 || digits.length > 15) {
+                            return 'رقم الموبايل غير مكتمل';
                           }
                           return null;
                         },
@@ -609,7 +624,7 @@ class _LoginScreenState extends State<LoginScreen>
                         onSubmit: (_) {
                           if (_formKey.currentState?.validate() ?? false) {
                             context.read<LoginCubit>().login(
-                                  _emailController.text.trim(),
+                                  _accountId(),
                                   _passwordController.text.trim(),
                                 );
                           }
@@ -708,7 +723,7 @@ class _LoginScreenState extends State<LoginScreen>
                               if (_formKey.currentState?.validate() ?? false)
                                 {
                                   context.read<LoginCubit>().login(
-                                        _emailController.text.trim(),
+                                        _accountId(),
                                         _passwordController.text.trim(),
                                       ),
                                 }

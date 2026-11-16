@@ -5,6 +5,8 @@ import 'package:saint_demiana_children/features/makhdoum_layout/home/view/screen
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/widgets/app_shell.dart';
+import '../../../../../core/widgets/role_guide_sheet.dart';
+import '../../../../../core/widgets/screen_tour.dart';
 import '../../../../../core/session/session_context.dart';
 import '../../../../../core/utils/role_helper.dart';
 import '../../../../authentication/repository/i_authentication_repository.dart';
@@ -20,6 +22,7 @@ import '../../../../feed/viewmodel/get_feed/get_feed_cubit.dart';
 import '../../../../feed/viewmodel/add_feed/add_feed_cubit.dart';
 import '../../../../feed/repository/i_feed_repository.dart';
 import '../../../../shop/view/screen/makhdoum_shop_screen.dart';
+import '../../../../program/view/program_shell.dart';
 import '../../../../super_admin_&_khadem_layout/super_admin/class_management/model/class_model.dart';
 import '../../../../super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
 
@@ -41,6 +44,8 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
   String? _selectedMakhdoumClassId;
   List<ClassModel> _classesForShop = [];
   bool _classesForShopLoaded = false;
+  bool _offeredGuide = false;
+  int? _tourStep;
 
   @override
   void initState() {
@@ -57,7 +62,11 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
     if (!mounted) return;
     final selection = SessionContext.instance.current;
     if (selection == null || selection.role != UserRole.makhdoum) return;
-    setState(() => _selectedMakhdoumClassId = selection.classId);
+    setState(() {
+      _selectedMakhdoumClassId = selection.classId;
+      _selectedTab = 0;
+    });
+    if (_pageController.hasClients) _pageController.jumpToPage(0);
     _loadClassesForShop();
   }
 
@@ -145,6 +154,7 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
       result.fold(
         (error) {
           print('❌ [MakhdoumMain] Failed to refresh user: $error');
+          _offerFirstLoginGuide();
         },
         (refreshedUser) {
           print(
@@ -152,11 +162,56 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
           setState(() {
             _hydrateMakhdoumClasses();
           });
+          _offerFirstLoginGuide();
         },
       );
     } else {
       _hydrateMakhdoumClasses();
+      _offerFirstLoginGuide();
     }
+  }
+
+  void _offerFirstLoginGuide() {
+    if (_offeredGuide || !mounted) return;
+    final user = sl<IProfileRepository>().user;
+    final id = user?.id;
+    if (id == null || id.isEmpty || guideWasSeen(id)) return;
+    _offeredGuide = true;
+    final services = RoleHelper.membershipContexts(user)
+        .where((row) => row.programId != null && row.role == UserRole.makhdoum)
+        .toList();
+    if (services.length == 1) {
+      SessionContext.instance.select(services.first);
+      _selectedMakhdoumClassId = services.first.classId;
+    }
+    markGuideSeen(id);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _beginTour();
+    });
+  }
+
+  List<TourBeat> _beats() {
+    return tourBeats(
+      _tabItems().map((tab) => tab.label).toList(),
+      programRole: SessionContext.instance.current?.programRole,
+    );
+  }
+
+  void _beginTour() {
+    if (_beats().isEmpty || !mounted) return;
+    setState(() => _tourStep = 0);
+    _onTabSelected(0);
+  }
+
+  void _moveTour(int next) {
+    final beats = _beats();
+    if (next < 0 || next >= beats.length) {
+      setState(() => _tourStep = null);
+      return;
+    }
+    setState(() => _tourStep = next);
+    _onTabSelected(beats[next].tabIndex);
   }
 
   void _initializeAnimations() {
@@ -247,7 +302,7 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
     return _classesForShop.any((c) => c.id == classId && c.scoringEnabled);
   }
 
-  List<AppTabItem> _tabItems() {
+  List<AppTabItem> _legacyTabs() {
     return [
       const AppTabItem(icon: Icons.home_rounded, label: 'الرئيسية'),
       const AppTabItem(icon: Icons.event_note_rounded, label: 'الحضور'),
@@ -259,31 +314,81 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
     ];
   }
 
+  List<AppTabItem> _tabItems() {
+    final legacy = _legacyTabs();
+    final program = _activeProgram;
+    final role = SessionContext.instance.current?.programRole;
+    if (program == null || role == null) return legacy;
+    return [...legacy, ...ProgramWorkspace.tabs(program, role)];
+  }
+
+  ProgramMembership? get _activeProgram {
+    final session = SessionContext.instance.current;
+    if (session?.role != UserRole.makhdoum) return null;
+    return RoleHelper.programFor(sl<IProfileRepository>().user, session);
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = sl<IProfileRepository>().user;
     final name = firstNameOf(user?.name, fallback: 'المخدوم');
     final tabs = _tabItems();
+    final index = _selectedTab.clamp(0, tabs.length - 1);
+    final beats = _beats();
+    final beatIndex = _tourStep == null || beats.isEmpty
+        ? null
+        : _tourStep!.clamp(0, beats.length - 1);
     return AppShell(
       title: 'مرحباً $name',
-      subtitle: 'كنيسة القديسة دميانة',
+      subtitle: SessionContext.instance.current?.programId != null
+          ? 'مخدوم'
+          : 'كنيسة القديسة دميانة',
       headerIcon: Icons.church,
-      actions: [_buildProfileMenu()],
+      actions: [
+        GuideButton(onPressed: _beginTour),
+        _buildProfileMenu(),
+      ],
       tabs: tabs,
-      selectedIndex: _selectedTab.clamp(0, tabs.length - 1),
+      selectedIndex: index,
       onTabSelected: _onTabSelected,
-      body: PageView.builder(
+      spotlightTab: beatIndex != null,
+      body: Column(
+        children: [
+          Expanded(child: PageView.builder(
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),
         itemCount: tabs.length,
-        onPageChanged: (index) => setState(() => _selectedTab = index),
-        itemBuilder: (context, index) {
-          final pages = _pages();
-          if (index < 0 || index >= pages.length) {
-            return HomeScreen(scrollController: _scrollControllers[0]);
+        onPageChanged: (page) => setState(() => _selectedTab = page),
+        itemBuilder: (context, page) {
+          final legacyCount = _legacyTabs().length;
+          if (page < legacyCount) {
+            final pages = _pages();
+            if (page < 0 || page >= pages.length) {
+              return HomeScreen(scrollController: _scrollControllers[0]);
+            }
+            return pages[page];
           }
-          return pages[index];
+          final active = _activeProgram;
+          final role = SessionContext.instance.current?.programRole;
+          if (active == null || role == null) return const SizedBox.shrink();
+          return ProgramWorkspace(
+            key: ValueKey('${active.id}-$role-${page - legacyCount}'),
+            program: active,
+            role: role,
+            tabIndex: page - legacyCount,
+          );
         },
+      )),
+          if (beatIndex != null)
+            ScreenTourCard(
+              index: beatIndex,
+              count: beats.length,
+              beat: beats[beatIndex],
+              onBack: () => _moveTour(beatIndex - 1),
+              onNext: () => _moveTour(beatIndex + 1),
+              onClose: () => setState(() => _tourStep = null),
+            ),
+        ],
       ),
     );
   }
@@ -307,7 +412,9 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
         borderRadius: BorderRadius.circular(12),
       ),
       onSelected: (value) {
-        if (value == 'profile') {
+        if (value == 'guide') {
+          _beginTour();
+        } else if (value == 'profile') {
           context.push('/profile');
         } else if (value == 'logout') {
           _handleLogout(context);
@@ -323,6 +430,16 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
               Icon(Icons.person, color: AppColors.primaryMaroon),
               SizedBox(width: 12),
               Text('الملف الشخصي'),
+            ],
+          ),
+        ),
+        const PopupMenuItem(
+          value: 'guide',
+          child: Row(
+            children: [
+              Icon(Icons.help_outline, color: AppColors.primaryMaroon),
+              SizedBox(width: 12),
+              Text('دليل الاستخدام'),
             ],
           ),
         ),

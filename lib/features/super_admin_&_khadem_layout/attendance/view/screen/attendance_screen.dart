@@ -4,6 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../../core/constants/app_colors.dart';
 import '../../../../../core/session/session_context.dart';
 import '../../../../../core/di/service_locator.dart';
+import '../../../../../core/utils/role_helper.dart';
+import '../../../../../features/program/repository/i_program_repository.dart';
+import '../../../../../features/program/view/service_attendance_panel.dart';
 import '../../../../../core/services/data_refresh_cubit.dart';
 import '../../../../../core/services/excel_export_service.dart';
 import '../../../../../core/widgets/class_export_selection_dialog.dart';
@@ -35,8 +38,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   UserModel? _currentUser;
   String? _selectedClassId;
   String? _popeAthanasiusClassId;
+  final _nameQuery = TextEditingController();
   bool _isLoadingClasses = false;
   List<ClassModel> _availableClasses = const [];
+  List<_ServiceClass> _serviceClasses = const [];
   List<AssignmentUser> _khademOptions = const [];
   String? _selectedKhademId;
   String? _selectedKhademScope;
@@ -81,6 +86,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       _internalScrollController = ScrollController();
     }
     _currentUser = sl<IProfileRepository>().user;
+    _nameQuery.addListener(() {
+      if (mounted) setState(() {});
+    });
     final today = DateTime.now();
     _rangeTo = DateTime(today.year, today.month, today.day);
     _rangeFrom = _rangeTo.subtract(const Duration(days: 55));
@@ -104,7 +112,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   void _onSessionClass() {
     if (!mounted) return;
-    final classId = SessionContext.instance.current?.classId;
+    final session = SessionContext.instance.current;
+    if (session?.programRole == 'class' || session?.programRole == 'amin') {
+      _loadServiceClasses(preferService: true);
+      return;
+    }
+    setState(() => _serviceClasses = const []);
+    final classId = session?.classId;
     if (classId == _selectedClassId) return;
     setState(() => _selectedClassId = classId);
     if (classId != null) {
@@ -115,9 +129,45 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
+  bool _isServiceClass(String? classId) {
+    return classId != null && _serviceClasses.any((item) => item.id == classId);
+  }
+
+  Future<void> _loadServiceClasses({bool preferService = false}) async {
+    final session = SessionContext.instance.current;
+    final program = RoleHelper.programFor(_currentUser, session);
+    final role = session?.programRole;
+    if (program == null || (role != 'class' && role != 'amin')) {
+      if (mounted) setState(() => _serviceClasses = const []);
+      return;
+    }
+    final result = await sl<IProgramRepository>().catalog(program.id);
+    if (!mounted) return;
+    result.fold((_) {}, (data) {
+      if (data is! Map || data['classes'] is! List) return;
+      final classes = <_ServiceClass>[];
+      for (final row in data['classes'] as List) {
+        if (row is Map && row['id'] != null) {
+          classes.add(_ServiceClass(row['id'].toString(), (row['name'] ?? 'فصل').toString()));
+        }
+      }
+      setState(() {
+        _serviceClasses = classes;
+        final selectedIsKnown = _availableClasses.any((item) => item.id == _selectedClassId) ||
+            classes.any((item) => item.id == _selectedClassId);
+        if (preferService && classes.isNotEmpty) {
+          _selectedClassId = classes.first.id;
+        } else if (!selectedIsKnown && _availableClasses.isEmpty && classes.isNotEmpty) {
+          _selectedClassId = classes.first.id;
+        }
+      });
+    });
+  }
+
   @override
   void dispose() {
     SessionContext.instance.removeListener(_onSessionClass);
+    _nameQuery.dispose();
     _internalScrollController?.dispose();
     _attendanceCubit.close();
     super.dispose();
@@ -201,6 +251,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() {
       _isLoadingClasses = false;
     });
+    await _loadServiceClasses();
   }
 
   void _fetchAttendanceWithCurrentFilters({String? classIdOverride}) {
@@ -282,7 +333,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       return _availableClasses.isNotEmpty;
     }
     if (SessionContext.isKhademContext(user)) {
-      return _availableClasses.length > 1;
+      return _availableClasses.length + _serviceClasses.length > 1;
     }
     return false;
   }
@@ -417,6 +468,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() {
       _selectedClassId = value;
     });
+    if (_isServiceClass(value)) return;
 
     if (value == null) {
       _resetKhademOptionsForAllClasses();
@@ -550,6 +602,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         width: fieldWidth,
                         child: _buildKhademField(),
                       ),
+                    SizedBox(
+                      width: fieldWidth,
+                      child: TextField(
+                        controller: _nameQuery,
+                        decoration: const InputDecoration(
+                          labelText: 'بحث بالاسم',
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.search),
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
                 if (attendanceData != null) ...[
@@ -565,8 +629,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget _buildClassDropdownField() {
+    final known = _availableClasses.any((item) => item.id == _selectedClassId) ||
+        _serviceClasses.any((item) => item.id == _selectedClassId);
+    final selectedClassId = known ? _selectedClassId : null;
     return DropdownButtonFormField<String?>(
-      value: _selectedClassId,
+      value: selectedClassId,
       decoration: const InputDecoration(
         labelText: 'اختر فصل',
         border: OutlineInputBorder(),
@@ -584,6 +651,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             child: Text(classModel.name),
           ),
         ),
+        ..._serviceClasses
+            .where((item) => !_availableClasses.any((church) => church.id == item.id))
+            .map(
+              (item) => DropdownMenuItem<String?>(
+                value: item.id,
+                child: Text(item.name),
+              ),
+            ),
       ],
       onChanged: _isLoadingAssignments || _isLoadingClasses
           ? null
@@ -597,8 +672,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final otherKhadems =
           _khademOptions.where((option) => option.id != user?.id).toList();
 
+      final choiceIds = <String>{
+        _khademFilterSelfValue,
+        _khademFilterAllValue,
+        ...otherKhadems.map((option) => '$_khademFilterPrefix${option.id}'),
+      };
+      final selectedChoice = choiceIds.contains(_khademFilterSelection)
+          ? _khademFilterSelection
+          : _khademFilterSelfValue;
       return DropdownButtonFormField<String>(
-        value: _khademFilterSelection,
+        value: selectedChoice,
         decoration: const InputDecoration(
           labelText: 'عرض المخدومين',
           border: OutlineInputBorder(),
@@ -795,7 +878,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               record.date != null &&
               record.type != null &&
               record.userName != null &&
-              record.userName!.isNotEmpty)
+              record.userName!.isNotEmpty &&
+              _nameMatches(record.userName))
           .toList());
       final dates = attendanceData.attendanceDates ?? [];
 
@@ -908,6 +992,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     );
   }
 
+  bool _nameMatches(String? name) {
+    final query = _nameQuery.text.trim();
+    if (query.isEmpty) return true;
+    return (name ?? '').contains(query);
+  }
+
   List<String> _extractMemberNames(List<AttendanceRecord> records) {
     final orderedNames = <String>{};
     for (final record in records) {
@@ -968,7 +1058,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           const SizedBox(height: 12),
         ],
         FloatingActionButton.extended(
-          onPressed: () => _showBulkAttendanceDialog(context),
+          onPressed: () => _recordAttendance(context),
           backgroundColor: AppColors.primaryMaroon,
           foregroundColor: AppColors.accentWhite,
           elevation: 6,
@@ -1033,6 +1123,24 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final serviceClassId = _selectedClassId;
+    final program = RoleHelper.programFor(_currentUser, SessionContext.instance.current);
+    if (_isServiceClass(serviceClassId) && program != null) {
+      return Scaffold(
+        backgroundColor: AppColors.backgroundSecondary,
+        body: SafeArea(
+          child: ListView(
+            controller: _effectiveScrollController,
+            padding: const EdgeInsets.all(16),
+            children: [
+              if (_shouldShowClassFilter) _buildClassDropdownField(),
+              const SizedBox(height: 16),
+              ServiceAttendancePanel(program: program, classId: serviceClassId!),
+            ],
+          ),
+        ),
+      );
+    }
     return BlocProvider.value(
       value: _attendanceCubit,
       child: Scaffold(
@@ -1069,6 +1177,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         ),
       ),
     );
+  }
+
+  void _recordAttendance(BuildContext context) {
+    if (_isServiceClass(_selectedClassId)) return;
+    _showBulkAttendanceDialog(context);
   }
 
   Future<void> _showBulkAttendanceDialog(BuildContext context) async {
@@ -1171,7 +1284,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                             record.date != null &&
                             record.type != null &&
                             record.userName != null &&
-                            record.userName!.isNotEmpty)
+                            record.userName!.isNotEmpty &&
+                            _nameMatches(record.userName))
                         .toList();
                     allRecords.addAll(validRecords);
                   }
@@ -1281,4 +1395,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       ),
     );
   }
+}
+
+class _ServiceClass {
+  const _ServiceClass(this.id, this.name);
+
+  final String id;
+  final String name;
 }

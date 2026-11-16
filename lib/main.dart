@@ -29,6 +29,7 @@ import 'features/pope_athanasius/view/screen/agenda_screen.dart';
 import 'features/pope_athanasius/view/screen/course_marks_screen.dart';
 import 'features/pope_athanasius/view/screen/level_two_board_screen.dart';
 import 'features/pope_athanasius/view/screen/my_course_screen.dart';
+import 'features/program/view/program_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -295,6 +296,10 @@ final GoRouter _router = GoRouter(
       builder: (context, state) {
         return const MainClassManagementScreen();
       },
+    ),
+    GoRoute(
+      path: '/program',
+      builder: (context, state) => const ProgramEntry(),
     ),
     GoRoute(
       path: '/profile',

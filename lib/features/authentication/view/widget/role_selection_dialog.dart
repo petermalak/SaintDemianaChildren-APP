@@ -32,7 +32,7 @@ class RoleSelectionDialog extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text(
-                'اختر الفصل',
+                'اختر الدور',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 22,
@@ -42,7 +42,7 @@ class RoleSelectionDialog extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'كل صف هو دورك في فصل واحد',
+                'الاسم من جدول طايو. الدور الأعلى يشمل ما تحته.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textSecondary),
               ),
@@ -69,6 +69,10 @@ class RoleSelectionDialog extends StatelessWidget {
                           color: AppColors.primaryMaroon,
                         ),
                         title: Text(selection.displayName),
+                        subtitle: Text(
+                          selection.detail,
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        ),
                         onTap: () {
                           Navigator.of(context).pop();
                           onContextSelected(selection);

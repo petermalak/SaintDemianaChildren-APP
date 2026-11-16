@@ -36,6 +36,8 @@ import '../../features/pope_athanasius/repository/agenda_repository.dart';
 import '../../features/pope_athanasius/repository/i_agenda_repository.dart';
 import '../../features/pope_athanasius/repository/i_pope_attendance_repository.dart';
 import '../../features/pope_athanasius/repository/pope_attendance_repository.dart';
+import '../../features/program/repository/i_program_repository.dart';
+import '../../features/program/repository/program_repository.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/notification_service.dart';
@@ -96,6 +98,8 @@ Future<void> setupServiceLocator() async {
       () => AgendaRepository(sl<IApiService>()));
   sl.registerLazySingleton<IPopeAttendanceRepository>(
       () => PopeAttendanceRepository(sl<IApiService>()));
+  sl.registerLazySingleton<IProgramRepository>(
+      () => ProgramRepository(sl<IApiService>()));
 
   // Class scores are cached for the whole class; drop them when data changes.
   sl<DataRefreshCubit>().stream.listen((state) {

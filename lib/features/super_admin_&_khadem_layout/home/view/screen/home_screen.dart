@@ -145,10 +145,13 @@ class _HomeScreenState extends State<HomeScreen> {
       return const SizedBox.shrink();
     }
 
+    final selectedClassId = _availableClasses.any((item) => item.id == _selectedClassId)
+        ? _selectedClassId
+        : null;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: DropdownButtonFormField<String?>(
-        value: _selectedClassId,
+        value: selectedClassId,
         decoration: const InputDecoration(
           labelText: 'اختر فصل',
           border: OutlineInputBorder(),
