@@ -319,6 +319,11 @@ class ApiService implements IApiService {
           case 400:
             return message;
           case 401:
+            final path = error.requestOptions.path;
+            if (path.contains('auth/login')) {
+              if (message.toLowerCase().contains('blocked')) return 'الحساب ده موقوف.';
+              return 'البريد أو كلمة المرور غير صحيحة.';
+            }
             return 'انتهت الجلسة. سجّل الدخول مرة أخرى.';
           case 403:
             return 'ليس لديك صلاحية لهذا الإجراء.';
