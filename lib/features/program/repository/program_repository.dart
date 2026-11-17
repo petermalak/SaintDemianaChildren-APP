@@ -244,6 +244,9 @@ class ProgramRepository implements IProgramRepository {
       _post(ApiEndpoints.programYearClose(programId), {'serviceYear': serviceYear});
 
   @override
+  Future<Either<String, dynamic>> tripLog(String programId) => _get(ApiEndpoints.programTripLog(programId));
+
+  @override
   Future<Either<String, dynamic>> myBookings(String programId) =>
       _get(ApiEndpoints.programBookings(programId));
 

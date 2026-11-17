@@ -125,6 +125,7 @@ class ApiEndpoints {
   static String programCarryOver(String programId) => 'programs/$programId/carry-over';
   static String programQr(String programId) => 'programs/$programId/qr';
   static String programBookings(String programId) => 'programs/$programId/bookings';
+  static String programTripLog(String programId) => 'programs/$programId/trip-log';
   static String programEventBookings(String eventId) => 'programs/events/$eventId/bookings';
   static String programBookingCash(String bookingId) => 'programs/bookings/$bookingId/cash';
   static String programBookingRefund(String bookingId) => 'programs/bookings/$bookingId/refund';

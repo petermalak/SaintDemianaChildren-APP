@@ -169,6 +169,7 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
   Map<String, dynamic> _catalog = {};
   List<_Choice> _members = const [];
   List<Map<String, dynamic>> _rows = const [];
+  List<Map<String, dynamic>> _tripLog = const [];
   String? _classId;
   String? _memberId;
   String? _ruleCode;
@@ -242,7 +243,7 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
       });
       _classId ??= _classes.isEmpty ? null : _classes.first.id;
       _ruleCode ??= _rules.isEmpty ? null : _rules.first.id;
-      _eventId ??= _events.isEmpty ? null : _events.first['id']?.toString();
+      _eventId = _preferredEventId();
       _syncSettingInputs();
     });
     if (_classId != null) await _loadMembers(_classId!);
@@ -319,9 +320,12 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
       catalog.fold((_) {}, (data) {
         if (data is Map) {
           _catalog = Map<String, dynamic>.from(data);
-          _eventId ??= _events.isEmpty ? null : _events.first['id']?.toString();
+          _eventId = _preferredEventId();
         }
       });
+      final log = await _programs.tripLog(_program.id);
+      if (!mounted) return;
+      log.fold((_) {}, (data) => _tripLog = _asMaps(data));
       if (mounted) setState(() {});
       await _loadBookings();
     }
@@ -520,6 +524,26 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
 
   List<Map<String, dynamic>> get _events => _asMaps(_catalog['events']);
 
+  bool _isPastDay(dynamic value) {
+    final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(value?.toString() ?? '');
+    if (match == null) return false;
+    final day = DateTime(int.parse(match.group(1)!), int.parse(match.group(2)!), int.parse(match.group(3)!));
+    final today = DateTime.now();
+    return day.isBefore(DateTime(today.year, today.month, today.day));
+  }
+
+  String? _preferredEventId() {
+    final upcoming = [for (final row in _events) if (!_isPastDay(row['startsOn'])) row];
+    if (upcoming.any((row) => row['id']?.toString() == _eventId)) return _eventId;
+    return upcoming.isEmpty ? null : upcoming.first['id']?.toString();
+  }
+
+  List<Map<String, dynamic>> get _pastTrips {
+    final rows = _tripLog.where((row) => row['past'] == true).toList();
+    rows.sort((a, b) => '${b['startsOn']}'.compareTo('${a['startsOn']}'));
+    return rows;
+  }
+
   Map<String, dynamic>? get _selectedEvent {
     for (final event in _events) {
       if (event['id']?.toString() == _eventId) return event;
@@ -631,9 +655,10 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
   }
 
   List<Widget> _memberTrips() {
-    if (_events.isEmpty) return [_empty('لسه مفيش رحلات')];
+    final upcoming = [for (final event in _events) if (!_isPastDay(event['startsOn'])) event];
+    if (upcoming.isEmpty && _pastTrips.isEmpty) return [_empty('لسه مفيش رحلات')];
     return [
-      for (final event in _events) ...[
+      for (final event in upcoming) ...[
         _infoCard(
           Icons.directions_bus_outlined,
           (event['title'] ?? 'رحلة').toString(),
@@ -641,6 +666,7 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
         ),
         const SizedBox(height: 8),
       ],
+      ..._oldTripSection(pastOnly: true),
     ];
   }
 
@@ -668,7 +694,8 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
       return [
         if (_role == 'amin') ..._newTripForm(),
         if (_role != 'amin')
-          _empty('لسه مفيش رحلات. أمين الخدمة يضيف الرحلة، وبعدها تظهر هنا وعند المخدومين.'),
+          _empty('لسه مفيش رحلة جاية. أمين الخدمة يضيف الرحلة، وبعدها تظهر هنا وعند المخدومين.'),
+        ..._oldTripSection(),
       ];
     }
     final price = int.tryParse('${event['price']}') ?? 0;
@@ -680,7 +707,8 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
         : rules.map((rule) => 'قبل ${rule['daysBefore']} يوم = ${rule['refundPercent']}%').join(' · ');
     final choices = [
       for (final row in _events)
-        _Choice(row['id'].toString(), '${row['title']} · ${row['price']} جنيه'),
+        if (!_isPastDay(row['startsOn']))
+          _Choice(row['id'].toString(), '${row['title']} · ${row['price']} جنيه'),
     ];
     return [
       if (_role == 'amin') ...[
@@ -721,6 +749,58 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
       const Text('الحجوزات وقائمة الانتظار', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
       const SizedBox(height: 8),
       ..._bookingCards(),
+      ..._oldTripSection(),
+    ];
+  }
+
+  List<Widget> _oldTripSection({bool pastOnly = false}) {
+    final canSeeNames = _role == 'class' || _role == 'amin';
+    final rows = _tripLog.where((row) => !pastOnly || row['past'] == true).toList()
+      ..sort((a, b) {
+        final pastFirst = (b['past'] == true ? 1 : 0) - (a['past'] == true ? 1 : 0);
+        if (pastFirst != 0) return pastFirst;
+        return '${b['startsOn']}'.compareTo('${a['startsOn']}');
+      });
+    return [
+      const SizedBox(height: 24),
+      Text(pastOnly ? 'سجل الرحلات القديمة' : 'سجل الرحلات', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textPrimary)),
+      const SizedBox(height: 8),
+      if (rows.isEmpty)
+        Text(
+          pastOnly ? 'لسه مفيش رحلة خلصت. لما الرحلة تعدي هتفضل هنا.' : 'لسه مفيش رحلات في السجل.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+      for (final trip in rows) ..._oldTripCard(trip, canSeeNames),
+    ];
+  }
+
+  List<Widget> _oldTripCard(Map<String, dynamic> trip, bool canSeeNames) {
+    final people = _asMaps(trip['people'])
+      ..sort((a, b) => compareDisplayNames(shownName(a['name'], a['nameEn']), shownName(b['name'], b['nameEn'])));
+    final date = _formatDate(trip['startsOn']);
+    final when = date.isEmpty ? 'من غير تاريخ' : date;
+    final state = trip['past'] == true ? 'خلصت' : 'لسه جاية';
+    return [
+      _infoCard(
+        trip['past'] == true ? Icons.history : Icons.directions_bus_outlined,
+        (trip['title'] ?? 'رحلة').toString(),
+        '$state · $when · ${trip['price'] ?? 0} جنيه · ${people.length} حجز',
+      ),
+      if (canSeeNames && people.isEmpty)
+        Text('مفيش حجوزات اتحفظت على الرحلة دي', style: TextStyle(color: AppColors.textSecondary)),
+      if (canSeeNames)
+        for (final person in people)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(shownName(person['name'], person['nameEn']), style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Text(_bookingDetail(person)),
+          ),
+      if (!canSeeNames)
+        Text(
+          people.isEmpty ? 'ما حجزتش الرحلة دي' : _bookingDetail(people.first),
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+      const SizedBox(height: 8),
     ];
   }
 

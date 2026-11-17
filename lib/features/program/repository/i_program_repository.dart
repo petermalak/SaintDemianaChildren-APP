@@ -106,6 +106,7 @@ abstract class IProgramRepository {
   Future<Either<String, dynamic>> carryOver(String programId);
   Future<Either<String, dynamic>> yearClose(String programId, String serviceYear);
   Future<Either<String, dynamic>> myBookings(String programId);
+  Future<Either<String, dynamic>> tripLog(String programId);
   Future<Either<String, dynamic>> eventBookings(String eventId);
   Future<Either<String, dynamic>> markCashPaid(String bookingId);
   Future<Either<String, dynamic>> refundBooking(String bookingId);
