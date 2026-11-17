@@ -113,6 +113,7 @@ class ApiEndpoints {
       'programs/$programId/classes/$classId/members';
   static String programPointExemption(String programId, String userId) =>
       'programs/$programId/members/$userId/point-exemption';
+  static String programEvents(String programId) => 'programs/$programId/events';
   static String programEventBooking(String eventId) => 'programs/events/$eventId/bookings';
   static String programQuizzes(String programId) => 'programs/$programId/quizzes';
   static String programQuiz(String quizId) => 'programs/quizzes/$quizId';

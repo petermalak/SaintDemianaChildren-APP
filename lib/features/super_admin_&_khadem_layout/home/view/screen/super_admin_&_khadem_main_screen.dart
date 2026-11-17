@@ -10,6 +10,7 @@ import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/memb
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/model/class_model.dart';
 import 'package:saint_demiana_children/features/super_admin_&_khadem_layout/super_admin/class_management/repository/i_class_repository.dart';
 import '../../../../../core/constants/app_colors.dart';
+import '../../../../../core/locale/app_language.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/widgets/app_shell.dart';
 import '../../../../../core/widgets/role_guide_sheet.dart';
@@ -333,19 +334,20 @@ class _KhademMainScreenState extends State<KhademMainScreen>
   int get _tabCount => _tabItems().length;
 
   List<AppTabItem> _legacyTabs() {
+    final language = AppLanguage.instance;
     if (_isInMakhdoumMode) {
-      return const [
-        AppTabItem(icon: Icons.home_rounded, label: 'الرئيسية'),
-        AppTabItem(icon: Icons.event_note_rounded, label: 'الحضور'),
-        AppTabItem(icon: Icons.newspaper_rounded, label: 'الأخبار'),
-        AppTabItem(icon: Icons.emoji_events_rounded, label: 'التايو'),
+      return [
+        AppTabItem(icon: Icons.home_rounded, label: language.t('الرئيسية', 'Home')),
+        AppTabItem(icon: Icons.event_note_rounded, label: language.t('الحضور', 'Attendance')),
+        AppTabItem(icon: Icons.newspaper_rounded, label: language.t('الأخبار', 'News')),
+        AppTabItem(icon: Icons.emoji_events_rounded, label: language.t('التايو', 'Taio')),
       ];
     }
-    return const [
-      AppTabItem(icon: Icons.home_rounded, label: 'الرئيسية'),
-      AppTabItem(icon: Icons.people_rounded, label: 'الأعضاء'),
-      AppTabItem(icon: Icons.event_note_rounded, label: 'الحضور'),
-      AppTabItem(icon: Icons.grid_view_rounded, label: 'المزيد'),
+    return [
+      AppTabItem(icon: Icons.home_rounded, label: language.t('الرئيسية', 'Home')),
+      AppTabItem(icon: Icons.people_rounded, label: language.t('الأعضاء', 'Members')),
+      AppTabItem(icon: Icons.event_note_rounded, label: language.t('الحضور', 'Attendance')),
+      AppTabItem(icon: Icons.grid_view_rounded, label: language.t('المزيد', 'More')),
     ];
   }
 

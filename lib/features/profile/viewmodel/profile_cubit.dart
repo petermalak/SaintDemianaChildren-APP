@@ -9,9 +9,9 @@ class ProfileCubit extends Cubit<ProfileState> {
   ProfileCubit(this._profileRepository) : super(ProfileInitial());
   final IProfileRepository _profileRepository;
 
-  Future<void> updateProfile(UserModel user) async {
+  Future<void> updateProfile(UserModel user, {bool clearImage = false}) async {
     emit(ProfileLoading());
-    final result = await _profileRepository.updateProfile(user);
+    final result = await _profileRepository.updateProfile(user, clearImage: clearImage);
     result.fold(
       (failure) => emit(ProfileFailure(failure)),
       (_) => emit(ProfileSuccess()),

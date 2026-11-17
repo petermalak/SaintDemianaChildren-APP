@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:saint_demiana_children/features/makhdoum_layout/home/view/screen/home_screen.dart';
 import '../../../../../core/constants/app_colors.dart';
+import '../../../../../core/locale/app_language.dart';
 import '../../../../../core/di/service_locator.dart';
 import '../../../../../core/widgets/app_shell.dart';
 import '../../../../../core/widgets/role_guide_sheet.dart';
@@ -303,14 +304,15 @@ class _MakhdoumMainScreenState extends State<MakhdoumMainScreen>
   }
 
   List<AppTabItem> _legacyTabs() {
+    final language = AppLanguage.instance;
     return [
-      const AppTabItem(icon: Icons.home_rounded, label: 'الرئيسية'),
-      const AppTabItem(icon: Icons.event_note_rounded, label: 'الحضور'),
-      const AppTabItem(icon: Icons.newspaper_rounded, label: 'الأخبار'),
+      AppTabItem(icon: Icons.home_rounded, label: language.t('الرئيسية', 'Home')),
+      AppTabItem(icon: Icons.event_note_rounded, label: language.t('الحضور', 'Attendance')),
+      AppTabItem(icon: Icons.newspaper_rounded, label: language.t('الأخبار', 'News')),
       if (_selectedClassHasScoring)
-        const AppTabItem(icon: Icons.emoji_events_rounded, label: 'التايو'),
+        AppTabItem(icon: Icons.emoji_events_rounded, label: language.t('التايو', 'Taio')),
       if (_selectedClassHasShop)
-        const AppTabItem(icon: Icons.storefront_rounded, label: 'المتجر'),
+        AppTabItem(icon: Icons.storefront_rounded, label: language.t('المتجر', 'Shop')),
     ];
   }
 

@@ -159,7 +159,9 @@ class ApiService implements IApiService {
     return path.contains('members') ||
         path.contains('my-classes') ||
         path.contains('classes') ||
-        path.contains('attendance');
+        path.contains('attendance') ||
+        path.contains('/catalog') ||
+        path.contains('/qr');
   }
 
   bool _isBulkPayload(dynamic data) {

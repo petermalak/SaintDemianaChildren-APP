@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/di/service_locator.dart';
 import '../../../core/session/session_context.dart';
+import '../../../core/locale/app_language.dart';
+import '../../../core/utils/name_order.dart';
 import '../../../core/utils/role_helper.dart';
 import '../../../core/widgets/app_shell.dart';
 import '../../../core/widgets/custom_text_field.dart';
@@ -108,18 +110,19 @@ class ProgramWorkspace extends StatefulWidget {
   }
 
   static String _tabLabel(_Tab tab) {
+    final language = AppLanguage.instance;
     return switch (tab) {
-      _Tab.home => 'الرصيد',
-      _Tab.ledger => 'السجل',
-      _Tab.quiz => 'المسابقة',
-      _Tab.cashout => 'السحب',
-      _Tab.attendance => 'الاجتماع',
-      _Tab.followUp => 'الافتقاد',
-      _Tab.ranking => 'الترتيب',
-      _Tab.points => 'النقاط',
-      _Tab.budget => 'الميزانية',
-      _Tab.absences => 'الغياب',
-      _Tab.trips => 'الرحلات',
+      _Tab.home => language.t('الرصيد', 'Balance'),
+      _Tab.ledger => language.t('السجل', 'History'),
+      _Tab.quiz => language.t('المسابقة', 'Quiz'),
+      _Tab.cashout => language.t('السحب', 'Cash out'),
+      _Tab.attendance => language.t('الاجتماع', 'Meeting'),
+      _Tab.followUp => language.t('الافتقاد', 'Follow-up'),
+      _Tab.ranking => language.t('الترتيب', 'Ranking'),
+      _Tab.points => language.t('النقاط', 'Points'),
+      _Tab.budget => language.t('الميزانية', 'Budget'),
+      _Tab.absences => language.t('الغياب', 'Absence'),
+      _Tab.trips => language.t('الرحلات', 'Trips'),
     };
   }
 
@@ -147,9 +150,13 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
   final _programs = sl<IProgramRepository>();
   final _points = TextEditingController(text: '200');
   final _tripPoints = TextEditingController(text: '0');
+  final _tripTitle = TextEditingController();
+  final _tripPrice = TextEditingController();
+  DateTime? _tripStartsOn;
   final _reason = TextEditingController();
   final _year = TextEditingController();
   final _budgetSearch = TextEditingController();
+  final _nameSearch = TextEditingController();
   String? _budgetClassId;
   final Set<String> _tripMemberIds = {};
   final Map<String, TextEditingController> _settingInputs = {};
@@ -176,6 +183,9 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
     _budgetSearch.addListener(() {
       if (mounted) setState(() {});
     });
+    _nameSearch.addListener(() {
+      if (mounted) setState(() {});
+    });
     _load();
   }
 
@@ -196,9 +206,12 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
   void dispose() {
     _points.dispose();
     _tripPoints.dispose();
+    _tripTitle.dispose();
+    _tripPrice.dispose();
     _reason.dispose();
     _year.dispose();
     _budgetSearch.dispose();
+    _nameSearch.dispose();
     for (final input in _settingInputs.values) {
       input.dispose();
     }
@@ -240,10 +253,10 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
     final result = await _programs.classMembers(_program.id, classId);
     if (!mounted) return;
     result.fold((_) {}, (data) {
-      final kids = _asMaps(data);
+      final kids = _asMaps(data)..sort((a, b) => compareDisplayNames('${a['name']}', '${b['name']}'));
       final members = kids.map((row) {
         final exempt = row['pointMinimumExempt'] == true;
-        final name = (row['name'] ?? 'بدون اسم').toString();
+        final name = shownName(row['name'], row['nameEn'], fallback: 'بدون اسم');
         return _Choice(row['id'].toString(), exempt ? '$name · معفى' : name, exempt: exempt);
       }).toList();
       setState(() {
@@ -301,6 +314,15 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
     } else if (tab == _Tab.absences || tab == _Tab.followUp) {
       await _fill(_programs.absences(_program.id));
     } else if (tab == _Tab.trips) {
+      final catalog = await _programs.catalog(_program.id);
+      if (!mounted) return;
+      catalog.fold((_) {}, (data) {
+        if (data is Map) {
+          _catalog = Map<String, dynamic>.from(data);
+          _eventId ??= _events.isEmpty ? null : _events.first['id']?.toString();
+        }
+      });
+      if (mounted) setState(() {});
       await _loadBookings();
     }
   }
@@ -319,13 +341,15 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
     final fromCatalog = _asMaps(_catalog['classes'])
         .map((row) => _Choice(row['id'].toString(), (row['name'] ?? 'فصل').toString()))
         .where((row) => _program.classIds == null || _program.classIds!.contains(row.id))
-        .toList();
+        .toList()
+      ..sort((a, b) => compareDisplayNames(a.label, b.label));
     if (fromCatalog.isNotEmpty) return fromCatalog;
     final user = sl<IProfileRepository>().user;
     return (user?.classes ?? const <UserClassInfo>[])
         .where((row) => _program.classIds == null || _program.classIds!.contains(row.classId))
         .map((row) => _Choice(row.classId, row.className ?? 'فصل'))
-        .toList();
+        .toList()
+      ..sort((a, b) => compareDisplayNames(a.label, b.label));
   }
 
   List<_Choice> get _rules {
@@ -385,7 +409,6 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
     final user = sl<IProfileRepository>().user;
     final qr = _summary['qr'];
     final token = qr is Map ? qr['token']?.toString() : null;
-    final expires = qr is Map ? int.tryParse('${qr['expiresIn']}') ?? 45 : 45;
     final notices = _asMaps(_summary['notices']);
     return [
       _hero(
@@ -406,7 +429,7 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
       ],
       if (_featureOn('qr') && _role != 'score' && _role != 'class' && _role != 'amin' && token != null) ...[
         const SizedBox(height: 12),
-        ProgramQrCard(programId: _program.id, programs: _programs, initialToken: token, expiresIn: expires),
+        ProgramQrCard(programId: _program.id, programs: _programs, initialToken: token),
       ],
       if (notices.isNotEmpty) ...[
         const SizedBox(height: 12),
@@ -459,12 +482,18 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
 
   List<Widget> _followUp() {
     return [
-      _picker('الفصل', _classes, _classId, (value) {
-        setState(() => _classId = value);
-        if (value != null) _loadMembers(value);
-      }),
-      const SizedBox(height: 12),
-      _picker('المخدوم', _members, _memberId, (value) => setState(() => _memberId = value)),
+      if (_classes.length > 1) ...[
+        _choiceChips(_classes, _classId, (id) {
+          setState(() => _classId = id);
+          _loadMembers(id);
+        }),
+        const SizedBox(height: 12),
+      ],
+      _nameSearchField(),
+      _personChoices(
+        selectedId: _memberId,
+        onPick: (person) => setState(() => _memberId = person.id),
+      ),
       if (_memberId != null && (_role == 'class' || _role == 'amin')) ...[
         const SizedBox(height: 4),
         CheckboxListTile(
@@ -531,10 +560,117 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
     }
   }
 
+  Future<void> _pickTripDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _tripStartsOn ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 730)),
+    );
+    if (picked != null && mounted) setState(() => _tripStartsOn = picked);
+  }
+
+  Future<void> _createTrip() async {
+    final title = _tripTitle.text.trim();
+    if (title.isEmpty) {
+      _toast('اكتب اسم الرحلة');
+      return;
+    }
+    final rawPrice = _tripPrice.text.trim();
+    final price = int.tryParse(rawPrice);
+    if (rawPrice.isEmpty || price == null || price < 0) {
+      _toast('اكتب سعر الرحلة بالجنيه');
+      return;
+    }
+    await _run(
+      _programs.createEvent(_program.id, title: title, price: price, startsOn: _tripStartsOn),
+      done: 'الرحلة ظهرت للمخدومين',
+      onSuccess: (_) {
+        _tripTitle.clear();
+        _tripPrice.clear();
+        _tripStartsOn = null;
+      },
+    );
+  }
+
+  List<Widget> _newTripForm() {
+    final date = _tripStartsOn == null ? 'اختياري' : _formatDate(_tripStartsOn);
+    return [
+      const Text('رحلة جديدة', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textPrimary)),
+      const SizedBox(height: 8),
+      Text(
+        'اكتب الاسم والسعر. الرحلة تظهر للمخدومين، وخادم الفصل يحجز الأولاد.',
+        style: TextStyle(color: AppColors.textSecondary),
+      ),
+      const SizedBox(height: 12),
+      CustomTextField(
+        controller: _tripTitle,
+        labelText: 'اسم الرحلة',
+        prefixIcon: Icons.directions_bus_outlined,
+      ),
+      const SizedBox(height: 8),
+      CustomTextField(
+        controller: _tripPrice,
+        labelText: 'السعر بالجنيه',
+        prefixIcon: Icons.payments_outlined,
+        keyboardType: TextInputType.number,
+      ),
+      const SizedBox(height: 8),
+      OutlinedButton(
+        onPressed: _busy ? null : _pickTripDate,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primaryMaroon,
+          side: BorderSide(color: AppColors.borderLight),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        ),
+        child: Text('تاريخ الرحلة: $date'),
+      ),
+      const SizedBox(height: 12),
+      SubmitButton(text: 'تظهر للمخدومين', onPressed: _busy ? () {} : _createTrip),
+    ];
+  }
+
+  List<Widget> _memberTrips() {
+    if (_events.isEmpty) return [_empty('لسه مفيش رحلات')];
+    return [
+      for (final event in _events) ...[
+        _infoCard(
+          Icons.directions_bus_outlined,
+          (event['title'] ?? 'رحلة').toString(),
+          _memberTripLine(event),
+        ),
+        const SizedBox(height: 8),
+      ],
+    ];
+  }
+
+  String _memberTripLine(Map<String, dynamic> event) {
+    final price = int.tryParse('${event['price']}') ?? 0;
+    final percent = int.tryParse('${event['minPointPercent']}') ?? 25;
+    final minimum = ((price * percent) / 100).ceil();
+    final date = _formatDate(event['startsOn']);
+    final when = date.isEmpty ? 'التاريخ لسه' : date;
+    Map<String, dynamic>? booking;
+    for (final row in _rows) {
+      if (row['eventId']?.toString() == event['id']?.toString()) {
+        booking = row;
+        break;
+      }
+    }
+    final status = booking == null ? 'لسه متتحجزش. خادم الفصل هو اللي يحجزلك.' : _bookingDetail(booking);
+    return '$when · $price جنيه · من التوكن $minimum نقطة. $status';
+  }
+
   List<Widget> _trips() {
-    if (_role != 'class' && _role != 'amin') return _bookingCards();
+    if (_role != 'class' && _role != 'amin') return _memberTrips();
     final event = _selectedEvent;
-    if (event == null) return [_empty('لسه مفيش رحلات')];
+    if (event == null) {
+      return [
+        if (_role == 'amin') ..._newTripForm(),
+        if (_role != 'amin')
+          _empty('لسه مفيش رحلات. أمين الخدمة يضيف الرحلة، وبعدها تظهر هنا وعند المخدومين.'),
+      ];
+    }
     final price = int.tryParse('${event['price']}') ?? 0;
     final percent = int.tryParse('${event['minPointPercent']}') ?? 25;
     final minimum = ((price * percent) / 100).ceil();
@@ -547,6 +683,10 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
         _Choice(row['id'].toString(), '${row['title']} · ${row['price']} جنيه'),
     ];
     return [
+      if (_role == 'amin') ...[
+        ..._newTripForm(),
+        const SizedBox(height: 20),
+      ],
       _infoCard(Icons.directions_bus_outlined, 'حجز الرحلة', 'خادم الفصل يختار الأولاد. الشرط $percent% من السعر، يعني $minimum نقطة. المتبقي كاش. $ruleText'),
       const SizedBox(height: 12),
       _picker('الرحلة', choices, _eventId ?? event['id']?.toString(), (value) {
@@ -554,34 +694,18 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
         _loadBookings();
       }),
       const SizedBox(height: 12),
-      _picker('الفصل', _classes, _classId, (value) {
-        setState(() {
-          _classId = value;
-          _tripMemberIds.clear();
-        });
-        if (value != null) _loadMembers(value);
-      }),
+      if (_classes.length > 1)
+        _choiceChips(_classes, _classId, (id) {
+          setState(() {
+            _classId = id;
+            _tripMemberIds.clear();
+          });
+          _loadMembers(id);
+        }),
       const SizedBox(height: 8),
-      if (_members.isEmpty)
-        _empty('مفيش أولاد في الفصل')
-      else
-        for (final member in _members)
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            controlAffinity: ListTileControlAffinity.leading,
-            value: _tripMemberIds.contains(member.id),
-            onChanged: _busy
-                ? null
-                : (value) => setState(() {
-                      if (value == true) {
-                        _tripMemberIds.add(member.id);
-                      } else {
-                        _tripMemberIds.remove(member.id);
-                      }
-                    }),
-            title: Text(member.label),
-            subtitle: Text(member.exempt ? 'معفى من شرط الـ $percent%' : 'مطلوب $minimum نقطة على الأقل'),
-          ),
+      _nameSearchField(),
+      const SizedBox(height: 8),
+      ..._tripRows(percent, minimum),
       const SizedBox(height: 8),
       CustomTextField(
         controller: _tripPoints,
@@ -600,6 +724,41 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
     ];
   }
 
+  List<Widget> _tripRows(int percent, int minimum) {
+    final searching = _nameSearch.text.trim().isNotEmpty;
+    final rows = searching
+        ? _filteredMembers.take(8).toList()
+        : _members.where((row) => _tripMemberIds.contains(row.id)).toList();
+    return [
+      Text(
+        searching
+            ? 'علّم على الاسم'
+            : _tripMemberIds.isEmpty
+                ? 'اكتب الاسم وعلّم عليه'
+                : 'المختارين ${_tripMemberIds.length}',
+        style: TextStyle(color: AppColors.textSecondary),
+      ),
+      if (searching && rows.isEmpty) _empty('مفيش اسم مطابق'),
+      for (final member in rows)
+        CheckboxListTile(
+          contentPadding: EdgeInsets.zero,
+          controlAffinity: ListTileControlAffinity.leading,
+          value: _tripMemberIds.contains(member.id),
+          onChanged: _busy
+              ? null
+              : (value) => setState(() {
+                    if (value == true) {
+                      _tripMemberIds.add(member.id);
+                    } else {
+                      _tripMemberIds.remove(member.id);
+                    }
+                  }),
+          title: Text(member.label),
+          subtitle: Text(member.exempt ? 'معفى من شرط الـ $percent%' : 'مطلوب $minimum نقطة على الأقل'),
+        ),
+    ];
+  }
+
   Future<void> _setExemption(bool exempt) async {
     final memberId = _memberId;
     if (memberId == null) return;
@@ -609,18 +768,106 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
     );
   }
 
+  List<_Choice> get _filteredMembers =>
+      _members.where((row) => nameMatches(row.label, _nameSearch.text)).toList();
+
+  Widget _nameSearchField() {
+    return CustomTextField(
+      controller: _nameSearch,
+      labelText: 'بحث بالاسم',
+      prefixIcon: Icons.search,
+    );
+  }
+
+  Widget _choiceChips(List<_Choice> options, String? selected, ValueChanged<String> onPick) {
+    if (options.isEmpty) {
+      return Text('القائمة بتحمّل', style: TextStyle(color: AppColors.textSecondary));
+    }
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final option in options)
+          ChoiceChip(
+            label: Text(option.label),
+            selected: option.id == selected,
+            selectedColor: AppColors.primaryMaroon,
+            labelStyle: TextStyle(
+              color: option.id == selected ? Colors.white : AppColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+            onSelected: _busy ? null : (_) => onPick(option.id),
+          ),
+      ],
+    );
+  }
+
+  Widget _personChoices({required void Function(_Choice person) onPick, String? selectedId}) {
+    final query = _nameSearch.text.trim();
+    if (query.isEmpty) {
+      final selected = _members.where((row) => row.id == selectedId);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (selected.isNotEmpty)
+            Text(selected.first.label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text('اكتب الاسم واضغط عليه', style: TextStyle(color: AppColors.textSecondary)),
+        ],
+      );
+    }
+    final rows = _filteredMembers.take(8).toList();
+    if (rows.isEmpty) {
+      return Text('مفيش اسم مطابق', style: TextStyle(color: AppColors.textSecondary));
+    }
+    return Column(
+      children: [
+        for (final person in rows)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            selected: person.id == selectedId,
+            title: Text(person.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+            trailing: Icon(
+              person.id == selectedId ? Icons.check_circle : Icons.chevron_left,
+              color: AppColors.primaryMaroon,
+            ),
+            onTap: _busy ? null : () => onPick(person),
+          ),
+      ],
+    );
+  }
+
+  void _award(_Choice person) {
+    final classId = _classId;
+    final rule = _ruleCode;
+    if (classId == null || rule == null || rule.isEmpty) {
+      _toast('اختَر البند');
+      return;
+    }
+    _run(
+      _programs.recordPoints(_program.id, ruleCode: rule, classId: classId, userId: person.id),
+      done: 'اتسجل ${person.label.split('·').first.trim()}',
+      onSuccess: (_) => _nameSearch.clear(),
+    );
+  }
+
   List<Widget> _pointsForm() {
     return [
-      _picker('البند', _rules, _ruleCode, (value) => setState(() => _ruleCode = value)),
-      const SizedBox(height: 12),
-      _picker('الفصل', _classes, _classId, (value) {
-        setState(() => _classId = value);
-        if (value != null) _loadMembers(value);
-      }),
-      const SizedBox(height: 12),
-      _picker('الاسم', _members, _memberId, (value) => setState(() => _memberId = value)),
+      const Text('البند', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      const SizedBox(height: 8),
+      _choiceChips(_rules, _ruleCode, (id) => setState(() => _ruleCode = id)),
+      if (_classes.length > 1) ...[
+        const SizedBox(height: 16),
+        const Text('الفصل', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        const SizedBox(height: 8),
+        _choiceChips(_classes, _classId, (id) {
+          setState(() => _classId = id);
+          _loadMembers(id);
+        }),
+      ],
       const SizedBox(height: 16),
-      SubmitButton(text: 'تسجيل البند', onPressed: _busy ? () {} : _recordPoints),
+      _nameSearchField(),
+      const SizedBox(height: 4),
+      _personChoices(onPick: _award),
     ];
   }
 
@@ -741,11 +988,13 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
 
   List<Widget> _namedRows(String empty) {
     if (_rows.isEmpty) return [_empty(empty)];
+    final rows = List<Map<String, dynamic>>.from(_rows)
+      ..sort((a, b) => compareDisplayNames('${a['name'] ?? a['title']}', '${b['name'] ?? b['title']}'));
     return [
-      for (final row in _rows) ...[
+      for (final row in rows) ...[
         _infoCard(
           Icons.person_outline,
-          (row['name'] ?? row['title'] ?? 'عنصر').toString(),
+          shownName(row['name'], row['nameEn'], fallback: 'عنصر'),
           _rowDetail(row),
           trailing: row['points']?.toString() ?? row['average']?.toString(),
         ),
@@ -921,7 +1170,7 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
       for (final kid in _kids) ...[
         _infoCard(
           Icons.child_care_outlined,
-          (kid['name'] ?? 'مخدوم').toString(),
+          shownName(kid['name'], kid['nameEn']),
           'آخر حضور ${_formatDate(kid['lastAttendance'])} · غياب ${kid['missedWeeks'] ?? 0} أسبوع${kid['phoneNumber'] == null ? '' : ' · ${kid['phoneNumber']}'}',
           trailing: '${kid['points'] ?? 0}',
         ),
@@ -936,8 +1185,8 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
       for (final row in _rows) ...[
         _infoCard(Icons.groups_outlined, (row['name'] ?? 'فصل').toString(), 'متوسط الفصل', trailing: '${row['average'] ?? 0}'),
         const SizedBox(height: 8),
-        for (final person in _asMaps(row['people'])) ...[
-          _infoCard(Icons.person_outline, (person['name'] ?? 'مخدوم').toString(), 'ترتيب الأفراد', trailing: '${person['points'] ?? 0}'),
+        for (final person in (_asMaps(row['people'])..sort((a, b) => compareDisplayNames('${a['name']}', '${b['name']}')))) ...[
+          _infoCard(Icons.person_outline, shownName(person['name'], person['nameEn']), 'ترتيب الأفراد', trailing: '${person['points'] ?? 0}'),
           const SizedBox(height: 8),
         ],
       ],
@@ -951,7 +1200,7 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
       for (final row in _rows) ...[
         _infoCard(
           Icons.event_seat_outlined,
-          (row['name'] ?? row['title'] ?? 'حجز').toString(),
+          shownName(row['name'] ?? row['title'], row['nameEn'], fallback: 'حجز'),
           _bookingDetail(row),
           trailing: '${row['points'] ?? 0}',
         ),
@@ -996,7 +1245,7 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
       for (final row in _rows) ...[
         _infoCard(
           Icons.payments_outlined,
-          (row['name'] ?? 'طلب').toString(),
+          shownName(row['name'], row['nameEn'], fallback: 'طلب'),
           _statusLabel('${row['status']}'),
           trailing: '${row['points'] ?? 0}',
         ),
@@ -1020,7 +1269,8 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
 
   List<Widget> _absenceCards() {
     final all = _asMaps(_report['longAbsence']);
-    final rows = all.where(_budgetRowMatches).toList();
+    final rows = all.where(_budgetRowMatches).toList()
+      ..sort((a, b) => compareDisplayNames('${a['name']}', '${b['name']}'));
     if (rows.isEmpty) {
       return [
         _infoCard(
@@ -1035,7 +1285,7 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
       for (final row in rows) ...[
         _infoCard(
           Icons.person_off_outlined,
-          (row['name'] ?? 'مخدوم').toString(),
+          shownName(row['name'], row['nameEn']),
           '${_className(row['classId'])} · غايب ${row['missed'] ?? 0} أسابيع',
         ),
         const SizedBox(height: 12),
@@ -1044,7 +1294,8 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
   }
 
   List<Widget> _servantCards() {
-    final rows = _asMaps(_report['servants']).where(_budgetRowMatches).toList();
+    final rows = _asMaps(_report['servants']).where(_budgetRowMatches).toList()
+      ..sort((a, b) => compareDisplayNames('${a['name']}', '${b['name']}'));
     if (rows.isEmpty) {
       if (!_budgetFilterOn) return const [];
       return [
@@ -1057,7 +1308,7 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
     final byClass = <String, List<String>>{};
     for (final row in rows) {
       final className = (row['className'] ?? _className(row['classId'])).toString();
-      final name = (row['name'] ?? 'خادم').toString();
+      final name = shownName(row['name'], row['nameEn'], fallback: 'خادم');
       byClass.putIfAbsent(className, () => []).add(name);
     }
     final names = byClass.keys.toList()..sort();
@@ -1077,7 +1328,9 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
     if (_budgetClassId != null && row['classId']?.toString() != _budgetClassId) return false;
     final query = _budgetSearch.text.trim();
     if (query.isEmpty) return true;
-    return (row['name'] ?? '').toString().contains(query);
+    final arabic = (row['name'] ?? '').toString();
+    final english = (row['nameEn'] ?? '').toString();
+    return nameMatches('$arabic $english', query);
   }
 
   Map<String, String> get _classNames => {
@@ -1237,20 +1490,6 @@ class _ProgramWorkspaceState extends State<ProgramWorkspace> {
     );
   }
 
-  void _recordPoints() {
-    final classId = _classId;
-    final memberId = _memberId;
-    final rule = _ruleCode;
-    if (classId == null || memberId == null || rule == null || rule.isEmpty) {
-      _toast('اختَر البند والفصل والاسم');
-      return;
-    }
-    _run(
-      _programs.recordPoints(_program.id, ruleCode: rule, classId: classId, userId: memberId),
-      done: 'تم تسجيل البند',
-    );
-  }
-
   Future<void> _previewYear() async {
     final result = await _programs.yearClosePreview(_program.id);
     if (!mounted) return;
@@ -1314,7 +1553,7 @@ const _settingGroups = <(String, Map<String, String>)>[
   ('الالتزام والرمز', {
     'commitmentMonthlyPoints': 'نقاط الالتزام',
     'commitmentWeeks': 'أسابيع الالتزام في الشهر',
-    'qrRotateSeconds': 'تجديد الرمز بالثواني',
+    'qrLifetimeHours': 'صلاحية الرمز بالساعات',
   }),
 ];
 

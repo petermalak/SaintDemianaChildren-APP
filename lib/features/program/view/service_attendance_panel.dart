@@ -7,6 +7,7 @@ import '../../../core/di/service_locator.dart';
 import '../../../core/widgets/custom_text_field.dart';
 import '../../../core/widgets/loading_button.dart';
 import '../../authentication/model/user_model.dart';
+import '../../../core/utils/name_order.dart';
 import '../repository/i_program_repository.dart';
 import 'program_scanner.dart';
 
@@ -33,12 +34,11 @@ class _Choice {
 
 class _ServiceAttendancePanelState extends State<ServiceAttendancePanel> {
   final _programs = sl<IProgramRepository>();
-  final _reason = TextEditingController();
+  final _memberSearch = TextEditingController();
   final _search = TextEditingController();
   List<_Choice> _types = const [];
   List<_Choice> _members = const [];
   String? _typeId;
-  String? _memberId;
   String? _historyTypeId;
   String _way = 'all';
   late DateTime _from;
@@ -57,6 +57,9 @@ class _ServiceAttendancePanelState extends State<ServiceAttendancePanel> {
     _to = DateTime(today.year, today.month, today.day);
     _from = DateTime(today.year, today.month, 1);
     _search.addListener(_scheduleHistory);
+    _memberSearch.addListener(() {
+      if (mounted) setState(() {});
+    });
     _load();
   }
 
@@ -64,7 +67,6 @@ class _ServiceAttendancePanelState extends State<ServiceAttendancePanel> {
   void didUpdateWidget(covariant ServiceAttendancePanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.classId != widget.classId || oldWidget.program.id != widget.program.id) {
-      _memberId = null;
       _load();
     }
   }
@@ -73,7 +75,7 @@ class _ServiceAttendancePanelState extends State<ServiceAttendancePanel> {
   void dispose() {
     _searchTimer?.cancel();
     _search.removeListener(_scheduleHistory);
-    _reason.dispose();
+    _memberSearch.dispose();
     _search.dispose();
     super.dispose();
   }
@@ -98,10 +100,10 @@ class _ServiceAttendancePanelState extends State<ServiceAttendancePanel> {
         final rows = data is List ? data.whereType<Map>() : const <Map>[];
         _members = rows.map((row) {
           final exempt = row['pointMinimumExempt'] == true;
-          final name = (row['name'] ?? 'بدون اسم').toString();
+          final name = shownName(row['name'], row['nameEn'], fallback: 'بدون اسم');
           return _Choice(row['id'].toString(), exempt ? '$name · معفى' : name);
-        }).toList();
-        _memberId = _members.any((row) => row.id == _memberId) ? _memberId : null;
+        }).toList()
+          ..sort((a, b) => compareDisplayNames(a.label, b.label));
       });
     });
     await _loadHistory();
@@ -177,32 +179,56 @@ class _ServiceAttendancePanelState extends State<ServiceAttendancePanel> {
   Future<void> _scan() async {
     final typeId = _typeId;
     if (!_ready() || typeId == null) return;
-    final token = await showProgramScanner(context);
-    if (token == null || !mounted) return;
-    await _run(
-      _programs.scanQr(widget.program.id, classId: widget.classId, attendanceTypeId: typeId, token: token),
-      'تم المسح',
-    );
+    await showProgramScanner(context, onCode: (token) async {
+      final result = await _programs.scanQr(
+        widget.program.id,
+        classId: widget.classId,
+        attendanceTypeId: typeId,
+        token: token,
+      );
+      if (!mounted) return '';
+      return result.fold((error) => error, (data) {
+        if (data is Map && data['queued'] == true) {
+          return (data['message'] ?? 'اتحفظ المسح على الجهاز وهيتبعت لما النت يرجع').toString();
+        }
+        _loadHistory();
+        return 'تم المسح';
+      });
+    });
   }
 
-  void _manual() {
+  Future<void> _askManual(_Choice person) async {
     final typeId = _typeId;
-    final memberId = _memberId;
     if (!_ready() || typeId == null) return;
-    if (memberId == null || _reason.text.trim().isEmpty) {
-      _toast('اختَر المخدوم واكتب سبب التسجيل');
+    final reason = TextEditingController();
+    final text = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(person.label),
+        content: CustomTextField(controller: reason, labelText: 'سبب التسجيل', prefixIcon: Icons.edit_outlined),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('إلغاء')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, reason.text.trim()), child: const Text('تسجيل')),
+        ],
+      ),
+    );
+    reason.dispose();
+    if (!mounted || text == null) return;
+    if (text.isEmpty) {
+      _toast('اكتب سبب التسجيل');
       return;
     }
-    _run(
+    await _run(
       _programs.manualScan(
         widget.program.id,
         classId: widget.classId,
         attendanceTypeId: typeId,
-        userId: memberId,
-        reason: _reason.text.trim(),
+        userId: person.id,
+        reason: text,
       ),
       'تم التسجيل',
     );
+    _memberSearch.clear();
   }
 
   Future<void> _pickDate({required bool from}) async {
@@ -249,14 +275,64 @@ class _ServiceAttendancePanelState extends State<ServiceAttendancePanel> {
     return '${local.day}/${local.month}/${local.year} · $hour:$minute';
   }
 
+  List<_Choice> get _visibleMembers =>
+      _members.where((row) => nameMatches(row.label, _memberSearch.text)).toList();
+
+  Widget _typeChips() {
+    if (_types.isEmpty) {
+      return Text('أنواع الحضور بتحمّل', style: TextStyle(color: AppColors.textSecondary));
+    }
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final type in _types)
+          ChoiceChip(
+            label: Text(type.label),
+            selected: type.id == _typeId,
+            selectedColor: AppColors.primaryMaroon,
+            labelStyle: TextStyle(
+              color: type.id == _typeId ? Colors.white : AppColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+            onSelected: _busy ? null : (_) => setState(() => _typeId = type.id),
+          ),
+      ],
+    );
+  }
+
+  Widget _manualMatches() {
+    final query = _memberSearch.text.trim();
+    if (query.isEmpty) {
+      return Text('لو الرمز مش معاه، اكتب اسمه واضغط عليه.', style: TextStyle(color: AppColors.textSecondary));
+    }
+    final rows = _visibleMembers.take(8).toList();
+    if (rows.isEmpty) {
+      return Text('مفيش اسم مطابق', style: TextStyle(color: AppColors.textSecondary));
+    }
+    return Column(
+      children: [
+        for (final person in rows)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(person.label, style: const TextStyle(fontWeight: FontWeight.w600)),
+            trailing: const Icon(Icons.how_to_reg_outlined, color: AppColors.primaryMaroon),
+            onTap: _busy ? null : () => _askManual(person),
+          ),
+      ],
+    );
+  }
+
   Widget _picker(String label, List<_Choice> options, String? value, ValueChanged<String?> onChanged) {
     if (options.isEmpty) {
-      return Text('القائمة بتحمّل', style: TextStyle(color: AppColors.textSecondary));
+      final message = label == 'المخدوم' && _members.isNotEmpty ? 'مفيش اسم مطابق' : 'القائمة بتحمّل';
+      return Text(message, style: TextStyle(color: AppColors.textSecondary));
     }
-    final selected = options.any((row) => row.id == value) ? value : options.first.id;
+    final known = value != null && options.any((row) => row.id == value);
     return DropdownButtonFormField<String>(
-      value: selected,
+      value: known ? value : null,
       isExpanded: true,
+      hint: Text(label),
       decoration: InputDecoration(
         labelText: label,
         filled: true,
@@ -264,7 +340,7 @@ class _ServiceAttendancePanelState extends State<ServiceAttendancePanel> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
       ),
       items: [for (final option in options) DropdownMenuItem(value: option.id, child: Text(option.label))],
-      onChanged: options.isEmpty || _busy ? null : onChanged,
+      onChanged: _busy ? null : onChanged,
     );
   }
 
@@ -303,7 +379,7 @@ class _ServiceAttendancePanelState extends State<ServiceAttendancePanel> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  (row['name'] ?? 'بدون اسم').toString(),
+                  shownName(row['name'], row['nameEn']),
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
                 ),
                 Text(detail.toString(), style: TextStyle(color: AppColors.textSecondary)),
@@ -329,23 +405,27 @@ class _ServiceAttendancePanelState extends State<ServiceAttendancePanel> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _picker('نوع الحضور', _types, _typeId, (value) => setState(() => _typeId = value)),
+        _typeChips(),
         const SizedBox(height: 16),
         SubmitButton(text: 'مسح الرمز', onPressed: _busy ? () {} : _scan),
-        const SizedBox(height: 20),
-        _picker('المخدوم', _members, _memberId, (value) => setState(() => _memberId = value)),
-        const SizedBox(height: 12),
-        CustomTextField(controller: _reason, labelText: 'سبب التسجيل اليدوي', prefixIcon: Icons.edit_outlined),
         const SizedBox(height: 16),
-        SubmitButton(text: 'تسجيل يدوي', onPressed: _busy ? () {} : _manual),
+        CustomTextField(
+          controller: _memberSearch,
+          labelText: 'تسجيل يدوي بالاسم',
+          prefixIcon: Icons.search,
+        ),
+        const SizedBox(height: 8),
+        _manualMatches(),
         const SizedBox(height: 8),
         Text(
-          'كل مخدوم يتسجل مرة في اليوم للنوع ده. لو النت قاطع، المسح بيتسجل على الجهاز ويتبعت لوحده.',
+          'كل مخدوم يتسجل مرة في اليوم. لو النت قاطع، المسح يتبعت لما النت يرجع.',
           style: TextStyle(color: AppColors.textSecondary),
         ),
-        const SizedBox(height: 28),
-        const Text('سجل الحضور', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textPrimary)),
         const SizedBox(height: 12),
+        ExpansionTile(
+          tilePadding: EdgeInsets.zero,
+          title: const Text('سجل الحضور', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.textPrimary)),
+          children: [
         _picker('نوع السجل', historyTypes, _historyTypeId ?? '', (value) {
           setState(() => _historyTypeId = (value == null || value.isEmpty) ? null : value);
           _loadHistory();
@@ -424,6 +504,8 @@ class _ServiceAttendancePanelState extends State<ServiceAttendancePanel> {
           const SizedBox(height: 12),
           for (final row in _history) _historyCard(row),
         ],
+        ],
+      ),
       ],
     );
   }

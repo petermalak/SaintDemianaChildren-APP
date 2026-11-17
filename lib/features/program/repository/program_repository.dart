@@ -147,6 +147,23 @@ class ProgramRepository implements IProgramRepository {
   }
 
   @override
+  Future<Either<String, dynamic>> createEvent(
+    String programId, {
+    required String title,
+    required int price,
+    DateTime? startsOn,
+  }) {
+    final date = startsOn == null
+        ? null
+        : '${startsOn.year.toString().padLeft(4, '0')}-${startsOn.month.toString().padLeft(2, '0')}-${startsOn.day.toString().padLeft(2, '0')}';
+    return _post(ApiEndpoints.programEvents(programId), {
+      'title': title,
+      'price': price,
+      'startsOn': date,
+    });
+  }
+
+  @override
   Future<Either<String, dynamic>> bookEvent(
     String eventId, {
     required String userId,
@@ -277,6 +294,11 @@ class ProgramRepository implements IProgramRepository {
   @override
   Future<Either<String, dynamic>> deleteAccount(String confirmation) =>
       _post(ApiEndpoints.programDeleteAccount, {'confirmation': confirmation});
+
+  @override
+  Future<Either<String, dynamic>> saveProfileFields(String programId, Map<String, String> fields) {
+    return _request(() => _api.patch(path: '${ApiEndpoints.programMe(programId)}/profile', body: {'fields': fields}));
+  }
 
   Future<Either<String, dynamic>> _get(String path) => _request(() => _api.get(path: path));
 

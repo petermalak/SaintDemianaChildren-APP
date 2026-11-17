@@ -1,4 +1,4 @@
-import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -10,14 +10,12 @@ class ProgramQrCard extends StatefulWidget {
   final String programId;
   final IProgramRepository programs;
   final String? initialToken;
-  final int expiresIn;
 
   const ProgramQrCard({
     super.key,
     required this.programId,
     required this.programs,
     this.initialToken,
-    this.expiresIn = 45,
   });
 
   @override
@@ -25,50 +23,53 @@ class ProgramQrCard extends StatefulWidget {
 }
 
 class _ProgramQrCardState extends State<ProgramQrCard> {
-  Timer? _timer;
   String? _token;
-  int _seconds = 45;
+  var _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _token = widget.initialToken;
-    _seconds = widget.expiresIn.clamp(30, 60).toInt();
-    _schedule();
+    _token = _usable(widget.initialToken);
+    _loading = _token == null;
+    _refresh();
   }
 
   @override
   void didUpdateWidget(covariant ProgramQrCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.programId != widget.programId) {
-      _token = widget.initialToken;
+      _token = _usable(widget.initialToken);
       _refresh();
     }
   }
 
-  void _schedule() {
-    _timer?.cancel();
-    _timer = Timer.periodic(Duration(seconds: _seconds), (_) => _refresh());
+  String? _usable(String? token) {
+    if (token == null || token.isEmpty) return null;
+    final parts = token.split('.');
+    if (parts.length != 2) return token;
+    try {
+      final body = utf8.decode(base64Url.decode(base64Url.normalize(parts[0])));
+      final payload = jsonDecode(body);
+      final exp = payload is Map ? payload['exp'] : null;
+      if (exp is num && DateTime.now().millisecondsSinceEpoch > exp) return null;
+    } catch (_) {
+      return token;
+    }
+    return token;
   }
 
   Future<void> _refresh() async {
     final result = await widget.programs.freshQr(widget.programId);
     if (!mounted) return;
-    result.fold((_) {}, (data) {
-      if (data is! Map || data['token'] == null) return;
-      final seconds = int.tryParse('${data['expiresIn']}') ?? _seconds;
+    result.fold((_) {
+      setState(() => _loading = false);
+    }, (data) {
+      final next = data is Map ? _usable(data['token']?.toString()) : null;
       setState(() {
-        _token = data['token'].toString();
-        _seconds = seconds.clamp(30, 60).toInt();
+        if (next != null) _token = next;
+        _loading = false;
       });
-      _schedule();
     });
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
   }
 
   @override
@@ -85,16 +86,21 @@ class _ProgramQrCardState extends State<ProgramQrCard> {
         children: [
           const Text('رمز الحضور', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
           const SizedBox(height: 8),
-          if (token == null)
-            const Text('الرمز بيتجهز')
-          else
+          if (token != null)
             QrImageView(
               data: token,
-              size: 180,
+              size: 220,
               backgroundColor: Colors.white,
+            )
+          else if (_loading)
+            const Text('الرمز بيتجهز')
+          else
+            const Text(
+              'الرمز هيظهر أول ما تفتح الصفحة والنت موجود. بعد كده يفضل ظاهر من غير نت.',
+              textAlign: TextAlign.center,
             ),
           const SizedBox(height: 8),
-          Text('بيتجدد كل $_seconds ثانية', style: TextStyle(color: AppColors.textSecondary)),
+          const Text('أظهره لخادم الفصل عشان يسجل حضورك', textAlign: TextAlign.center),
         ],
       ),
     );

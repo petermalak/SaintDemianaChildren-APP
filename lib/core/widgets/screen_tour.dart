@@ -191,11 +191,15 @@ TourStep tourStepFor(String label, {required String? programRole}) {
   final servant = role == 'class' || role == 'amin';
   final publisher = role == 'score' || role == 'class' || role == 'amin';
   return switch (label) {
-    'الرئيسية' => const TourStep(
+    'الرئيسية' => TourStep(
         title: 'الرئيسية',
-        summary: 'ملخص اليوم. صورة الحساب فوق تفتح الملف، وتبديل الدور، والخروج.',
+        summary: role == 'makhdoum'
+            ? 'رمز الحضور ظاهر هنا. أظهره لخادم الفصل.'
+            : 'ملخص اليوم. صورة الحساب فوق تفتح الملف، وتبديل الدور، والخروج.',
         actions: [
-          TourAction('علامة الاستفهام', 'تعيد هذا الشرح من أول تبويب.'),
+          if (role == 'makhdoum')
+            const TourAction('رمز الحضور', 'يفضل ظاهر من غير نت. الخادم يمسحه من تبويب الحضور.'),
+          const TourAction('علامة الاستفهام', 'تعيد هذا الشرح من أول تبويب.'),
         ],
       ),
     'الأعضاء' => const TourStep(
@@ -248,7 +252,7 @@ TourStep tourStepFor(String label, {required String? programRole}) {
         summary: 'رصيد الخدمة: المتاح، المصروف، والمكتسب.',
         actions: [
           if (role == null || role == 'makhdoum')
-            const TourAction('رمز الحضور', 'يتغير لوحده. الخادم يمسحه والاجتماع مفتوح.'),
+            const TourAction('رمز الحضور', 'يفضل ظاهر من غير نت. الخادم يمسحه من تبويب الحضور.'),
           if (role == 'amin') ...const [
             TourAction('تنفيذ الترحيل', 'يبقي حد الترحيل، والزيادة تنتهي.'),
             TourAction('معاينة نقل الفصول', 'تعرض نقل السنة قبل التنفيذ.'),

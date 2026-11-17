@@ -1,9 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/di/service_locator.dart';
+import '../../../../core/locale/app_language.dart';
+import '../../../../core/session/session_context.dart';
+import '../../../../core/utils/role_helper.dart';
+import '../../../../core/services/interface/i_api_service.dart';
 import '../../../../core/widgets/country_phone_field.dart';
 import '../../../../core/widgets/profile_field.dart';
 import '../../../../core/widgets/profile_image_picker.dart';
@@ -11,6 +16,7 @@ import '../../../authentication/model/user_model.dart';
 import '../../../authentication/view/screen/change_password_screen.dart';
 import '../../repository/i_profile_repository.dart';
 import '../../viewmodel/profile_cubit.dart';
+import '../../../program/repository/i_program_repository.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
@@ -24,6 +30,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
+  final _nameEnController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _fathersPhoneController = TextEditingController();
@@ -33,17 +40,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _fatherOfConfessionController = TextEditingController();
   DateTime? _selectedBirthdate;
   String? _selectedImagePath;
+  List<int>? _imageBytes;
+  String? _imageName;
   bool _isEditing = false;
-  final UserModel user = sl<IProfileRepository>().user!;
+  String? _serviceProgramId;
+  List<Map<String, String>> _serviceFields = const [];
+  final Map<String, TextEditingController> _extraControllers = {};
+  UserModel get user => sl<IProfileRepository>().user!;
   @override
   void initState() {
     super.initState();
     _initializeFields();
+    _loadServiceFields();
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _nameEnController.dispose();
+    for (final input in _extraControllers.values) {
+      input.dispose();
+    }
     _emailController.dispose();
     _phoneController.dispose();
     _fathersPhoneController.dispose();
@@ -56,6 +73,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _initializeFields() {
     _nameController.text = user.name!;
+    _nameEnController.text = user.nameEn ?? '';
     _emailController.text = user.email!;
     _phoneController.text = user.phoneNumber!;
     _fathersPhoneController.text = user.fathersPhoneNumber ?? '';
@@ -65,6 +83,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _fatherOfConfessionController.text = user.fatherOfConfession ?? '';
     _selectedBirthdate = user.birthdate;
     _selectedImagePath = user.profileImage;
+    _imageBytes = null;
+    _imageName = null;
   }
 
   @override
@@ -91,6 +111,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         if (user.theaterProfile != null) ...[
                           const SizedBox(height: AppSpacing.xl),
                           _buildTheaterSection(),
+                        ],
+                        if (_serviceFields.isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.xl),
+                          _buildServiceFields(),
                         ],
                         const SizedBox(height: AppSpacing.xl),
                         _buildSecuritySection(),
@@ -141,22 +165,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
               textAlign: TextAlign.center,
             ),
           ),
-          (user.role != UserRole.makhdoum && !_isEditing)
-              ? Container(
-                  margin: const EdgeInsets.only(right: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: IconButton(
-                    onPressed: _startEdit,
-                    icon: const Icon(
-                      Icons.edit,
-                      color: AppColors.accentWhite,
-                      size: 24,
+          (!_isEditing)
+              ? Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton(
+                      onPressed: () {
+                        AppLanguage.instance.toggle();
+                        setState(() {});
+                      },
+                      child: Text(
+                        AppLanguage.instance.english ? 'عربي' : 'EN',
+                        style: const TextStyle(color: AppColors.accentWhite, fontWeight: FontWeight.bold),
+                      ),
                     ),
-                    tooltip: 'تعديل الملف الشخصي',
-                  ),
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: IconButton(
+                        onPressed: _startEdit,
+                        icon: const Icon(
+                          Icons.edit,
+                          color: AppColors.accentWhite,
+                          size: 24,
+                        ),
+                        tooltip: AppLanguage.instance.t('تعديل الملف الشخصي', 'Edit profile'),
+                      ),
+                    ),
+                  ],
                 )
               : const SizedBox.shrink(),
         ],
@@ -241,6 +280,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               }
               return null;
             },
+          ),
+
+          ProfileField(
+            label: AppLanguage.instance.t('الاسم بالإنجليزي', 'English name'),
+            value: _nameEnController.text,
+            isEditable: _isEditing,
+            controller: _nameEnController,
           ),
 
           // Email field - editable for khadem, read-only for makhdoum
@@ -518,7 +564,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: BlocConsumer<ProfileCubit, ProfileState>(
         listener: (context, state) {
           if (state is ProfileSuccess) {
-            _isEditing = false;
+            setState(() {
+              _isEditing = false;
+              _initializeFields();
+            });
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
               content: Text('تم تحديث الملف الشخصي بنجاح'),
             ));
@@ -561,21 +610,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: OutlinedButton(
-                  onPressed: () {
-                    if (!_formKey.currentState!.validate()) {
-                      return;
-                    }
-                    context.read<ProfileCubit>().updateProfile(user);
-                  },
+                  onPressed: state is ProfileLoading ? null : () => _saveProfile(context),
                   style: OutlinedButton.styleFrom(
                     padding:
                         const EdgeInsets.symmetric(vertical: AppSpacing.md),
                     side: const BorderSide(color: AppColors.primaryMaroon),
+                    backgroundColor: AppColors.primaryMaroon,
                   ),
-                  child: const Text(
-                    'إلغاء',
-                    style: TextStyle(
-                      color: AppColors.primaryMaroon,
+                  child: Text(
+                    AppLanguage.instance.t('حفظ', 'Save'),
+                    style: const TextStyle(
+                      color: Colors.white,
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
@@ -855,9 +900,115 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  void _onImageChanged(String? imagePath) {
+  void _onImageChanged(String? imagePath, List<int>? bytes, String? name) {
     setState(() {
       _selectedImagePath = imagePath;
+      _imageBytes = bytes;
+      _imageName = name;
     });
+  }
+
+  Future<void> _saveProfile(BuildContext context) async {
+    if (!_formKey.currentState!.validate()) return;
+    var image = _selectedImagePath;
+    if (_imageBytes != null && _imageBytes!.isNotEmpty) {
+      try {
+        final uploaded = await sl<IApiService>().postMultipart(
+          path: 'users/me/profile-image',
+          filePath: kIsWeb ? null : image,
+          fileBytes: _imageBytes,
+          fileName: _imageName ?? 'profile.jpg',
+          contentType: 'image/jpeg',
+        );
+        final data = uploaded.data;
+        final url = data is Map ? data['imageUrl']?.toString() : null;
+        if (url != null && url.isNotEmpty) image = url;
+        _imageBytes = null;
+      } catch (_) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppLanguage.instance.t('الصورة ما اترفعتش', 'The photo was not uploaded'))),
+        );
+        return;
+      }
+    }
+    if (!context.mounted) return;
+    final updated = user.copyWith(
+      name: _nameController.text.trim(),
+      nameEn: _nameEnController.text.trim(),
+      email: _emailController.text.trim(),
+      phoneNumber: _phoneController.text.trim(),
+      fathersPhoneNumber: _fathersPhoneController.text.trim(),
+      mothersPhoneNumber: _mothersPhoneController.text.trim(),
+      address: _addressController.text.trim(),
+      addressLocationLink: _addressLocationLinkController.text.trim(),
+      fatherOfConfession: _fatherOfConfessionController.text.trim(),
+      birthdate: _selectedBirthdate,
+      profileImage: image,
+    );
+    context.read<ProfileCubit>().updateProfile(updated, clearImage: image == null);
+    final programId = _serviceProgramId;
+    if (programId != null && _serviceFields.isNotEmpty) {
+      await sl<IProgramRepository>().saveProfileFields(programId, {
+        for (final field in _serviceFields)
+          field['keyName']!: _extraControllers[field['keyName']]?.text.trim() ?? '',
+      });
+    }
+  }
+
+  Future<void> _loadServiceFields() async {
+    final program = RoleHelper.programFor(user, SessionContext.instance.current);
+    if (program == null) return;
+    final result = await sl<IProgramRepository>().summary(program.id);
+    if (!mounted) return;
+    result.fold((_) {}, (data) {
+      final rows = data['profileFields'];
+      final values = data['profileValues'];
+      final fields = <Map<String, String>>[];
+      if (rows is List) {
+        for (final row in rows.whereType<Map>()) {
+          final key = row['keyName']?.toString() ?? '';
+          if (key.isEmpty) continue;
+          fields.add({'keyName': key, 'label': (row['label'] ?? key).toString()});
+        }
+      }
+      setState(() {
+        _serviceProgramId = program.id;
+        _serviceFields = fields;
+        for (final field in fields) {
+          final key = field['keyName']!;
+          final current = values is Map ? values[key]?.toString() ?? '' : '';
+          _extraControllers.putIfAbsent(key, TextEditingController.new).text = current;
+        }
+      });
+    });
+  }
+
+  Widget _buildServiceFields() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            AppLanguage.instance.t('بيانات الخدمة', 'Service details'),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          for (final field in _serviceFields)
+            ProfileField(
+              label: field['label'] ?? '',
+              value: _extraControllers[field['keyName']]?.text ?? '',
+              isEditable: _isEditing,
+              controller: _extraControllers[field['keyName']],
+            ),
+        ],
+      ),
+    );
   }
 }

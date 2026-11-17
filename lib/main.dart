@@ -15,6 +15,7 @@ import 'core/services/sync_queue_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/update_service.dart';
 import 'core/theme/app_theme.dart';
+import 'core/locale/app_language.dart';
 import 'core/widgets/notification_listener_wrapper.dart';
 import 'core/widgets/sync_status_banner.dart';
 import 'core/widgets/update_checker.dart';
@@ -75,7 +76,18 @@ class _SaintDemianaAppState extends State<SaintDemianaApp> {
   @override
   void initState() {
     super.initState();
+    AppLanguage.instance.addListener(_onLanguage);
     _initializeApp();
+  }
+
+  @override
+  void dispose() {
+    AppLanguage.instance.removeListener(_onLanguage);
+    super.dispose();
+  }
+
+  void _onLanguage() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _initializeApp() async {
@@ -248,7 +260,7 @@ class _SaintDemianaAppState extends State<SaintDemianaApp> {
 
     return UpdateChecker(
       child: MaterialApp.router(
-        locale: const Locale('ar', 'EG'),
+        locale: AppLanguage.instance.locale,
         title: 'Saint Demiana Church',
         builder: (context, child) => Directionality(
           textDirection: TextDirection.rtl,

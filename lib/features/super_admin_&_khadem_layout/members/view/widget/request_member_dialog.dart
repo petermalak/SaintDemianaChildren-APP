@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:saint_demiana_children/core/constants/app_colors.dart';
 import 'package:saint_demiana_children/core/di/service_locator.dart';
+import 'package:saint_demiana_children/core/session/session_context.dart';
+import 'package:saint_demiana_children/core/utils/name_order.dart';
 import 'package:saint_demiana_children/core/utils/role_helper.dart';
+import 'package:saint_demiana_children/features/program/repository/i_program_repository.dart';
 import 'package:saint_demiana_children/core/widgets/class_export_selection_dialog.dart';
 import 'package:saint_demiana_children/core/widgets/custom_text_field.dart';
 import 'package:saint_demiana_children/features/authentication/model/user_model.dart';
@@ -23,14 +26,15 @@ class _RequestMemberDialogState extends State<RequestMemberDialog> {
   final _emailController = TextEditingController();
   String? _classId;
   bool _sending = false;
+  bool _loadingClasses = false;
+  List<UserClassInfo> _programClasses = const [];
 
   @override
   void initState() {
     super.initState();
-    final classes = RoleHelper.getKhademClasses(sl<IProfileRepository>().user)
-        .where((info) => !(info.className ?? '').contains('المسرح'))
-        .toList();
+    final classes = _classes;
     if (classes.length == 1) _classId = classes.first.classId;
+    _loadProgramClasses();
   }
 
   @override
@@ -41,10 +45,49 @@ class _RequestMemberDialogState extends State<RequestMemberDialog> {
     super.dispose();
   }
 
-  List<UserClassInfo> get _classes =>
-      RoleHelper.getKhademClasses(sl<IProfileRepository>().user)
-          .where((info) => !(info.className ?? '').contains('المسرح'))
-          .toList();
+  List<UserClassInfo> get _classes {
+    final seen = <String>{};
+    final list = <UserClassInfo>[];
+    final church = RoleHelper.getKhademClasses(sl<IProfileRepository>().user)
+        .where((info) => !(info.className ?? '').contains('المسرح'));
+    for (final info in [...church, ..._programClasses]) {
+      if (info.classId.isEmpty || !seen.add(info.classId)) continue;
+      if ((info.className ?? '').contains('المسرح')) continue;
+      list.add(info);
+    }
+    list.sort((a, b) => compareDisplayNames(a.className ?? '', b.className ?? ''));
+    return list;
+  }
+
+  Future<void> _loadProgramClasses() async {
+    final user = sl<IProfileRepository>().user;
+    final session = SessionContext.instance.current;
+    final program = RoleHelper.programFor(user, session);
+    final role = session?.programRole;
+    if (program == null || role == null || role == 'makhdoum') return;
+    setState(() => _loadingClasses = true);
+    final result = await sl<IProgramRepository>().catalog(program.id);
+    if (!mounted) return;
+    result.fold((_) {
+      setState(() => _loadingClasses = false);
+    }, (data) {
+      final rows = data is Map ? data['classes'] : null;
+      final extra = <UserClassInfo>[];
+      if (rows is List) {
+        for (final row in rows.whereType<Map>()) {
+          final id = row['id']?.toString() ?? '';
+          if (id.isEmpty) continue;
+          extra.add(UserClassInfo(classId: id, className: row['name']?.toString()));
+        }
+      }
+      setState(() {
+        _programClasses = extra;
+        _loadingClasses = false;
+        final classes = _classes;
+        if (classes.length == 1) _classId = classes.first.classId;
+      });
+    });
+  }
 
   Future<void> _submit({String? matchedUserId, bool confirmNewPerson = false}) async {
     final name = _nameController.text.trim();
@@ -146,7 +189,13 @@ class _RequestMemberDialogState extends State<RequestMemberDialog> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('الفصل'),
-              subtitle: Text(selected.isEmpty ? 'اختر فصلاً' : (selected.first.className ?? '')),
+              subtitle: Text(
+                _loadingClasses && selected.isEmpty
+                    ? 'بيحمّل الفصول'
+                    : selected.isEmpty
+                        ? 'اختر فصلاً'
+                        : (selected.first.className ?? ''),
+              ),
               trailing: const Icon(Icons.class_),
               onTap: classes.length <= 1
                   ? null

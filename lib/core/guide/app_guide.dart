@@ -41,7 +41,7 @@ class AppGuide {
       _account(request),
     ];
     if (request.makhdoumView || !request.staff) {
-      topics.add(_churchHome(member: true));
+      topics.add(_churchHome(member: true, service: request.programRole == 'makhdoum'));
       topics.add(_churchAttendance(member: true));
       topics.add(_news(member: true));
       if (request.hasScoring) topics.add(_classPoints(member: true));
@@ -96,7 +96,7 @@ class AppGuide {
             'نقط المسابقة مش بتتضاف لوحدها. سجّلها من بند المسابقة.',
           ],
           _ => const [
-            'من الرصيد شوف المتاح والمصروف والمكتسب، وأظهر رمز الحضور.',
+            'من الرئيسية أظهر رمز الحضور لخادم الفصل. الرمز يفضل ظاهر حتى لو النت قاطع.',
             'من المسابقة حلها في وقتها. الإجابة بتتصحح لوحدها.',
             'من الرحلات شوف حجزك، والباقي كاش، وتقدر تلغي حجزك.',
             'من السحب اطلب الكاش بعد الرحلات.',
@@ -160,13 +160,22 @@ class AppGuide {
     );
   }
 
-  static GuideTopic _churchHome({required bool member}) {
+  static GuideTopic _churchHome({required bool member, bool service = false}) {
     return GuideTopic(
       title: 'الرئيسية',
-      summary: member ? 'ملخص فصلك في الكنيسة.' : 'ملخص فصل الكنيسة اللي أنت خادمه.',
-      steps: member
-          ? const ['افتح الرئيسية عشان تشوف أخبار اليوم والاختصارات.', 'التبويبات تحت هي اللي تقدر تستخدمها.']
-          : const ['افتح الرئيسية عشان تشوف فصل الكنيسة.', 'الأزرار السريعة بتوديك للحضور والأعضاء.'],
+      summary: service
+          ? 'رمز حضورك ظاهر هنا، والخادم يمسحه من الحضور.'
+          : member
+              ? 'ملخص فصلك في الكنيسة.'
+              : 'ملخص فصل الكنيسة اللي أنت خادمه.',
+      steps: service
+          ? const [
+              'أظهر رمز الحضور لخادم الفصل.',
+              'أول ما الرمز يظهر والنت موجود، يفضل ظاهر حتى لو النت قاطع.',
+            ]
+          : member
+              ? const ['افتح الرئيسية عشان تشوف أخبار اليوم والاختصارات.', 'التبويبات تحت هي اللي تقدر تستخدمها.']
+              : const ['افتح الرئيسية عشان تشوف فصل الكنيسة.', 'الأزرار السريعة بتوديك للحضور والأعضاء.'],
     );
   }
 
@@ -279,7 +288,7 @@ class AppGuide {
           title: 'الرصيد',
           summary: 'توكن الخدمة: المتاح، والمصروف، والمكتسب.',
           steps: [
-            if (role == null || role == 'makhdoum') 'أظهر رمز الحضور لخادم الفصل. الرمز بيتغيّر لوحده.',
+            if (role == null || role == 'makhdoum') 'أظهر رمز الحضور لخادم الفصل. الرمز يفضل ظاهر من غير نت.',
             'السلسلة والمستوى يظهروا لو الإدارة مفعّلاهم.',
             if (amin) 'تنفيذ الترحيل ينقل الحد المسموح للسنة الجديدة والباقي ينتهي.',
             if (amin) 'اكتب السنة الخدمية، عاين نقل الفصول، وبعدين نفّذه.',

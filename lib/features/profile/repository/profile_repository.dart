@@ -80,16 +80,34 @@ class ProfileRepository implements IProfileRepository {
   }
 
   @override
-  Future<Either<String, Unit>> updateProfile(UserModel user) async {
+  Future<Either<String, Unit>> updateProfile(UserModel user, {bool clearImage = false}) async {
     try {
       final merged = (user.token == null || user.token!.isEmpty)
           ? user.copyWith(token: _user?.token)
           : user;
-      await _apiService.put(
-          path: ApiEndpoints.myProfile, body: merged.toJson());
-      await _storageService.updateProfile(merged);
-      _user = merged;
-      return right(unit);
+      var image = clearImage ? null : merged.profileImage;
+      if (image != null && !image.startsWith('http') && !image.startsWith('/uploads')) {
+        image = _user?.profileImage;
+      }
+      await _apiService.patch(path: ApiEndpoints.myProfile, body: {
+        'name': merged.name,
+        'nameEn': merged.nameEn,
+        'email': merged.email,
+        'phoneNumber': merged.phoneNumber,
+        'fathersPhoneNumber': merged.fathersPhoneNumber,
+        'mothersPhoneNumber': merged.mothersPhoneNumber,
+        'birthdate': merged.birthdate?.toIso8601String().split('T').first,
+        'address': merged.address,
+        'addressLocationLink': merged.addressLocationLink,
+        'fatherOfConfession': merged.fatherOfConfession,
+        'profileImage': image,
+      });
+      final refreshed = await refreshUser();
+      final saved = refreshed.fold<Either<String, Unit>>(
+        (message) => left(message),
+        (_) => right(unit),
+      );
+      return saved;
     } on DioException catch (e) {
       return left(_apiService.handleError(e));
     } catch (e) {

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:saint_demiana_children/features/authentication/viewmodel/login_cubit.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/locale/app_language.dart';
 import '../../../../core/constants/spacing.dart';
 import '../../../../core/di/service_locator.dart';
 import '../../../../core/services/interface/i_notification_service.dart';
@@ -365,6 +366,16 @@ class _LoginScreenState extends State<LoginScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: TextButton(
+                            onPressed: () {
+                              AppLanguage.instance.toggle();
+                              setState(() {});
+                            },
+                            child: Text(AppLanguage.instance.english ? 'عربي' : 'English'),
+                          ),
+                        ),
                         _buildLogoSection(context),
                         SizedBox(
                             height: isMobile ? AppSpacing.xl : AppSpacing.xxl),
@@ -589,7 +600,7 @@ class _LoginScreenState extends State<LoginScreen>
                       // Email Field
                       CustomTextField(
                         controller: _emailController,
-                        labelText: 'البريد أو الموبايل',
+                        labelText: AppLanguage.instance.t('البريد أو الموبايل', 'Email or phone'),
                         hintText: 'email or 01xxxxxxxxx',
                         keyboardType: TextInputType.emailAddress,
                         prefixIcon: Icons.person_outline,
@@ -616,7 +627,7 @@ class _LoginScreenState extends State<LoginScreen>
                       // Password Field
                       CustomTextField(
                         controller: _passwordController,
-                        labelText: 'كلمة المرور',
+                        labelText: AppLanguage.instance.t('كلمة المرور', 'Password'),
                         hintText: 'Enter your password',
                         prefixIcon: Icons.lock_outline,
                         isPassword: true,
@@ -728,7 +739,7 @@ class _LoginScreenState extends State<LoginScreen>
                                       ),
                                 }
                             },
-                            text: 'تسجيل الدخول',
+                            text: AppLanguage.instance.t('تسجيل الدخول', 'Log in'),
                           );
                         },
                       ),

@@ -66,6 +66,13 @@ abstract class IProgramRepository {
     required bool exempt,
   });
 
+  Future<Either<String, dynamic>> createEvent(
+    String programId, {
+    required String title,
+    required int price,
+    DateTime? startsOn,
+  });
+
   Future<Either<String, dynamic>> bookEvent(
     String eventId, {
     required String userId,
@@ -110,4 +117,5 @@ abstract class IProgramRepository {
   Future<Either<String, dynamic>> reverseLedger(String ledgerId);
   Future<Either<String, dynamic>> eraseData(String programId, String confirmation);
   Future<Either<String, dynamic>> deleteAccount(String confirmation);
+  Future<Either<String, dynamic>> saveProfileFields(String programId, Map<String, String> fields);
 }

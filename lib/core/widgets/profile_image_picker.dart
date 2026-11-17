@@ -1,12 +1,14 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import '../constants/api_endpoints.dart';
 import '../constants/app_colors.dart';
 import '../constants/spacing.dart';
 
 class ProfileImagePicker extends StatelessWidget {
   final String? imagePath;
-  final Function(String?) onImageChanged;
+  final void Function(String? path, List<int>? bytes, String? name) onImageChanged;
   final bool isEditable;
 
   const ProfileImagePicker({
@@ -41,15 +43,7 @@ class ProfileImagePicker extends StatelessWidget {
                 ],
               ),
               child: ClipOval(
-                child: imagePath != null && imagePath!.isNotEmpty
-                    ? Image.file(
-                        File(imagePath!),
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return _buildDefaultAvatar();
-                        },
-                      )
-                    : _buildDefaultAvatar(),
+                child: _preview(imagePath),
               ),
             ),
           ),
@@ -73,7 +67,7 @@ class ProfileImagePicker extends StatelessWidget {
             ),
           if (imagePath != null && imagePath!.isNotEmpty && isEditable)
             TextButton.icon(
-              onPressed: () => onImageChanged(null),
+              onPressed: () => onImageChanged(null, null, null),
               icon: const Icon(
                 Icons.delete,
                 color: AppColors.error,
@@ -90,6 +84,25 @@ class ProfileImagePicker extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+
+  Widget _preview(String? path) {
+    if (path == null || path.isEmpty) return _buildDefaultAvatar();
+    if (path.startsWith('http') || path.startsWith('/') || path.startsWith('blob:') || kIsWeb) {
+      final url = path.startsWith('http') || path.startsWith('blob:')
+          ? path
+          : ApiEndpoints.fullUrlForPath(path);
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _buildDefaultAvatar(),
+      );
+    }
+    return Image.file(
+      File(path),
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _buildDefaultAvatar(),
     );
   }
 
@@ -213,7 +226,8 @@ class ProfileImagePicker extends StatelessWidget {
       Navigator.pop(context); // Close bottom sheet
 
       if (image != null) {
-        onImageChanged(image.path);
+        final bytes = await image.readAsBytes();
+        onImageChanged(image.path, bytes, image.name);
       }
     } catch (e) {
       Navigator.pop(context); // Close bottom sheet

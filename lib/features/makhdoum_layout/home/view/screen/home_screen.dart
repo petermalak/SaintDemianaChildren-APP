@@ -9,6 +9,8 @@ import '../../../../profile/repository/i_profile_repository.dart';
 import '../../../../../core/session/session_context.dart';
 import '../../../../../core/utils/role_helper.dart';
 import '../../../../pope_athanasius/view/widget/meeting_profile_section.dart';
+import '../../../../program/repository/i_program_repository.dart';
+import '../../../../program/view/program_qr_card.dart';
 import '../../../../super_admin_&_khadem_layout/attendance_qr/constants.dart';
 import '../../../attendance/repository/i_attendance_repository.dart';
 import '../../../attendance/viewmodel/attendance_cubit.dart';
@@ -31,6 +33,10 @@ class HomeScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildWelcomeSection(user),
+            if (_serviceQr(user) case final program?) ...[
+              const SizedBox(height: 16),
+              ProgramQrCard(programId: program.id, programs: sl<IProgramRepository>()),
+            ],
             if (_showsPopeMeeting(user)) ...[
               const SizedBox(height: 20),
               _buildAgendaCard(context),
@@ -50,6 +56,14 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  ProgramMembership? _serviceQr(UserModel user) {
+    final session = SessionContext.instance.current;
+    if (session?.programRole != 'makhdoum') return null;
+    final program = RoleHelper.programFor(user, session);
+    if (program == null || program.features['qr'] == false) return null;
+    return program;
   }
 
   bool _showsPopeMeeting(UserModel? user) {

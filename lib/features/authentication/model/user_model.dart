@@ -10,6 +10,7 @@ enum UserRole {
 class UserModel extends Equatable {
   final String? id;
   String? name;
+  String? nameEn;
   String? email;
   String? token;
   String? phoneNumber;
@@ -36,6 +37,7 @@ class UserModel extends Equatable {
   UserModel({
     this.id,
     this.name,
+    this.nameEn,
     this.email,
     this.phoneNumber,
     this.password,
@@ -150,6 +152,7 @@ class UserModel extends Equatable {
     return UserModel(
       id: json['id'] ?? '',
       name: json['name'] ?? '',
+      nameEn: json['nameEn'] as String?,
       email: json['email'],
       token: token,
       classId: extractedClassId,
@@ -195,6 +198,7 @@ class UserModel extends Equatable {
     final json = {
       'id': id,
       'name': name,
+      'nameEn': nameEn,
       'email': email,
       'token': token, // Save token for persistence
       'classId': classId, // Save class ID
@@ -271,6 +275,7 @@ class UserModel extends Equatable {
   UserModel copyWith({
     String? id,
     String? name,
+    String? nameEn,
     String? email,
     String? token,
     String? classId,
@@ -297,6 +302,7 @@ class UserModel extends Equatable {
     return UserModel(
       id: id ?? this.id,
       name: name ?? this.name,
+      nameEn: nameEn ?? this.nameEn,
       email: email ?? this.email,
       token: token ?? this.token,
       classId: classId ?? this.classId,
@@ -354,6 +360,7 @@ class UserModel extends Equatable {
   List<Object?> get props => [
         id,
         name,
+        nameEn,
         email,
         token,
         classId,
