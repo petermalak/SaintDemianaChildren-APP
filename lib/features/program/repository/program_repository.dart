@@ -188,11 +188,13 @@ class ProgramRepository implements IProgramRepository {
     String programId, {
     required String title,
     DateTime? opensAt,
+    DateTime? closesAt,
     required List<Map<String, dynamic>> questions,
   }) {
     return _post(ApiEndpoints.programQuizzes(programId), {
       'title': title,
       'opensAt': opensAt?.toUtc().toIso8601String(),
+      'closesAt': closesAt?.toUtc().toIso8601String(),
       'questions': questions,
     });
   }
@@ -202,11 +204,13 @@ class ProgramRepository implements IProgramRepository {
     String quizId, {
     required String title,
     DateTime? opensAt,
+    DateTime? closesAt,
     required List<Map<String, dynamic>> questions,
   }) {
     return _request(() => _api.patch(path: ApiEndpoints.programQuiz(quizId), body: {
       'title': title,
       'opensAt': opensAt?.toUtc().toIso8601String(),
+      'closesAt': closesAt?.toUtc().toIso8601String(),
       'questions': questions,
     }));
   }

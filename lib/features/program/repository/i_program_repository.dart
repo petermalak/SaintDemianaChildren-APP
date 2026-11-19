@@ -86,6 +86,7 @@ abstract class IProgramRepository {
     String programId, {
     required String title,
     DateTime? opensAt,
+    DateTime? closesAt,
     required List<Map<String, dynamic>> questions,
   });
 
@@ -93,6 +94,7 @@ abstract class IProgramRepository {
     String quizId, {
     required String title,
     DateTime? opensAt,
+    DateTime? closesAt,
     required List<Map<String, dynamic>> questions,
   });
 

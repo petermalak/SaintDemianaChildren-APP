@@ -26,6 +26,7 @@ class _ProgramQuizPageState extends State<ProgramQuizPage> {
   List<Map<String, dynamic>> _results = const [];
   Map<String, dynamic>? _open;
   DateTime? _opensAt;
+  DateTime? _closesAt;
   String? _editingId;
   bool _editing = false;
   bool _loading = true;
@@ -91,6 +92,7 @@ class _ProgramQuizPageState extends State<ProgramQuizPage> {
       _editing = true;
       _editingId = paper['id']?.toString();
       _opensAt = DateTime.tryParse(paper['opensAt']?.toString() ?? '')?.toLocal();
+      _closesAt = DateTime.tryParse(paper['closesAt']?.toString() ?? '')?.toLocal();
       _draft = [
         for (final question in _maps(paper['questions']))
           {
@@ -113,6 +115,7 @@ class _ProgramQuizPageState extends State<ProgramQuizPage> {
       _editing = true;
       _editingId = null;
       _opensAt = null;
+      _closesAt = null;
       _draft = const [];
       _results = const [];
       _open = null;
@@ -189,8 +192,8 @@ class _ProgramQuizPageState extends State<ProgramQuizPage> {
     setState(() => _busy = true);
     final editingId = _editingId;
     final result = editingId == null
-        ? await _programs.createQuiz(widget.programId, title: _title.text.trim(), opensAt: _opensAt, questions: _draft)
-        : await _programs.updateQuiz(editingId, title: _title.text.trim(), opensAt: _opensAt, questions: _draft);
+        ? await _programs.createQuiz(widget.programId, title: _title.text.trim(), opensAt: _opensAt, closesAt: _closesAt, questions: _draft)
+        : await _programs.updateQuiz(editingId, title: _title.text.trim(), opensAt: _opensAt, closesAt: _closesAt, questions: _draft);
     if (!mounted) return;
     setState(() => _busy = false);
     result.fold(_toast, (data) {
@@ -240,6 +243,21 @@ class _ProgramQuizPageState extends State<ProgramQuizPage> {
     setState(() => _opensAt = DateTime(date.year, date.month, date.day, time.hour, time.minute));
   }
 
+  Future<void> _pickCloseTime() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _closesAt ?? _opensAt ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(context: context, initialTime: TimeOfDay.fromDateTime(_closesAt ?? _opensAt ?? DateTime.now()));
+    if (time == null) return;
+    setState(() => _closesAt = DateTime(date.year, date.month, date.day, time.hour, time.minute));
+  }
+
+  String _clock(DateTime when) => '${when.day}/${when.month} ${when.hour}:${when.minute.toString().padLeft(2, '0')}';
+
   void _toast(String message) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
@@ -286,6 +304,7 @@ class _ProgramQuizPageState extends State<ProgramQuizPage> {
 
   Widget _editor() {
     final when = _opensAt;
+    final until = _closesAt;
     return Column(
       children: [
         Expanded(
@@ -306,9 +325,17 @@ class _ProgramQuizPageState extends State<ProgramQuizPage> {
               CustomTextField(controller: _title, labelText: 'اسم المسابقة'),
               const SizedBox(height: 12),
               _card(
-                title: when == null ? 'تتفتح دلوقتي' : 'تتفتح ${when.day}/${when.month} ${when.hour}:${when.minute.toString().padLeft(2, '0')}',
+                title: when == null ? 'تتفتح دلوقتي' : 'تتفتح ${_clock(when)}',
                 subtitle: 'اختار وقت الفتح',
                 onTap: _pickOpenTime,
+              ),
+              const SizedBox(height: 8),
+              _card(
+                title: until == null ? 'من غير وقت قفل' : 'بتقفل ${_clock(until)}',
+                subtitle: 'اختار وقت القفل',
+                trailing: until == null ? null : 'مسح',
+                onTap: _pickCloseTime,
+                onTrailing: until == null ? null : () => setState(() => _closesAt = null),
               ),
               const SizedBox(height: 8),
               Text('تعديل الأسئلة يمسح إجابات الأولاد.', style: TextStyle(color: AppColors.textSecondary)),
